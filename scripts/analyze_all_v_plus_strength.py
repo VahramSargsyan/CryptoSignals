@@ -11,16 +11,16 @@ DAYS_BACK = 10
 def calculate_signal_strength(row):
     strength = 0
 
-    # Стратегия BUY
+    # BUY signal
     if row['Close'] <= row['Lower'] and row['StochRSI'] < 20 and row['Volume'] > row['MA_Volume']:
-        strength += (20 - row['StochRSI']) * 2  # до 40 баллов
+        strength += (20 - row['StochRSI']) * 2
         bb_diff = (row['Lower'] - row['Close']) / row['Lower']
-        strength += min(bb_diff * 100, 30)       # до 30 баллов
+        strength += min(bb_diff * 100, 30)
         vol_boost = (row['Volume'] - row['MA_Volume']) / row['MA_Volume']
-        strength += min(vol_boost * 100, 30)      # до 30 баллов
+        strength += min(vol_boost * 100, 30)
         return 'BUY', round(min(strength, 100), 1)
 
-    # Стратегия SELL
+    # SELL signal
     elif row['Close'] >= row['Upper'] and row['StochRSI'] > 80 and row['Volume'] > row['MA_Volume']:
         strength += (row['StochRSI'] - 80) * 2
         bb_diff = (row['Close'] - row['Upper']) / row['Upper']
@@ -31,27 +31,31 @@ def calculate_signal_strength(row):
 
     return None, 0
 
-def get_entry_percent(strength):
+def get_action_and_change(signal, strength):
     if strength < 40:
-        return 0
+        return "Ignore", 0
     elif strength < 60:
-        return 25
+        return "Enter" if signal == "BUY" else "Reduce", 25
     elif strength < 80:
-        return 50
+        return "Enter" if signal == "BUY" else "Reduce", 50
     else:
-        return 100
+        return "Enter" if signal == "BUY" else "Exit", 100
 
 # Загрузка токенов
 tokens_df = pd.read_csv(TOKENS_FILE)
 symbols = tokens_df['symbol'].tolist()
 
+
+
 results = []
-print("📊 Bollasto V+ with Signal Strength\n")
+today_str = datetime.now().strftime("%Y-%m-%d")
+signals_today = []
+signals_recent = []
 
 for symbol in symbols:
     file_path = os.path.join(DATA_DIR, f"{symbol}.csv")
     if not os.path.exists(file_path):
-        print(f"⚠️ {symbol}: file not found, skipping.")
+        print(f"{symbol}: file not found, skipping.")
         continue
 
     try:
@@ -69,25 +73,48 @@ for symbol in symbols:
         for date, row in recent[::-1].iterrows():
             signal, strength = calculate_signal_strength(row)
             if signal:
-                results.append({
+                action, change = get_action_and_change(signal, strength)
+                result = {
                     "Symbol": symbol,
                     "Signal": signal,
+                    "Action": action,
                     "Date": date.strftime("%Y-%m-%d"),
                     "Price": round(row['Close'], 6),
                     "Strength": strength,
-                    "Entry %": get_entry_percent(strength)
-                })
+                    "Change %": change
+                }
+                if date.strftime("%Y-%m-%d") == today_str:
+                    signals_today.append(result)
+                else:
+                    signals_recent.append(result)
                 break
 
     except Exception as e:
-        print(f"❌ {symbol}: Error — {str(e)}")
+        print(f"{symbol}: Error — {str(e)}")
 
-# Вывод
-if results:
-    df_result = pd.DataFrame(results)
-    df_result.sort_values(by="Symbol", inplace=True)
-    df_result.to_csv(OUTPUT_FILE, index=False)
-    print(f"\n✅ Saved report to {OUTPUT_FILE}:\n")
-    print(df_result.to_string(index=False))
+# === ВЫВОД ===
+
+
+# Отдельный блок для всех сигналов (на сегодня + прошлые)
+all_signals = signals_today + signals_recent
+
+if all_signals:
+    df_all = pd.DataFrame(all_signals)
+    df_all.sort_values(by="Symbol", inplace=True)
+    df_all.to_csv(OUTPUT_FILE, index=False)
+
+    #  ДОБАВЛЯЕМ ЭТО: вывод полного отчёта в консоль
+    print(f"\nFull signal report:\n")
+    print(df_all.to_string(index=False))
+
+    print(f"\nFull report saved to {OUTPUT_FILE}.")
 else:
-    print("🟡 No strong signals found in last days.")
+    print("No signals in the last 10 days.")
+
+
+if signals_today:
+    print(f"\nSignals found for today ({today_str}):\n")
+    df_today = pd.DataFrame(signals_today)
+    print(df_today.to_string(index=False))
+else:
+    print(f"\nNo signals found for today ({today_str}).\n")
