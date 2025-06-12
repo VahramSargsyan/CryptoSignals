@@ -11,22 +11,33 @@ DAYS_BACK = 10
 def calculate_signal_strength(row):
     strength = 0
 
-    # BUY signal
+    # === Расчёт силы тела свечи ===
+    if row['High'] != row['Low']:
+        body_strength = abs(row['Close'] - row['Open']) / (row['High'] - row['Low'])
+    else:
+        body_strength = 0
+
+    if body_strength < 0.2:
+        return None, 0  # Игнорировать слабые свечи
+
+    # === BUY ===
     if row['Close'] <= row['Lower'] and row['StochRSI'] < 20 and row['Volume'] > row['MA_Volume']:
         strength += (20 - row['StochRSI']) * 2
         bb_diff = (row['Lower'] - row['Close']) / row['Lower']
         strength += min(bb_diff * 100, 30)
         vol_boost = (row['Volume'] - row['MA_Volume']) / row['MA_Volume']
         strength += min(vol_boost * 100, 30)
+        strength += body_strength * 10  # до 10 баллов
         return 'BUY', round(min(strength, 100), 1)
 
-    # SELL signal
+    # === SELL ===
     elif row['Close'] >= row['Upper'] and row['StochRSI'] > 80 and row['Volume'] > row['MA_Volume']:
         strength += (row['StochRSI'] - 80) * 2
         bb_diff = (row['Close'] - row['Upper']) / row['Upper']
         strength += min(bb_diff * 100, 30)
         vol_boost = (row['Volume'] - row['MA_Volume']) / row['MA_Volume']
         strength += min(vol_boost * 100, 30)
+        strength += body_strength * 10  # до 10 баллов
         return 'SELL', round(min(strength, 100), 1)
 
     return None, 0
