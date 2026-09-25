@@ -8,6 +8,7 @@ from strategies.crypto.link_level_grid.strategy import (
     RollingRangePolicy,
     _dynamic_exit_uses_wide,
     _entry_filter_allows,
+    _moving_average_exit_target,
     _mid_target,
     build_causal_range_schedule,
     main_level_allocations,
@@ -373,11 +374,86 @@ class LinkLevelGridStrategyTests(unittest.TestCase):
         )
 
 
+    def test_moving_average_exit_target_uses_previous_closed_values(self):
+        lot = OpenLot(
+            layer="MICRO",
+            slot_id=1,
+            main_level=1,
+            entry_sublevel=1,
+            entry_timestamp=pd.Timestamp("2026-01-01", tz="UTC"),
+            entry_position=0,
+            entry_price=100.0,
+            units=1.0,
+            invested_cash=100.0,
+            target_price=110.0,
+            percent_target_price=None,
+            grid_target_price=110.0,
+            entry_grid_high=200.0,
+            entry_grid_low=50.0,
+            recovery_sublevels_used=6,
+        )
+        previous = pd.Series(
+            {
+                "sma_25": 108.0,
+                "sma_50": 115.0,
+                "sma_100": 120.0,
+                "sma_200": 130.0,
+            }
+        )
+        target, reason = _moving_average_exit_target(
+            layer="MICRO",
+            lot=lot,
+            policy="NEAREST_PAIRS",
+            previous_features=previous,
+        )
+        self.assertEqual(target, 108.0)
+        self.assertEqual(reason, "MICRO_SMA_25_RECLAIM")
+
+        target, reason = _moving_average_exit_target(
+            layer="MICRO",
+            lot=lot,
+            policy="FARTHEST_PAIRS",
+            previous_features=previous,
+        )
+        self.assertEqual(target, 115.0)
+        self.assertEqual(reason, "MICRO_SMA_50_RECLAIM")
+
+    def test_moving_average_exit_ignores_ma_below_entry(self):
+        lot = OpenLot(
+            layer="MID",
+            slot_id=1,
+            main_level=1,
+            entry_sublevel=4,
+            entry_timestamp=pd.Timestamp("2026-01-01", tz="UTC"),
+            entry_position=0,
+            entry_price=100.0,
+            units=1.0,
+            invested_cash=100.0,
+            target_price=126.0,
+            percent_target_price=126.0,
+            grid_target_price=None,
+            entry_grid_high=200.0,
+            entry_grid_low=50.0,
+            recovery_sublevels_used=18,
+        )
+        previous = pd.Series({"sma_100": 90.0, "sma_200": 95.0})
+        target, reason = _moving_average_exit_target(
+            layer="MID",
+            lot=lot,
+            policy="NEAREST_PAIRS",
+            previous_features=previous,
+        )
+        self.assertIsNone(target)
+        self.assertIsNone(reason)
+
+
     def test_entry_filter_config_validation(self):
         with self.assertRaisesRegex(ValueError, "Unknown entry_filter"):
             GridBacktestConfig(entry_filter="FUTURE_MAGIC")
         with self.assertRaisesRegex(ValueError, "Unknown dynamic_exit_policy"):
             GridBacktestConfig(dynamic_exit_policy="FUTURE_MAGIC")
+        with self.assertRaisesRegex(ValueError, "Unknown ma_exit_policy"):
+            GridBacktestConfig(ma_exit_policy="FUTURE_MAGIC")
 
 
     def test_backtest_keeps_micro_and_mid_capital_separate(self):
