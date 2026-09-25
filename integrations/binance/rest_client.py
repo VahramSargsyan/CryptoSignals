@@ -10,7 +10,7 @@ from urllib.request import urlopen
 import pandas as pd
 
 SPOT_KLINES_PATH = "/api/v3/klines"
-DEFAULT_BASE_URL = "https://api.binance.com"
+DEFAULT_BASE_URL = "https://data-api.binance.vision"
 MAX_KLINES_PER_REQUEST = 1000
 
 
