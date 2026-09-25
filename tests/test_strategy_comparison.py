@@ -39,6 +39,59 @@ class StrategyComparisonTests(unittest.TestCase):
             self.assertEqual(result["evidence"]["manifest"]["strategy_id"], strategy_id)
             self.assertEqual(result["evidence"]["run_id"], result["manifest"].run_id)
 
+    def test_explicit_candidate_selection_does_not_change_default_v1_v2_set(self):
+        dataset = load_csv_dataset(
+            FIXTURE,
+            symbol="SAGAUSDT",
+            timeframe="1D",
+            source="BINANCE",
+        )
+        comparison = compare_strategies_on_dataset(
+            dataset,
+            source_commit_sha="candidate-test-sha",
+            validation_type="LOCAL_CANDIDATE_SMOKE",
+            strategy_ids=("STOCHRSI_CROSS_V1",),
+        )
+
+        summary = comparison["summary"]
+        self.assertEqual(len(summary), 1)
+        self.assertEqual(list(summary["strategy_id"]), ["STOCHRSI_CROSS_V1"])
+        result = comparison["strategies"]["STOCHRSI_CROSS_V1"]
+        self.assertEqual(
+            result["manifest"].parameters,
+            {
+                "rsi_window": 14,
+                "stoch_window": 14,
+                "smooth_k": 10,
+                "smooth_d": 3,
+                "signal_logic": "STRICT_K_D_CROSS",
+            },
+        )
+
+        default = compare_strategies_on_dataset(
+            dataset,
+            source_commit_sha="accepted-test-sha",
+            validation_type="LOCAL_FIXTURE_SMOKE",
+        )
+        self.assertEqual(
+            set(default["summary"]["strategy_id"]),
+            {"VAHRAM_ORIGINAL_V1", "VAHRAM_TRUE_STOCHRSI_V2"},
+        )
+
+    def test_unknown_candidate_is_rejected_before_execution(self):
+        dataset = load_csv_dataset(
+            FIXTURE,
+            symbol="SAGAUSDT",
+            timeframe="1D",
+            source="BINANCE",
+        )
+        with self.assertRaisesRegex(ValueError, "Unknown strategy_ids"):
+            compare_strategies_on_dataset(
+                dataset,
+                source_commit_sha="test",
+                strategy_ids=("NOT_A_STRATEGY",),
+            )
+
     def test_critical_dataset_quality_blocks_formal_comparison(self):
         dataset = load_csv_dataset(
             FIXTURE,
