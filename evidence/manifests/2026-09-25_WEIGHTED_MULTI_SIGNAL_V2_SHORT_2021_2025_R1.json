@@ -1,0 +1,140 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "WEIGHTED_MULTI_SIGNAL_V2_SHORT_2021_2025_R1",
+  "status": "DEVELOPMENT_SHORT_RESEARCH_COMPLETED",
+  "acceptance_decision_allowed": false,
+  "validation_type": "DEVELOPMENT_SHORT_RESEARCH_2021_2025_WARMUP_CORRECTED",
+  "strategy": {
+    "strategy_id": "WEIGHTED_MULTI_SIGNAL_V2",
+    "strategy_version": "2.0.0",
+    "formula_changed": false
+  },
+  "execution": {
+    "engine_name": "SHORT_ONLY_SIGNAL_FLIP_V1",
+    "position_mode": "SHORT_ONLY_FULL_EQUITY_1X_NOTIONAL",
+    "entry_signal": "SELL",
+    "exit_signal": "BUY",
+    "fee_bps": 10,
+    "slippage_bps": 5,
+    "bankruptcy_policy": "ZERO_EQUITY_LIQUIDATION_AT_INTRADAY_HIGH"
+  },
+  "source_commit_sha": "30c871ee9237217816572dcbf72ef0b6d43a8fb8",
+  "research_branch_head_sha": "fde6f059c6bdfb02484d6cddb27a86e6c0bd2d40",
+  "workflow_run_id": 36193017614,
+  "artifact": {
+    "artifact_id": 10888828037,
+    "digest": "sha256:9e9a865db0513b65699d7574d3bec1a71c09636e2d2336c38d91c4ca12450ce4",
+    "file_count": 81,
+    "expires_at": "2026-10-25T21:43:32Z"
+  },
+  "verification": {
+    "unit_regression_tests": 103,
+    "unit_regression_passed": 103,
+    "successful_symbols": 13,
+    "requested_symbols": 13,
+    "runtime_status": "PASS"
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "timeframe": "1D",
+    "data_start": "2020-01-01T00:00:00Z",
+    "evaluation_start": "2021-01-01T00:00:00Z",
+    "exclusive_end": "2026-01-01T00:00:00Z"
+  },
+  "aggregate": {
+    "signal_count": 1498,
+    "event_observation_count": 5979,
+    "closed_trades": 220,
+    "pooled_win_rate": 0.45454545454545453,
+    "pooled_average_net_trade_return": -0.0008509386843201874,
+    "pooled_median_net_trade_return": -0.010834928861084725,
+    "pooled_profit_factor": 0.9887113288016589,
+    "positive_total_return_symbols": 6,
+    "short_benchmark_beaten_symbols": 10,
+    "median_symbol_max_drawdown": 0.6835202662535017,
+    "median_symbol_total_return": -0.4395177390281897,
+    "mean_symbol_total_return": 0.02502861091716147
+  },
+  "temporal_diagnostics": {
+    "2021": {
+      "trades": 25,
+      "win_rate": 0.56,
+      "average_return": 0.009169594665950903,
+      "median_return": 0.07403457565806804,
+      "profit_factor": 1.0758057098791445,
+      "liquidations": 1
+    },
+    "2022": {
+      "trades": 41,
+      "win_rate": 0.4146341463414634,
+      "average_return": 0.018389847141635284,
+      "median_return": -0.04371465531096552,
+      "profit_factor": 1.285344517108808,
+      "liquidations": 0
+    },
+    "2023": {
+      "trades": 37,
+      "win_rate": 0.4864864864864865,
+      "average_return": -0.06955573046499698,
+      "median_return": -0.0025301924245281215,
+      "profit_factor": 0.36285132602524023,
+      "liquidations": 1
+    },
+    "2024": {
+      "trades": 51,
+      "win_rate": 0.37254901960784315,
+      "average_return": -0.022084819688476615,
+      "median_return": -0.038067627963890516,
+      "profit_factor": 0.7027271088694826,
+      "liquidations": 0
+    },
+    "2025": {
+      "trades": 66,
+      "win_rate": 0.48484848484848486,
+      "average_return": 0.038325116989559614,
+      "median_return": -0.008428064345049446,
+      "profit_factor": 1.8188283143144783,
+      "liquidations": 0
+    }
+  },
+  "entry_strength_context": {
+    "80": {
+      "trades": 158,
+      "win_rate": 0.43037974683544306,
+      "average_return": -0.010576661492933594,
+      "median_return": -0.012089375431948768,
+      "profit_factor": 0.8647206711991225,
+      "liquidations": 1
+    },
+    "100": {
+      "trades": 62,
+      "win_rate": 0.5161290322580645,
+      "average_return": 0.02393396782795267,
+      "median_return": 0.0015731374153244992,
+      "profit_factor": 1.3507619020872077,
+      "liquidations": 1
+    }
+  },
+  "zero_equity_liquidations": [
+    {
+      "symbol": "ETHUSDT",
+      "entry_signal_timestamp": "2021-01-21T00:00:00Z",
+      "exit_timestamp": "2021-04-13T00:00:00Z",
+      "net_return": -1
+    },
+    {
+      "symbol": "OSMOUSDT",
+      "entry_signal_timestamp": "2023-10-08T00:00:00Z",
+      "exit_timestamp": "2023-11-02T00:00:00Z",
+      "net_return": -1
+    }
+  ],
+  "interpretation_guardrails": [
+    "Development evidence only; not independent validation.",
+    "Pooled PF is below 1 and median symbol total return is strongly negative.",
+    "Two symbols hit the explicit zero-equity liquidation rule.",
+    "Beating the short benchmark on 10/13 symbols is not strong evidence because the 1x continuous short benchmark itself reaches -100% on many rising crypto assets.",
+    "Strength-100 entries are descriptively stronger than strength-80 entries, but this grouping is post-hoc and does not equal a separately executed threshold-100 policy.",
+    "No live/paper-live shorting or acceptance is authorized."
+  ]
+}
