@@ -1,11 +1,7 @@
 name: Grid Reinvest Runner Research
 
 on:
-  push:
-    branches:
-      - research/grid-reinvest-runner-v1
-    paths:
-      - research_requests/run_grid_reinvest_runner_v1.trigger
+  workflow_dispatch:
 
 permissions:
   contents: read
