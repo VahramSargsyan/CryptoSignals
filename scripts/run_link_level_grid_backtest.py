@@ -57,7 +57,18 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run experimental VAHRAM_LINK_LEVEL_GRID_V1 research backtest."
     )
     parser.add_argument("--symbol", default="LINKUSDT")
-    parser.add_argument("--years", type=int, default=3)
+    parser.add_argument(
+        "--history-years",
+        type=int,
+        default=6,
+        help="Total historical years to download (default: 6).",
+    )
+    parser.add_argument(
+        "--trade-years",
+        type=int,
+        default=3,
+        help="Final years used for trading/evaluation (default: 3).",
+    )
     parser.add_argument("--start")
     parser.add_argument("--end")
     parser.add_argument("--source-commit")
@@ -75,7 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fee-bps", type=float, default=10.0)
     parser.add_argument("--slippage-bps", type=float, default=5.0)
     parser.add_argument("--range-lookback-candles", type=int, default=1095)
-    parser.add_argument("--range-min-history-candles", type=int, default=90)
+    parser.add_argument("--range-min-history-candles", type=int, default=1095)
     parser.add_argument("--range-refresh-candles", type=int, default=30)
     parser.add_argument("--ten-sublevel-from-main", type=int, default=7)
     parser.add_argument("--liquidate-at-end", action="store_true")
@@ -89,13 +100,24 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.years <= 0:
-        raise ValueError("years must be positive")
+    if args.history_years <= 0:
+        raise ValueError("history-years must be positive")
+    if args.trade_years <= 0:
+        raise ValueError("trade-years must be positive")
+    if args.history_years <= args.trade_years:
+        raise ValueError("history-years must be greater than trade-years")
 
     cutoff = _utc(args.end) if args.end else _default_cutoff()
-    start = _utc(args.start) if args.start else cutoff - pd.DateOffset(years=args.years)
-    if start >= cutoff:
-        raise ValueError("start must be earlier than end")
+    trade_start = cutoff - pd.DateOffset(years=args.trade_years)
+    start = (
+        _utc(args.start)
+        if args.start
+        else cutoff - pd.DateOffset(years=args.history_years)
+    )
+    if start >= trade_start:
+        raise ValueError(
+            "download start must be earlier than trade_start so H/L has prehistory"
+        )
 
     source_commit_sha = _resolve_source_commit(args.source_commit)
     download = download_historical_dataset(
@@ -133,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
         dataset_id=download.dataset.dataset_id,
         source_commit_sha=source_commit_sha,
         config=config,
+        evaluation_start=trade_start,
     )
 
     run_dir = args.output_root / result.run_id
@@ -155,7 +178,10 @@ def main(argv: list[str] | None = None) -> int:
     summary = result.summary
     print(f"run_id={result.run_id}")
     print(f"dataset_id={summary['dataset_id']}")
-    print(f"candles={summary['candles']}")
+    print(f"dataset_candles={summary['dataset_candles']}")
+    print(f"prehistory_candles={summary['prehistory_candles']}")
+    print(f"trading_candles={summary['candles']}")
+    print(f"trading_period_start={summary['period_start']}")
     print(f"allocation_preset={summary['allocation_preset']}")
     print(f"total_return={summary['total_return']:.6f}")
     print(f"micro_total_return={summary['micro_total_return']:.6f}")
