@@ -1,0 +1,66 @@
+name: Strategy Lab Research
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "research-run/**"
+    paths:
+      - "research_requests/*.json"
+
+permissions:
+  contents: read
+
+jobs:
+  pre-oos-comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install research dependency
+        run: python -m pip install "pandas==2.2.3"
+
+      - name: Run unit and regression tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Resolve accepted source commit
+        shell: bash
+        run: |
+          git fetch origin main
+          echo "SOURCE_COMMIT_SHA=$(git merge-base HEAD origin/main)" >> "$GITHUB_ENV"
+
+      - name: Resolve research request
+        shell: bash
+        run: |
+          REQUEST_FILE="$(find research_requests -maxdepth 1 -type f -name '*.json' | sort | tail -n 1)"
+          if [ -z "$REQUEST_FILE" ]; then
+            echo "No research request JSON found"
+            exit 2
+          fi
+          echo "REQUEST_FILE=$REQUEST_FILE" >> "$GITHUB_ENV"
+
+      - name: Run pre-OOS strategy comparison
+        run: |
+          python scripts/run_strategy_comparison.py \
+            --request-file "$REQUEST_FILE" \
+            --source-commit "$SOURCE_COMMIT_SHA" \
+            --output-dir research_artifacts
+
+      - name: Upload research evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cryptosignals-strategy-lab-research
+          path: research_artifacts/
+          if-no-files-found: error
+          retention-days: 30
