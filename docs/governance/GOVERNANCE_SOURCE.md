@@ -1,33 +1,32 @@
 # Governance Source
 
-Local governance version: **VAHRAM_APP_GOVERNANCE v0.4.9**
+Universal governance version: **VAHRAM_APP_GOVERNANCE v1.0.0**
 
-Canonical investment overlay:
-`VahramSargsyan/investment-cases` -> `PROJECT_GOVERNANCE.md`
+Canonical universal source:
+`VahramSargsyan/vbos-app/docs/governance/VAHRAM_APP_UNIVERSAL_GOVERNANCE_v1.0.0.md`
 
-Upstream origin:
+Local profile: **INVESTMENT_STRATEGY_LAB**
 
-- Vahram APP v0.4.9 workflow/guardrail package;
-- VBOS `PROJECT_GOVERNANCE.md`;
-- VBOS `AGENTS.md`;
-- VBOS production schema mutation rules;
-- VBOS Golden Architecture / Google Sheets performance rules.
+Canonical investment-specific overlay: `VahramSargsyan/investment-cases` -> `PROJECT_GOVERNANCE.md`.
+
+Historical origin includes the v0.4.9 APP workflow/Golden Architecture package plus later VBOS/HMT governance improvements consolidated into v1.0.0.
 
 ## Local self-contained rule
 
-This repository keeps its own local governance adapter so it remains safe and understandable when opened independently.
+This repository keeps a small local governance adapter so it remains safe and understandable when opened independently.
 
-It does **not** require a Git submodule or mandatory cross-repository read for basic P0 discovery.
+It does not require a Git submodule or mandatory cross-repository fetch for basic P0 discovery.
 
-The canonical Investment Lab repository owns the investment-specific governance overlay; this repository owns CryptoSignals-specific constraints.
+Local rules may be stricter than v1.0.0 but must not silently weaken it.
 
 ## Sync rule
 
-When governance changes materially:
+When universal governance changes materially:
 
-1. update the canonical Investment Lab governance source;
+1. update the canonical universal governance in `vbos-app/docs/governance/`;
 2. bump the governance version;
-3. synchronize affected local adapters;
-4. record project-specific deviations explicitly.
+3. update the central GOVERNANCE_REGISTRY;
+4. synchronize affected active repositories;
+5. record project-specific deviations explicitly.
 
 Silent divergence is not allowed.
