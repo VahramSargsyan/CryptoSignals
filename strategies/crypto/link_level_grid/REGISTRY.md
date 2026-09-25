@@ -88,3 +88,24 @@ Before status can move from BACKTESTED to ACCEPTED:
 ## Notes
 
 The first historical run is evidence that the implementation works and can be tested reproducibly. It is not evidence that the current research assumptions are the final intended strategy or that future returns are expected.
+
+
+## Cross-asset evidence
+
+### SOLUSDT — 2026-09-25
+
+Validation type: CROSS_ASSET_RESEARCH / NOT FORMAL OOS  
+Run ID: `RUN-fc372692d9a8fa379eb2`  
+Dataset: `BINANCE:SOLUSDT:1D:2e54d39d19fd7152`  
+Candles: 1096  
+Strategy total return: +41.9064%  
+Micro return: +40.2921%  
+Mid return: +43.5208%  
+Buy-and-hold return: +504.5455%  
+Max drawdown: 44.8148%  
+Closed trades: 1155  
+GitHub Actions run: 36133871517  
+Artifact ID: 10862838818  
+Evidence: `docs/evidence/2026-09-25_SOL_CROSS_ASSET_GRID_VALIDATION.md`
+
+Interpretation: the current research implementation remained profitable on SOL without symbol-specific tuning, but materially underperformed passive SOL holding over this specific three-year period. Strategy status remains `BACKTESTED`.
