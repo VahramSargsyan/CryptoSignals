@@ -1,4 +1,4 @@
-name: LINK Level Grid Backtest
+name: Corrected BNBUSDT Level Grid Backtest
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
       symbol:
         description: Binance Spot symbol
         required: true
-        default: LINKUSDT
+        default: BNBUSDT
         type: string
       history_years:
         description: Total historical years to download
@@ -34,9 +34,9 @@ on:
         type: number
   push:
     branches:
-      - fix/grid-three-year-prehistory-v1
+      - research/bnb-grid-validation-corrected-v1
     paths:
-      - research_requests/run_corrected_link_grid_backtest_v1.trigger
+      - research_requests/run_bnb_grid_corrected_v1.trigger
 
 permissions:
   contents: read
@@ -63,7 +63,7 @@ jobs:
 
       - name: Run LINK level-grid research backtest
         env:
-          SYMBOL: ${{ inputs.symbol || 'LINKUSDT' }}
+          SYMBOL: ${{ inputs.symbol || 'BNBUSDT' }}
           HISTORY_YEARS: ${{ inputs.history_years || 6 }}
           TRADE_YEARS: ${{ inputs.trade_years || 3 }}
           ALLOCATION_PRESET: ${{ inputs.allocation_preset || 'linear_depth_reserved' }}
@@ -81,7 +81,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: link-level-grid-${{ inputs.symbol || 'LINKUSDT' }}-${{ inputs.allocation_preset || 'linear_depth_reserved' }}
+          name: link-level-grid-${{ inputs.symbol || 'BNBUSDT' }}-${{ inputs.allocation_preset || 'linear_depth_reserved' }}
           path: research_artifacts/link_level_grid/**
           if-no-files-found: warn
           retention-days: 30
