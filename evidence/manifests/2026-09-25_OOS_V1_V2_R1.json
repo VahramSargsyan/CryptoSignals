@@ -1,0 +1,222 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "OOS_V1_V2_2026_09_25_R1",
+  "status": "OOS_EXECUTED",
+  "acceptance_decision_allowed": true,
+  "out_of_sample_status": "OPENED",
+  "validation_type": "OOS_2026_YTD",
+  "source_commit_sha": "0bc2cc58917275ca95f88bb9d4fbbad12871b351",
+  "request_branch_head_sha": "265d0741c321694808bdf1d30695cd70458ad581",
+  "acceptance_policy": {
+    "path": "docs/13_ACCEPTANCE_GATES_V1_PROPOSAL.md",
+    "source_commit_sha": "743ab5300205ccef24e77a5d14895fe16d6de932",
+    "authorized_before_run": true
+  },
+  "workflow_run_id": 36136006921,
+  "artifact": {
+    "artifact_id": 10865410260,
+    "digest": "sha256:933386d8ad0852c6b97096800d6a80d28b2b965ed7ccf39cc0c6a8fefb3acbb7",
+    "file_count": 120,
+    "expires_at": "2026-10-25T12:38:05Z"
+  },
+  "tests": {
+    "unit_regression_total": 60,
+    "passed": 60,
+    "failed": 0
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "timeframe": "1D",
+    "requested_start": "2026-01-01T00:00:00Z",
+    "exclusive_end": "2026-09-25T00:00:00Z",
+    "last_included_candle": "2026-09-24T00:00:00Z",
+    "symbols_requested": 13,
+    "symbols_successful": 13,
+    "critical_quality_issues": 0,
+    "dataset_ids": {
+      "ATOMUSDT": "BINANCE:ATOMUSDT:1D:3eda8def0a1461c5",
+      "BNBUSDT": "BINANCE:BNBUSDT:1D:238ea99930c10cfc",
+      "BTCUSDT": "BINANCE:BTCUSDT:1D:04bd9bcba5754684",
+      "DOGEUSDT": "BINANCE:DOGEUSDT:1D:85710817c3107d4d",
+      "ETHUSDT": "BINANCE:ETHUSDT:1D:8050d44b0696de45",
+      "OSMOUSDT": "BINANCE:OSMOUSDT:1D:3a85f2d9cf2c8053",
+      "SAGAUSDT": "BINANCE:SAGAUSDT:1D:117bc103bcb9d446",
+      "SOLUSDT": "BINANCE:SOLUSDT:1D:d7ef06cbd37479ea",
+      "TIAUSDT": "BINANCE:TIAUSDT:1D:0e7bb454b7c847fa",
+      "TONUSDT": "BINANCE:TONUSDT:1D:ebed1756d72622b1",
+      "TWTUSDT": "BINANCE:TWTUSDT:1D:c68c9803ca1075a7",
+      "WUSDT": "BINANCE:WUSDT:1D:865cf2e18ce0ffc4",
+      "XRPUSDT": "BINANCE:XRPUSDT:1D:c47fbc3a569ddeaa"
+    }
+  },
+  "execution": {
+    "engine_name": "LONG_ONLY_SIGNAL_FLIP_V1",
+    "signal_calculated_at": "CANDLE_CLOSE",
+    "entry_rule": "NEXT_CANDLE_OPEN",
+    "fee_bps": 10,
+    "slippage_bps": 5
+  },
+  "strategy_results": {
+    "VAHRAM_ORIGINAL_V1": {
+      "minimum_evidence": {
+        "closed_trades": 29,
+        "traded_symbols": 13,
+        "buy_event_observations": 359,
+        "sell_event_observations": 501,
+        "passed": true
+      },
+      "economics": {
+        "pooled_win_rate": 0.41379310344827586,
+        "pooled_average_net_trade_return": -0.029820528963038793,
+        "pooled_median_net_trade_return": -0.043744173218268734,
+        "pooled_expectancy": -0.029820528963038793,
+        "pooled_profit_factor": 0.6778925194742869,
+        "positive_total_return_symbols": 5,
+        "benchmark_beaten_symbols": 10,
+        "median_symbol_max_drawdown": 0.3653113087674714
+      },
+      "directional_event_study": {
+        "BUY": {
+          "1": {
+            "n": 90,
+            "avg": 0.00009765317812717848,
+            "median": -0.00310672514619885
+          },
+          "3": {
+            "n": 90,
+            "avg": -0.008155251669630055,
+            "median": -0.01593774875693635
+          },
+          "7": {
+            "n": 90,
+            "avg": -0.030037741743658152,
+            "median": -0.028141185375774952
+          },
+          "14": {
+            "n": 89,
+            "avg": -0.025174793226103116,
+            "median": -0.0189954650466329
+          }
+        },
+        "SELL": {
+          "1": {
+            "n": 133,
+            "avg": -0.012558080163999525,
+            "median": 0.0068363979255068
+          },
+          "3": {
+            "n": 129,
+            "avg": -0.01322700722501749,
+            "median": 0.015206234556168
+          },
+          "7": {
+            "n": 121,
+            "avg": 0.012063584565934465,
+            "median": 0.0403668356695496
+          },
+          "14": {
+            "n": 118,
+            "avg": 0.03802431849630033,
+            "median": 0.03443810490910855
+          }
+        }
+      },
+      "gate_evaluation": {
+        "accepted_trading_economics": false,
+        "accepted_cross_symbol": false,
+        "accepted_buy_direction": false,
+        "accepted_sell_direction": false,
+        "fatal_economics_fail_count": 4,
+        "directional_failure": {
+          "BUY": false,
+          "SELL": false
+        },
+        "verdict": "REJECTED"
+      }
+    },
+    "VAHRAM_TRUE_STOCHRSI_V2": {
+      "minimum_evidence": {
+        "closed_trades": 27,
+        "traded_symbols": 13,
+        "buy_event_observations": 302,
+        "sell_event_observations": 489,
+        "passed": true
+      },
+      "economics": {
+        "pooled_win_rate": 0.48148148148148145,
+        "pooled_average_net_trade_return": 0.02022530540649216,
+        "pooled_median_net_trade_return": -0.014662954073701662,
+        "pooled_expectancy": 0.02022530540649216,
+        "pooled_profit_factor": 1.3436324036498526,
+        "positive_total_return_symbols": 7,
+        "benchmark_beaten_symbols": 10,
+        "median_symbol_max_drawdown": 0.2826295585412668
+      },
+      "directional_event_study": {
+        "BUY": {
+          "1": {
+            "n": 76,
+            "avg": -0.00482743864420977,
+            "median": -0.00866768619218315
+          },
+          "3": {
+            "n": 76,
+            "avg": -0.010184370935751596,
+            "median": -0.02205383700882665
+          },
+          "7": {
+            "n": 76,
+            "avg": -0.02647638500942255,
+            "median": -0.033878433289542
+          },
+          "14": {
+            "n": 74,
+            "avg": -0.008581857083640294,
+            "median": -0.009869207365175
+          }
+        },
+        "SELL": {
+          "1": {
+            "n": 130,
+            "avg": -0.014396455688214859,
+            "median": 0.006504508848964899
+          },
+          "3": {
+            "n": 126,
+            "avg": -0.01630069421623027,
+            "median": 0.0138982299100675
+          },
+          "7": {
+            "n": 118,
+            "avg": 0.007554277029059855,
+            "median": 0.03473018089171215
+          },
+          "14": {
+            "n": 115,
+            "avg": 0.03784930906935703,
+            "median": 0.032016008004002
+          }
+        }
+      },
+      "gate_evaluation": {
+        "accepted_trading_economics": false,
+        "accepted_cross_symbol": true,
+        "accepted_buy_direction": false,
+        "accepted_sell_direction": false,
+        "fatal_economics_fail_count": 0,
+        "directional_failure": {
+          "BUY": true,
+          "SELL": false
+        },
+        "verdict": "REJECTED"
+      }
+    }
+  },
+  "interpretation_guardrails": [
+    "This is the first opened 2026 YTD OOS evaluation for the frozen V1 and V2 candidates.",
+    "No strategy formula was changed by this test.",
+    "The 2026 period is no longer blind for these exact candidates after this run.",
+    "REJECTED is a research status under the frozen gates and does not delete the candidate or its evidence.",
+    "Pooled cross-symbol statistics are research aggregates, not a single portfolio equity curve."
+  ]
+}
