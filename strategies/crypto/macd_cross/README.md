@@ -1,6 +1,6 @@
 # MACD_CROSS_V1
 
-Status: **EXPERIMENTAL**  
+Status: **BACKTESTED**  
 WORKFLOW_MODE: **BUILD_NEW_APP**  
 RISK_CLASS: **L2 — research-only strategy candidate**  
 MIGRATION_REQUIRED: **NO**  
@@ -73,3 +73,24 @@ Historical research baseline:
 ## Promotion
 
 `EXPERIMENTAL -> BACKTESTED -> future held-out/walk-forward evidence -> acceptance decision`
+
+
+## First historical evidence — 2026-09-25
+
+Run: `MACD_CROSS_V1_2021_2025_R1`
+
+- source commit: `70a64942e408bbedd67cc398347c3a4c41e30498`
+- Binance 1D, 13/13 symbols
+- period: 2021-01-01 inclusive through 2026-01-01 exclusive
+- 79/79 unit/regression tests passed
+- 1,330 signals
+- 665 closed trades
+- pooled win rate: 31.73%
+- pooled average net trade return: +2.19%
+- pooled median net trade return: -4.50%
+- pooled profit factor: 1.330
+- positive total return: 7/13 symbols
+- benchmark beaten: 2/13 symbols
+- median symbol max drawdown: 76.50%
+
+Interpretation: MACD Cross is a stronger historical benchmark than a purely random-looking single signal would be, but the evidence remains mixed. Positive pooled economics are concentrated enough that the median trade is still negative, benchmark breadth is weak, and drawdown is high. Status is BACKTESTED only.
