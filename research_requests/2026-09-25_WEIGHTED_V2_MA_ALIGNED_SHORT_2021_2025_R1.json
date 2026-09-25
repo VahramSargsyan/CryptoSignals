@@ -1,0 +1,45 @@
+{
+  "request_id": "WEIGHTED_V2_MA_ALIGNED_SHORT_2021_2025_R1",
+  "profile_id": "WEIGHTED_V2_MA_ALIGNED_SHORT_V1",
+  "purpose": "Descriptive development rerun of frozen MA-aligned short entry profile",
+  "strategy_ids": [
+    "WEIGHTED_MULTI_SIGNAL_V2"
+  ],
+  "position_mode": "SHORT_ONLY",
+  "trading_policy": {
+    "entry_strength_min": 100,
+    "exit_strength_min": 0
+  },
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "TWTUSDT",
+    "ATOMUSDT",
+    "SAGAUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "TONUSDT",
+    "TIAUSDT",
+    "WUSDT",
+    "OSMOUSDT",
+    "DOGEUSDT"
+  ],
+  "data_start": "2020-01-01T00:00:00Z",
+  "start": "2021-01-01T00:00:00Z",
+  "end": "2026-01-01T00:00:00Z",
+  "timeframe": "1D",
+  "fee_bps": 10,
+  "slippage_bps": 5,
+  "validation_type": "DEVELOPMENT_MA_ALIGNED_SHORT_PROFILE_2021_2025",
+  "horizons": [
+    1,
+    3,
+    7,
+    14
+  ],
+  "acceptance_decision_allowed": false,
+  "blind_period": false,
+  "parameter_tuning_allowed": false,
+  "note": "Hypothesis was frozen after inspecting prior development and 2026 evidence. This rerun is descriptive only."
+}
