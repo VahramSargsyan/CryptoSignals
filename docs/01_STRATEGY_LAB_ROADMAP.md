@@ -54,6 +54,7 @@ Initial features:
 - canonical RSI;
 - canonical Stochastic RSI;
 - volume moving average;
+- SMA 50 / 100 / 200 trend block;
 - candle body strength;
 - trend filters;
 - volatility features.
