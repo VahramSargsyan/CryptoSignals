@@ -161,3 +161,38 @@ Corrected LINK run:
 - evidence: `docs/evidence/2026-09-25_GRID_PREHISTORY_METHOD_CORRECTION.md`
 
 Status remains `BACKTESTED`. The result is not promoted to `ACCEPTED` because range-refresh cadence and several portfolio rules remain research assumptions.
+
+
+## Corrected cross-asset evidence — ETH and SOL
+
+Methodology: 6 years total data, first 3 years prehistory only, final 3 years trading/evaluation.
+
+### ETHUSDT corrected
+
+- run: `RUN-47390258b7de2f2509c5`
+- dataset: `BINANCE:ETHUSDT:1D:62c8d7d5b63d300a`
+- strategy return: +119.8053%
+- Micro: +121.4294%
+- Mid: +118.1812%
+- buy-and-hold: +70.0533%
+- max drawdown: 38.9967%
+- closed trades: 1081
+- GitHub Actions run: 36136235756
+- artifact: 10865300723
+
+### SOLUSDT corrected
+
+- run: `RUN-648214d6dbb89478db0b`
+- dataset: `BINANCE:SOLUSDT:1D:60fe3a76bb1d67b3`
+- strategy return: +736.0574%
+- Micro: +696.1725%
+- Mid: +775.9423%
+- buy-and-hold: +504.5455%
+- max drawdown: 51.5712%
+- closed trades: 1041
+- GitHub Actions run: 36136246985
+- artifact: 10865075929
+
+Evidence: `docs/evidence/2026-09-25_CORRECTED_ETH_SOL_CROSS_ASSET_VALIDATION.md`
+
+These corrected runs supersede the earlier three-year-only ETH/SOL performance figures. Strategy status remains `BACKTESTED`.
