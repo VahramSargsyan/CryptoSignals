@@ -109,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
             cfg=_config(policy)
             for symbol in SYMBOLS:
                 ds=datasets[symbol]
-                sliced=ds.candles[ds.candles.index < end].copy()
+                sliced=ds.candles[pd.to_datetime(ds.candles["timestamp"], utc=True) < end].copy()
                 result=run_grid_backtest(
                     sliced,
                     dataset_id=f"{ds.dataset_id}:W{widx}",
