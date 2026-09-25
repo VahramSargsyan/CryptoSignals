@@ -1,4 +1,4 @@
-name: LINK Level Grid Backtest
+name: Cross-Asset Level Grid Backtest
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
       symbol:
         description: Binance Spot symbol
         required: true
-        default: LINKUSDT
+        default: SOLUSDT
         type: string
       years:
         description: Historical years to download
@@ -29,9 +29,9 @@ on:
         type: number
   push:
     branches:
-      - feature/link-level-grid-backtest-v1
+      - research/sol-grid-validation-v1
     paths:
-      - research_requests/run_link_grid_backtest_v1.trigger
+      - research_requests/run_sol_grid_backtest_v1.trigger
 
 permissions:
   contents: read
@@ -56,9 +56,9 @@ jobs:
       - name: Run unit and regression tests
         run: python -m unittest discover -s tests -v
 
-      - name: Run LINK level-grid research backtest
+      - name: Run cross-asset level-grid research backtest
         env:
-          SYMBOL: ${{ inputs.symbol || 'LINKUSDT' }}
+          SYMBOL: ${{ inputs.symbol || 'SOLUSDT' }}
           YEARS: ${{ inputs.years || 3 }}
           ALLOCATION_PRESET: ${{ inputs.allocation_preset || 'linear_depth_reserved' }}
           RANGE_REFRESH_CANDLES: ${{ inputs.range_refresh_candles || 30 }}
@@ -74,7 +74,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: link-level-grid-${{ inputs.symbol || 'LINKUSDT' }}-${{ inputs.allocation_preset || 'linear_depth_reserved' }}
+          name: link-level-grid-${{ inputs.symbol || 'SOLUSDT' }}-${{ inputs.allocation_preset || 'linear_depth_reserved' }}
           path: research_artifacts/link_level_grid/**
           if-no-files-found: warn
           retention-days: 30
