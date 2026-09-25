@@ -1,5 +1,11 @@
 # CryptoSignals Project Governance
 
+GOVERNANCE_VERSION: **VAHRAM_APP_GOVERNANCE v1.0.0**  
+CANONICAL_SOURCE: `VahramSargsyan/vbos-app/docs/governance/VAHRAM_APP_UNIVERSAL_GOVERNANCE_v1.0.0.md`  
+LAST_SYNC: **2026-09-25**
+
+**Universal authority override:** v1.0.0 is the current cross-project baseline. Any v0.4.9 language below is retained only as historical/local provenance. Local rules may be stricter but must not silently weaken v1.0.0.
+
 Governance family: **VAHRAM_APP_GOVERNANCE v0.4.9**  
 Local profile: **INVESTMENT_STRATEGY_LAB**  
 Status: ACTIVE
