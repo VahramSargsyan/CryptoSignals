@@ -127,6 +127,69 @@ def true_stoch_rsi(
     )
 
 
+def ema_sma_seed(
+    values: Iterable[float] | pd.Series,
+    *,
+    window: int,
+    name: str = "ema",
+) -> pd.Series:
+    """EMA seeded from the first complete SMA window, then recursively smoothed."""
+    if window <= 1:
+        raise ValueError("window must be greater than 1")
+
+    series = _numeric_series(values, name=name)
+    result = pd.Series(float("nan"), index=series.index, dtype="float64", name=name)
+    valid_positions = [position for position, value in enumerate(series) if pd.notna(value)]
+    if len(valid_positions) < window:
+        return result
+
+    seed_positions = valid_positions[:window]
+    seed_position = seed_positions[-1]
+    seed = float(series.iloc[seed_positions].mean())
+    result.iloc[seed_position] = seed
+    alpha = 2.0 / (window + 1.0)
+    previous = seed
+
+    for position in range(seed_position + 1, len(series)):
+        value = series.iloc[position]
+        if pd.isna(value):
+            continue
+        previous = ((float(value) - previous) * alpha) + previous
+        result.iloc[position] = previous
+
+    return result
+
+
+def macd(
+    close: Iterable[float] | pd.Series,
+    *,
+    fast_window: int = 12,
+    slow_window: int = 26,
+    signal_window: int = 9,
+) -> pd.DataFrame:
+    if fast_window <= 1 or slow_window <= 1 or signal_window <= 1:
+        raise ValueError("MACD windows must be greater than 1")
+    if fast_window >= slow_window:
+        raise ValueError("fast_window must be smaller than slow_window")
+
+    close_series = _numeric_series(close, name="close")
+    fast = ema_sma_seed(close_series, window=fast_window, name="ema_fast")
+    slow = ema_sma_seed(close_series, window=slow_window, name="ema_slow")
+    line = (fast - slow).rename("macd")
+    signal = ema_sma_seed(line, window=signal_window, name="macd_signal")
+    histogram = (line - signal).rename("macd_hist")
+    return pd.DataFrame(
+        {
+            "ema_fast": fast,
+            "ema_slow": slow,
+            "macd": line,
+            "macd_signal": signal,
+            "macd_hist": histogram,
+        },
+        index=close_series.index,
+    )
+
+
 def volume_moving_average(
     volume: Iterable[float] | pd.Series,
     *,
@@ -169,6 +232,8 @@ def build_standard_features(candles: pd.DataFrame) -> pd.DataFrame:
     features["vahram_close_range"] = vahram_close_range_oscillator(candles["close"])
     stoch = true_stoch_rsi(candles["close"])
     features = features.join(stoch)
+    macd_values = macd(candles["close"])
+    features = features.join(macd_values)
     features["volume_ma"] = volume_moving_average(candles["volume"])
     features["candle_body_strength"] = candle_body_strength(
         candles["open"],

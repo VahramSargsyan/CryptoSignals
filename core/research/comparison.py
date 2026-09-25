@@ -10,6 +10,14 @@ from core.backtest.event_study import run_event_study, summarize_event_study
 from core.backtest.trading import ENGINE_NAME, LongOnlyTradingPolicy, run_long_only_backtest
 from core.data.candles import HistoricalDataset
 from core.evidence.backtest_record import build_backtest_evidence
+from strategies.crypto.macd_cross.strategy import (
+    DEFAULT_FAST_WINDOW as MACD_FAST_WINDOW,
+    DEFAULT_SIGNAL_WINDOW as MACD_SIGNAL_WINDOW,
+    DEFAULT_SLOW_WINDOW as MACD_SLOW_WINDOW,
+    STRATEGY_ID as MACD_CROSS_ID,
+    STRATEGY_VERSION as MACD_CROSS_VERSION,
+    generate_macd_cross_outputs,
+)
 from strategies.crypto.stochrsi_cross.strategy import (
     DEFAULT_RSI_WINDOW as CROSS_RSI_WINDOW,
     DEFAULT_SMOOTH_D as CROSS_SMOOTH_D,
@@ -62,6 +70,21 @@ def _strategy_specs() -> dict[str, tuple[str, Callable, dict, dict]]:
                 "stoch_window": CROSS_STOCH_WINDOW,
                 "smooth_k": CROSS_SMOOTH_K,
                 "smooth_d": CROSS_SMOOTH_D,
+            },
+        ),
+        MACD_CROSS_ID: (
+            MACD_CROSS_VERSION,
+            generate_macd_cross_outputs,
+            {
+                "fast_window": MACD_FAST_WINDOW,
+                "slow_window": MACD_SLOW_WINDOW,
+                "signal_window": MACD_SIGNAL_WINDOW,
+                "signal_logic": "STRICT_MACD_SIGNAL_CROSS",
+            },
+            {
+                "fast_window": MACD_FAST_WINDOW,
+                "slow_window": MACD_SLOW_WINDOW,
+                "signal_window": MACD_SIGNAL_WINDOW,
             },
         ),
     }

@@ -7,6 +7,8 @@ from core.indicators.technical import (
     bollinger_bands,
     build_standard_features,
     candle_body_strength,
+    ema_sma_seed,
+    macd,
     rsi_wilder,
     true_stoch_rsi,
     vahram_close_range_oscillator,
@@ -34,6 +36,32 @@ class SharedIndicatorTests(unittest.TestCase):
         rsi = rsi_wilder(close, window=3)
         self.assertAlmostEqual(rsi.iloc[3], 66.66666666666667, places=12)
         self.assertAlmostEqual(rsi.iloc[4], 83.33333333333333, places=12)
+
+    def test_ema_uses_sma_seed_then_recursive_smoothing(self):
+        values = pd.Series([1, 2, 3, 4, 5], dtype="float64")
+        result = ema_sma_seed(values, window=3)
+        self.assertTrue(pd.isna(result.iloc[0]))
+        self.assertTrue(pd.isna(result.iloc[1]))
+        self.assertAlmostEqual(result.iloc[2], 2.0, places=12)
+        self.assertAlmostEqual(result.iloc[3], 3.0, places=12)
+        self.assertAlmostEqual(result.iloc[4], 4.0, places=12)
+
+    def test_macd_uses_standard_12_26_9_shape_and_identity(self):
+        close = pd.Series(range(1, 80), dtype="float64")
+        result = macd(close)
+        self.assertEqual(
+            list(result.columns),
+            ["ema_fast", "ema_slow", "macd", "macd_signal", "macd_hist"],
+        )
+        self.assertTrue(result["macd"].iloc[:25].isna().all())
+        self.assertTrue(pd.notna(result["macd"].iloc[25]))
+        first_signal = result["macd_signal"].first_valid_index()
+        self.assertEqual(first_signal, 33)
+        comparable = result["macd_signal"].notna()
+        self.assertTrue(
+            ((result.loc[comparable, "macd"] - result.loc[comparable, "macd_signal"])
+             == result.loc[comparable, "macd_hist"]).all()
+        )
 
     def test_true_stoch_rsi_is_based_on_rsi_not_close_range(self):
         close = pd.Series(
@@ -83,6 +111,8 @@ class SharedIndicatorTests(unittest.TestCase):
         self.assertIn("vahram_close_range", features.columns)
         self.assertIn("stoch_rsi_k", features.columns)
         self.assertIn("rsi", features.columns)
+        self.assertIn("macd", features.columns)
+        self.assertIn("macd_signal", features.columns)
         self.assertFalse(features["vahram_close_range"].equals(features["stoch_rsi_k"]))
 
 
