@@ -1,0 +1,133 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "WEIGHTED_V2_MA_ALIGNED_SHORT_2021_2025_R1",
+  "profile_id": "WEIGHTED_V2_MA_ALIGNED_SHORT_V1",
+  "status": "DEVELOPMENT_PROFILE_RERUN_COMPLETED_POSTHOC",
+  "acceptance_decision_allowed": false,
+  "validation_type": "DEVELOPMENT_MA_ALIGNED_SHORT_PROFILE_2021_2025",
+  "strategy": {
+    "strategy_id": "WEIGHTED_MULTI_SIGNAL_V2",
+    "strategy_version": "2.0.0",
+    "formula_changed": false
+  },
+  "execution": {
+    "engine_name": "SHORT_ONLY_SIGNAL_FLIP_V1",
+    "position_mode": "SHORT_ONLY_FULL_EQUITY_1X_NOTIONAL",
+    "trading_policy": {
+      "entry_strength_min": 100,
+      "exit_strength_min": 0
+    },
+    "entry_signal": "SELL",
+    "exit_signal": "BUY",
+    "fee_bps": 10,
+    "slippage_bps": 5,
+    "bankruptcy_policy": "ZERO_EQUITY_LIQUIDATION_AT_INTRADAY_HIGH"
+  },
+  "source_commit_sha": "128e15063400c6e4769dbb7075a47670e908a2c4",
+  "research_branch_head_sha": "2b1aa1bef03d49a6dd6481827b62fd2f7933e3c4",
+  "workflow_run_id": 36193674703,
+  "artifact": {
+    "artifact_id": 10889097793,
+    "digest": "sha256:8199bfc3ec6231c734cbbc1132c4572a5c7309f38e9650f13a744abaf7ec06a6",
+    "file_count": 81,
+    "expires_at": "2026-10-25T21:51:07Z"
+  },
+  "verification": {
+    "unit_regression_tests": 108,
+    "unit_regression_passed": 108,
+    "successful_symbols": 13,
+    "requested_symbols": 13,
+    "runtime_status": "PASS"
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "timeframe": "1D",
+    "data_start": "2020-01-01T00:00:00Z",
+    "evaluation_start": "2021-01-01T00:00:00Z",
+    "exclusive_end": "2026-01-01T00:00:00Z",
+    "warmup_is_excluded_from_metrics": true
+  },
+  "aggregate": {
+    "signal_count": 1498,
+    "event_observation_count": 5979,
+    "closed_trades": 80,
+    "pooled_win_rate": 0.475,
+    "pooled_average_net_trade_return": 0.01898,
+    "pooled_median_net_trade_return": -0.02026,
+    "pooled_profit_factor": 1.2848242796853846,
+    "positive_total_return_symbols": 7,
+    "short_benchmark_beaten_symbols": 11,
+    "median_symbol_max_drawdown": 0.309646,
+    "median_symbol_total_return": 0.173555,
+    "mean_symbol_total_return": 0.141725,
+    "zero_equity_liquidations": 1
+  },
+  "temporal_diagnostics": {
+    "2021": {
+      "trades": 2,
+      "profit_factor": 0.3793,
+      "average_return": -0.0411,
+      "median_return": -0.0411,
+      "liquidations": 0
+    },
+    "2022": {
+      "trades": 21,
+      "profit_factor": 3.6076,
+      "average_return": 0.1035,
+      "median_return": 0.0716,
+      "liquidations": 0
+    },
+    "2023": {
+      "trades": 14,
+      "profit_factor": 0.3414,
+      "average_return": -0.0937,
+      "median_return": -0.0206,
+      "liquidations": 1
+    },
+    "2024": {
+      "trades": 14,
+      "profit_factor": 0.6075,
+      "average_return": -0.0312,
+      "median_return": -0.0663,
+      "liquidations": 0
+    },
+    "2025": {
+      "trades": 29,
+      "profit_factor": 1.9324,
+      "average_return": 0.0405,
+      "median_return": 0.0164,
+      "liquidations": 0
+    }
+  },
+  "zero_equity_liquidations": [
+    {
+      "symbol": "OSMOUSDT",
+      "count": 1
+    }
+  ],
+  "comparison_to_unfiltered_short_r1": {
+    "prior_profile": "ALL_V2_SELL_SIGNALS_SHORT",
+    "prior_closed_trades": 220,
+    "prior_pooled_profit_factor": 0.9887113288016589,
+    "prior_median_symbol_max_drawdown": 0.6835202662535017,
+    "prior_median_symbol_total_return": -0.4395177390281897,
+    "prior_zero_equity_liquidations": 2,
+    "filtered_closed_trades": 80,
+    "filtered_pooled_profit_factor": 1.2848242796853846,
+    "filtered_median_symbol_max_drawdown": 0.309646,
+    "filtered_median_symbol_total_return": 0.173555,
+    "filtered_zero_equity_liquidations": 1
+  },
+  "interpretation_guardrails": [
+    "This is a post-hoc development rerun, not independent validation.",
+    "The profile was frozen only after prior development and 2026 strength-group diagnostics were inspected.",
+    "The threshold-100 execution rerun improves pooled PF, drawdown, and median symbol total return versus the unfiltered short baseline, but 2023 and 2024 remain losing years.",
+    "One zero-equity liquidation remains in OSMOUSDT.",
+    "Short benchmark comparisons are weak quality evidence because continuous 1x short benchmarks can themselves reach zero equity on rising crypto assets.",
+    "No further tuning, ACCEPTED promotion, paper-live, or live shorting is authorized from this evidence."
+  ],
+  "future_unseen_boundary": {
+    "start": "2026-09-26T00:00:00Z",
+    "rule": "Do not tune this frozen profile from future unseen data. Any rule change requires a new profile/version."
+  }
+}
