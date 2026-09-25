@@ -1,0 +1,54 @@
+{
+  "request_id": "WEIGHTED_MULTI_SIGNAL_V2_2026_YTD_WARMUP_R2",
+  "purpose": "Warm-up-corrected nonblind 2026 YTD temporal holdout for frozen WEIGHTED_MULTI_SIGNAL_V2",
+  "strategy_ids": [
+    "WEIGHTED_MULTI_SIGNAL_V2"
+  ],
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "TWTUSDT",
+    "ATOMUSDT",
+    "SAGAUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "TONUSDT",
+    "TIAUSDT",
+    "WUSDT",
+    "OSMOUSDT",
+    "DOGEUSDT"
+  ],
+  "data_start": "2025-01-01T00:00:00Z",
+  "start": "2026-01-01T00:00:00Z",
+  "end": "2026-09-25T00:00:00Z",
+  "timeframe": "1D",
+  "fee_bps": 10,
+  "slippage_bps": 5,
+  "validation_type": "NONBLIND_TEMPORAL_HOLDOUT_2026_YTD_WARMUP_CORRECTED",
+  "horizons": [
+    1,
+    3,
+    7,
+    14
+  ],
+  "strategy_parameters": {
+    "core_blocks": [
+      "macd",
+      "stochrsi",
+      "volume_candle"
+    ],
+    "core_base_strength": 80,
+    "ma_aligned_strength": 100,
+    "min_candle_body_strength": 0.5,
+    "ma_role": "CONTEXT_ONLY",
+    "bollinger_role": "NOT_USED"
+  },
+  "acceptance_decision_allowed": false,
+  "parameter_tuning_allowed": false,
+  "methodology_note": "Prehistory is used only for indicator warm-up. Evaluation metrics start at 2026-01-01. This remains NONBLIND.",
+  "future_holdout": {
+    "start": "2026-09-26T00:00:00Z",
+    "rule": "Reserved unseen period; this request ends before it."
+  }
+}
