@@ -92,6 +92,78 @@ class BacktestEvidenceTests(unittest.TestCase):
         self.assertEqual(loaded["run_id"], self.manifest.run_id)
         self.assertEqual(loaded["trade_count"], 1)
 
+    def test_mixed_normal_and_terminal_trades_serialize_optional_fields_as_null(self):
+        candles = pd.DataFrame(
+            [
+                {"timestamp": "2026-01-01T00:00:00Z", "open": 100, "close": 100},
+                {"timestamp": "2026-01-02T00:00:00Z", "open": 110, "close": 120},
+                {"timestamp": "2026-01-03T00:00:00Z", "open": 120, "close": 115},
+                {"timestamp": "2026-01-04T00:00:00Z", "open": 100, "close": 105},
+                {"timestamp": "2026-01-05T00:00:00Z", "open": 105, "close": 110},
+                {"timestamp": "2026-01-06T00:00:00Z", "open": 110, "close": 115},
+            ]
+        )
+        manifest = BacktestRunManifest(
+            strategy_id="TEST",
+            strategy_version="1.0.0",
+            source_commit_sha="abc123",
+            dataset_id="DATASET-MIXED",
+            symbol="BTCUSDT",
+            timeframe="1D",
+            period_start="2026-01-01",
+            period_end="2026-01-06",
+            execution=ExecutionPolicy(fee_bps=10, slippage_bps=5),
+            validation_type="RESEARCH",
+            engine_name=ENGINE_NAME,
+            engine_config=self.policy.to_config(),
+        )
+
+        def output(timestamp, signal, strength):
+            return make_strategy_output(
+                strategy_id="TEST",
+                strategy_version="1.0.0",
+                symbol="BTCUSDT",
+                timeframe="1D",
+                timestamp=timestamp,
+                signal=signal,
+                strength=strength,
+                reasons=("test",),
+                source_commit_sha="abc123",
+                run_id=manifest.run_id,
+            )
+
+        outputs = [
+            output("2026-01-01T00:00:00Z", "BUY", 70),
+            output("2026-01-03T00:00:00Z", "SELL", 65),
+            output("2026-01-04T00:00:00Z", "BUY", 80),
+        ]
+        result = run_long_only_backtest(
+            candles,
+            outputs,
+            manifest=manifest,
+            policy=self.policy,
+        )
+        self.assertEqual(len(result.trades), 2)
+        self.assertTrue(pd.isna(result.trades.iloc[1]["exit_strength"]))
+
+        evidence = build_backtest_evidence(
+            manifest=manifest,
+            policy=self.policy,
+            result=result,
+            created_at="2026-09-25T00:00:00Z",
+        )
+        self.assertEqual(evidence["trades"][0]["exit_strength"], 65.0)
+        self.assertIsNone(evidence["trades"][1]["exit_strength"])
+        self.assertIsNone(evidence["trades"][1]["exit_signal_id"])
+        self.assertIsNone(evidence["trades"][1]["exit_signal_timestamp"])
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "mixed.json"
+            write_backtest_evidence(path, evidence)
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+        self.assertIsNone(loaded["trades"][1]["exit_strength"])
+
+
     def test_non_finite_evidence_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "bad.json"
