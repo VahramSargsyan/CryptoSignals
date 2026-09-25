@@ -201,6 +201,7 @@ class GridBacktestResult:
     run_id: str
     summary: dict
     trades: pd.DataFrame
+    events: pd.DataFrame
     equity_curve: pd.DataFrame
     range_history: pd.DataFrame
     allocation_table: pd.DataFrame
@@ -486,6 +487,7 @@ def run_grid_backtest(
     mid_runner_units = 0.0
 
     trades: list[dict] = []
+    events: list[dict] = []
     equity_rows: list[dict] = []
     range_rows: list[dict] = []
     previous_grid: Optional[GridDefinition] = None
@@ -568,6 +570,24 @@ def run_grid_backtest(
                 else:
                     exit_reason = f"MICRO_{cfg.micro_exit_sublevels}_SUBLEVEL_RECOVERY"
 
+                events.append(
+                    {
+                        "run_id": run_id,
+                        "timestamp": pd.Timestamp(candle["timestamp"]),
+                        "event_type": "SELL",
+                        "layer": layer,
+                        "slot_id": slot_id,
+                        "main_level": lot.main_level,
+                        "sublevel": lot.entry_sublevel,
+                        "label": sublevel_label(lot.entry_sublevel),
+                        "fill_price": fill,
+                        "units": sold_units,
+                        "cash_value": proceeds,
+                        "target_price": lot.target_price,
+                        "reason": exit_reason,
+                    }
+                )
+
                 trades.append(
                     {
                         "run_id": run_id,
@@ -637,6 +657,23 @@ def run_grid_backtest(
                     entry_grid_low=grid.low,
                 )
                 micro_cash[sublevel] = 0.0
+                events.append(
+                    {
+                        "run_id": run_id,
+                        "timestamp": pd.Timestamp(candle["timestamp"]),
+                        "event_type": "BUY",
+                        "layer": "MICRO",
+                        "slot_id": sublevel,
+                        "main_level": main_for_sublevel(sublevel),
+                        "sublevel": sublevel,
+                        "label": sublevel_label(sublevel),
+                        "fill_price": fill,
+                        "units": units,
+                        "cash_value": budget,
+                        "target_price": target,
+                        "reason": "GRID_ENTRY",
+                    }
+                )
 
             # Mid research interpretation: one reserved slot per main level,
             # entered at the lower A boundary (sublevel 4, 8, ..., 64).
@@ -679,6 +716,23 @@ def run_grid_backtest(
                     entry_grid_low=grid.low,
                 )
                 mid_cash[main_level] = 0.0
+                events.append(
+                    {
+                        "run_id": run_id,
+                        "timestamp": pd.Timestamp(candle["timestamp"]),
+                        "event_type": "BUY",
+                        "layer": "MID",
+                        "slot_id": main_level,
+                        "main_level": main_level,
+                        "sublevel": entry_sublevel,
+                        "label": sublevel_label(entry_sublevel),
+                        "fill_price": fill,
+                        "units": units,
+                        "cash_value": budget,
+                        "target_price": target,
+                        "reason": "GRID_ENTRY",
+                    }
+                )
 
         close = float(candle["close"])
         micro_cash_total = sum(micro_cash.values())
@@ -758,6 +812,7 @@ def run_grid_backtest(
                 del lots[slot_id]
 
     trades_df = pd.DataFrame(trades)
+    events_df = pd.DataFrame(events)
     equity_df = pd.DataFrame(equity_rows)
     range_df = pd.DataFrame(range_rows)
 
@@ -871,6 +926,7 @@ def run_grid_backtest(
         run_id=run_id,
         summary=summary,
         trades=trades_df,
+        events=events_df,
         equity_curve=equity_df,
         range_history=range_df,
         allocation_table=pd.DataFrame(allocation_rows),

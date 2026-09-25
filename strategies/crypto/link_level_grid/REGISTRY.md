@@ -284,3 +284,48 @@ Key findings:
 Evidence: `docs/evidence/2026-09-25_REINVEST_RUNNER_EXPLORATION_V1.md`
 
 Status remains `BACKTESTED`.
+
+
+## Paper-live launch protocol — 2026-09-25
+
+Forward paper observation is configured to start from the first full UTC candle beginning:
+
+```text
+2026-09-26T00:00:00Z
+```
+
+Universe:
+
+- LINKUSDT
+- ETHUSDT
+- SOLUSDT
+- BNBUSDT
+- BTCUSDT
+
+Two profiles are observed in parallel:
+
+- `CONTROL_BASE`: Micro +1 / Mid +10;
+- `CANDIDATE_WIDE`: Micro +6 / Mid +18.
+
+Shared settings:
+
+- linear-depth allocation p=1;
+- 100% positive-profit reinvestment;
+- no permanent runner;
+- 10 bps fees;
+- 5 bps slippage;
+- 1095-candle H/L lookback;
+- 30-candle H/L refresh remains a research assumption.
+
+Runtime verification before launch:
+
+- GitHub Actions run: `36150717357`;
+- 68 repository tests: passed;
+- live Binance data download: passed;
+- paper engine status: `PAPER_LIVE_WAITING`;
+- latest closed candle in verification run: `2026-09-24`;
+- artifact: `10871851428`.
+
+The strategy registry status remains `BACKTESTED` until at least one post-launch daily candle is actually observed. The configured workflow itself does not authorize live-money execution.
+
+Protocol: `docs/15_GRID_PAPER_LIVE_V1.md`.

@@ -1,0 +1,67 @@
+name: Grid Paper Live v1
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "20 0 * * *"
+permissions:
+  contents: read
+
+jobs:
+  paper-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+
+      - name: Run unit and regression tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Run paper-live replay
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: |
+          python -m scripts.run_grid_paper_live \
+            --symbols LINKUSDT,ETHUSDT,SOLUSDT,BNBUSDT,BTCUSDT \
+            --paper-start 2026-09-26T00:00:00Z \
+            --profiles CONTROL_BASE,CANDIDATE_WIDE
+
+      - name: Publish report to job summary
+        run: |
+          RUN_DIR="$(find paper_artifacts/grid_paper_live_v1 -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          cat "$RUN_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "PAPER_RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
+
+      - name: Optional Telegram / email notification
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          REPORT_EMAIL_FROM: ${{ secrets.REPORT_EMAIL_FROM }}
+          REPORT_EMAIL_TO: ${{ secrets.REPORT_EMAIL_TO }}
+        run: |
+          python -m scripts.send_grid_paper_report \
+            --report-json "$PAPER_RUN_DIR/report.json" \
+            --notification-text "$PAPER_RUN_DIR/notification.txt"
+
+      - name: Upload paper evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: grid-paper-live-v1-${{ github.run_number }}
+          path: paper_artifacts/grid_paper_live_v1/**
+          if-no-files-found: error
+          retention-days: 90

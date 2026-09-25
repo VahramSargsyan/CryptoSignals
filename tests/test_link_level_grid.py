@@ -315,6 +315,8 @@ class LinkLevelGridStrategyTests(unittest.TestCase):
         self.assertTrue(result.summary["research_assumptions"]["capital_is_reserved_per_slot"])
         self.assertGreater(len(result.equity_curve), 0)
         self.assertGreater(len(result.range_history), 0)
+        self.assertGreater(len(result.events), 0)
+        self.assertTrue(set(result.events["event_type"]).issubset({"BUY", "SELL"}))
         self.assertTrue(pd.notna(result.summary["total_return"]))
 
 
