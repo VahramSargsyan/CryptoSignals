@@ -32,6 +32,14 @@ from strategies.crypto.true_stochrsi.strategy import (
     STRATEGY_VERSION as TRUE_STOCHRSI_VERSION,
     generate_true_stochrsi_outputs,
 )
+from strategies.crypto.weighted_multi_signal_v2.strategy import (
+    CORE_BASE_STRENGTH as WEIGHTED_V2_CORE_STRENGTH,
+    MA_CONFIRM_BONUS as WEIGHTED_V2_MA_BONUS,
+    MIN_BODY_STRENGTH as WEIGHTED_V2_MIN_BODY,
+    STRATEGY_ID as WEIGHTED_MULTI_V2_ID,
+    STRATEGY_VERSION as WEIGHTED_MULTI_V2_VERSION,
+    generate_weighted_multi_signal_v2_outputs,
+)
 from strategies.crypto.weighted_multi_signal.strategy import (
     BLOCK_WEIGHT as WEIGHTED_BLOCK_WEIGHT,
     MIN_TRIGGERED_BLOCKS as WEIGHTED_MIN_BLOCKS,
@@ -109,6 +117,19 @@ def _strategy_specs() -> dict[str, tuple[str, Callable, dict, dict]]:
                     "bollinger_reversion",
                     "volume_candle",
                 ],
+            },
+            {},
+        ),
+        WEIGHTED_MULTI_V2_ID: (
+            WEIGHTED_MULTI_V2_VERSION,
+            generate_weighted_multi_signal_v2_outputs,
+            {
+                "required_core_blocks": ["macd", "stochrsi", "volume_candle"],
+                "core_base_strength": WEIGHTED_V2_CORE_STRENGTH,
+                "ma_confirm_bonus": WEIGHTED_V2_MA_BONUS,
+                "min_body_strength": WEIGHTED_V2_MIN_BODY,
+                "ma_role": "CONTEXT_ONLY",
+                "bollinger_role": "EXCLUDED_FROM_DECISION",
             },
             {},
         ),
