@@ -7,6 +7,8 @@ from typing import Iterable, Optional
 
 import pandas as pd
 
+from core.indicators.technical import build_standard_features
+
 STRATEGY_ID = "VAHRAM_LINK_LEVEL_GRID_V1"
 STRATEGY_NAME = "VAHRAM_LINK_LEVEL_GRID"
 STRATEGY_VERSION = "1.0.0-experimental"
@@ -141,6 +143,7 @@ class GridBacktestConfig:
     mid_target_scale: float = 1.0
     profit_reinvest_fraction: float = 1.0
     runner_fraction: float = 0.0
+    entry_filter: str = "NONE"
     fee_bps: float = 10.0
     slippage_bps: float = 5.0
     rolling_range: RollingRangePolicy = RollingRangePolicy()
@@ -174,6 +177,19 @@ class GridBacktestConfig:
             raise ValueError("profit_reinvest_fraction must be between 0 and 1")
         if not math.isfinite(self.runner_fraction) or not 0.0 <= self.runner_fraction < 1.0:
             raise ValueError("runner_fraction must be between 0 and 1")
+        if self.entry_filter not in {
+            "NONE",
+            "RSI_OVERSOLD_30",
+            "STOCH_OVERSOLD_20",
+            "BOLLINGER_LOWER",
+            "SMA200_BULL",
+            "MACD_BULL",
+            "STOCH_BULL",
+            "CORE_BULL",
+            "DIP_IN_BULL",
+            "V2_CORE_BULL",
+        }:
+            raise ValueError("Unknown entry_filter")
         if not 1 <= self.ten_sublevel_from_main <= MAIN_LEVELS:
             raise ValueError("ten_sublevel_from_main must be between 1 and 16")
 
@@ -345,6 +361,74 @@ def build_causal_range_schedule(
     return schedule
 
 
+
+def _entry_filter_allows(
+    *,
+    filter_name: str,
+    previous_candle: pd.Series,
+    previous_features: pd.Series,
+) -> bool:
+    """Causal entry filter using the previously closed daily candle only."""
+    if filter_name == "NONE":
+        return True
+
+    def finite(name: str) -> bool:
+        value = previous_features.get(name)
+        return pd.notna(value) and math.isfinite(float(value))
+
+    if filter_name == "RSI_OVERSOLD_30":
+        return finite("rsi") and float(previous_features["rsi"]) <= 30.0
+    if filter_name == "STOCH_OVERSOLD_20":
+        return finite("stoch_rsi_k") and float(previous_features["stoch_rsi_k"]) <= 20.0
+    if filter_name == "BOLLINGER_LOWER":
+        return finite("bb_lower") and float(previous_candle["close"]) <= float(previous_features["bb_lower"])
+    if filter_name == "SMA200_BULL":
+        return finite("sma_200") and float(previous_candle["close"]) > float(previous_features["sma_200"])
+    if filter_name == "MACD_BULL":
+        return (
+            finite("macd")
+            and finite("macd_signal")
+            and float(previous_features["macd"]) > float(previous_features["macd_signal"])
+        )
+    if filter_name == "STOCH_BULL":
+        return (
+            finite("stoch_rsi_k")
+            and finite("stoch_rsi_d")
+            and float(previous_features["stoch_rsi_k"]) > float(previous_features["stoch_rsi_d"])
+        )
+    if filter_name == "CORE_BULL":
+        return (
+            finite("macd")
+            and finite("macd_signal")
+            and finite("stoch_rsi_k")
+            and finite("stoch_rsi_d")
+            and float(previous_features["macd"]) > float(previous_features["macd_signal"])
+            and float(previous_features["stoch_rsi_k"]) > float(previous_features["stoch_rsi_d"])
+        )
+    if filter_name == "DIP_IN_BULL":
+        return (
+            finite("sma_200")
+            and finite("stoch_rsi_k")
+            and float(previous_candle["close"]) > float(previous_features["sma_200"])
+            and float(previous_features["stoch_rsi_k"]) <= 20.0
+        )
+    if filter_name == "V2_CORE_BULL":
+        return (
+            finite("macd")
+            and finite("macd_signal")
+            and finite("stoch_rsi_k")
+            and finite("stoch_rsi_d")
+            and finite("volume_ma")
+            and finite("candle_body_strength")
+            and float(previous_features["macd"]) > float(previous_features["macd_signal"])
+            and float(previous_features["stoch_rsi_k"]) > float(previous_features["stoch_rsi_d"])
+            and float(previous_candle["volume"]) > float(previous_features["volume_ma"])
+            and float(previous_features["candle_body_strength"]) >= 0.50
+            and float(previous_candle["close"]) > float(previous_candle["open"])
+        )
+    raise ValueError(f"Unknown entry filter: {filter_name}")
+
+
 def _buy_limit_fill(candle: pd.Series, limit_price: float, slippage_bps: float) -> float:
     if float(candle["low"]) > limit_price:
         raise ValueError("Buy limit cannot fill when candle low is above limit")
@@ -447,6 +531,11 @@ def run_grid_backtest(
         frame,
         cfg.rolling_range,
         activation_start=evaluation_start_ts,
+    )
+    feature_frame = (
+        build_standard_features(frame)
+        if cfg.entry_filter != "NONE"
+        else None
     )
     if schedule[first_evaluation_position] is None:
         raise ValueError("No valid H/L range at evaluation_start")
@@ -623,7 +712,18 @@ def run_grid_backtest(
                 del lots[slot_id]
                 exited_today.add((layer, slot_id))
 
-        if grid is not None:
+        entry_allowed = True
+        if cfg.entry_filter != "NONE":
+            if position <= 0:
+                entry_allowed = False
+            else:
+                entry_allowed = _entry_filter_allows(
+                    filter_name=cfg.entry_filter,
+                    previous_candle=frame.iloc[position - 1],
+                    previous_features=feature_frame.iloc[position - 1],
+                )
+
+        if grid is not None and entry_allowed:
             # Micro: one independent reserved slot at every sublevel.
             for sublevel in range(1, TOTAL_SUBLEVELS + 1):
                 if sublevel in micro_lots or ("MICRO", sublevel) in exited_today:
@@ -874,6 +974,7 @@ def run_grid_backtest(
         "mid_target_scale": cfg.mid_target_scale,
         "profit_reinvest_fraction": cfg.profit_reinvest_fraction,
         "runner_fraction": cfg.runner_fraction,
+        "entry_filter": cfg.entry_filter,
         "micro_initial_capital": cfg.micro_capital,
         "mid_initial_capital": cfg.mid_capital,
         "total_initial_capital": total_initial,
@@ -912,6 +1013,7 @@ def run_grid_backtest(
             "optimizer_parameters_are_research_only": True,
             "profit_reinvestment_is_configurable": True,
             "runner_fraction_is_configurable": True,
+            "entry_filter_is_causal_previous_candle_only": True,
             "mid_entry_at_A_boundary_is_owner_confirmed": False,
             "micro_exit_one_sublevel_up_is_historical_observed": True,
             "mid_percent_targets_are_current_chart_values": True,
