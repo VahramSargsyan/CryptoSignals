@@ -135,3 +135,22 @@ The optimizer can vary capital-depth exponents and exit distances while preservi
 Selection uses an earlier training segment and reports a later temporal holdout separately. Optimizer winners are research hypotheses only and do not automatically replace canonical strategy rules.
 
 Evidence: `docs/evidence/2026-09-25_LEVEL_GRID_OPTIMIZER_V1.md`.
+
+
+## Reinvestment and token runners
+
+Research controls now make two previously implicit choices explicit:
+
+- `profit_reinvest_fraction` — fraction of positive realized profit compounded back into the same slot;
+- `runner_fraction` — fraction of an exited position left unsold as long-term token inventory.
+
+Default behavior is unchanged:
+
+```text
+profit_reinvest_fraction = 1.0
+runner_fraction = 0.0
+```
+
+So the historical strategy results already included full per-slot profit compounding.
+
+Evidence: `docs/evidence/2026-09-25_REINVEST_RUNNER_EXPLORATION_V1.md`.
