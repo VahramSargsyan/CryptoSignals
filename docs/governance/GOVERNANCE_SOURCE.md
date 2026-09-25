@@ -2,7 +2,10 @@
 
 Local governance version: **VAHRAM_APP_GOVERNANCE v0.4.9**
 
-Origin:
+Canonical investment overlay:
+`VahramSargsyan/investment-cases` -> `PROJECT_GOVERNANCE.md`
+
+Upstream origin:
 
 - Vahram APP v0.4.9 workflow/guardrail package;
 - VBOS `PROJECT_GOVERNANCE.md`;
@@ -10,26 +13,21 @@ Origin:
 - VBOS production schema mutation rules;
 - VBOS Golden Architecture / Google Sheets performance rules.
 
-## Why the rules are copied locally
+## Local self-contained rule
 
-Repositories must remain understandable and safe when opened independently.
+This repository keeps its own local governance adapter so it remains safe and understandable when opened independently.
 
-Therefore this repository does **not** require a runtime dependency, Git submodule, or mandatory cross-repository read just to discover P0 rules.
+It does **not** require a Git submodule or mandatory cross-repository read for basic P0 discovery.
 
-A future central Investment Lab may hold the canonical investment-specific overlay, but every active repository should keep a small local governance file with:
-
-- source version;
-- P0 rules;
-- project-specific constraints;
-- sync note.
+The canonical Investment Lab repository owns the investment-specific governance overlay; this repository owns CryptoSignals-specific constraints.
 
 ## Sync rule
 
 When governance changes materially:
 
-1. update the canonical governance source;
+1. update the canonical Investment Lab governance source;
 2. bump the governance version;
-3. update local copies/adapters in affected repositories;
+3. synchronize affected local adapters;
 4. record project-specific deviations explicitly.
 
 Silent divergence is not allowed.
