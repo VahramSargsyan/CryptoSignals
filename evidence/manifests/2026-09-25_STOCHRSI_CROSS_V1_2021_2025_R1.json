@@ -1,0 +1,132 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "STOCHRSI_CROSS_V1_2021_2025_R1",
+  "status": "BACKTESTED_HISTORICAL_RESEARCH",
+  "acceptance_decision_allowed": false,
+  "validation_type": "HISTORICAL_RESEARCH_2021_2025",
+  "strategy": {
+    "strategy_id": "STOCHRSI_CROSS_V1",
+    "strategy_version": "1.0.0",
+    "parameters": {
+      "rsi_window": 14,
+      "stoch_window": 14,
+      "smooth_k": 10,
+      "smooth_d": 3,
+      "signal_logic": "STRICT_K_D_CROSS"
+    }
+  },
+  "oss_provenance": {
+    "repository": "w1ld3r/crypto-signal",
+    "source_commit": "8ae473999f83d3025e6e9429c3734429fb0e180d",
+    "license": "MIT",
+    "local_implementation": "project-owned canonical Wilder RSI/StochRSI; no TA-Lib dependency"
+  },
+  "source_commit_sha": "51e9e2136bd564be347c41af715b456b3aa98e86",
+  "research_branch_head_sha": "54f9f9b03cb19246a437a7aa9a3dddb73f109252",
+  "workflow_run_id": 36170192684,
+  "artifact": {
+    "artifact_id": 10879883406,
+    "digest": "sha256:7f52419f8474e7ea711f435fc0b301a59f20a75b6871a91f50e999dd460cf15d",
+    "file_count": 81,
+    "expires_at": "2026-10-25T17:56:37Z"
+  },
+  "verification": {
+    "unit_regression_tests": 73,
+    "unit_regression_passed": 73,
+    "successful_symbols": 13,
+    "requested_symbols": 13,
+    "runtime_status": "PASS",
+    "critical_data_quality_issues": 0
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "timeframe": "1D",
+    "requested_start": "2021-01-01T00:00:00Z",
+    "exclusive_end": "2026-01-01T00:00:00Z",
+    "last_included_candle": "2025-12-31T00:00:00Z"
+  },
+  "execution": {
+    "engine_name": "LONG_ONLY_SIGNAL_FLIP_V1",
+    "signal_calculated_at": "CANDLE_CLOSE",
+    "entry_rule": "NEXT_CANDLE_OPEN",
+    "fee_bps": 10,
+    "slippage_bps": 5
+  },
+  "aggregate": {
+    "signal_count": 2562,
+    "event_observation_count": 10211,
+    "closed_trades": 1256,
+    "pooled_win_rate": 0.3535031847133758,
+    "pooled_average_net_trade_return": 0.004629321985662833,
+    "pooled_median_net_trade_return": -0.022612415810267905,
+    "pooled_profit_factor": 1.1079558354928574,
+    "pooled_expectancy": 0.004629321985662833,
+    "positive_total_return_symbols": 5,
+    "benchmark_beaten_symbols": 3,
+    "median_symbol_max_drawdown": 0.8810401638481209,
+    "median_symbol_total_return": -0.2993852488269816,
+    "mean_symbol_total_return": 0.07216385403133407,
+    "median_symbol_exposure": 0.4813800657174151
+  },
+  "directional_event_study": {
+    "BUY": {
+      "1": {
+        "n": 1278,
+        "win_rate": 0.5023474178403756,
+        "avg": 0.001989834755747785,
+        "median": 0.00023063092129545
+      },
+      "3": {
+        "n": 1278,
+        "win_rate": 0.49061032863849763,
+        "avg": 0.003035895506770306,
+        "median": -0.0010290043564413999
+      },
+      "7": {
+        "n": 1270,
+        "win_rate": 0.4858267716535433,
+        "avg": 0.009729379049873527,
+        "median": -0.00393109075257295
+      },
+      "14": {
+        "n": 1264,
+        "win_rate": 0.47705696202531644,
+        "avg": 0.01599917213563033,
+        "median": -0.00608741124069005
+      }
+    },
+    "SELL": {
+      "1": {
+        "n": 1283,
+        "win_rate": 0.49025720966484804,
+        "avg": -0.0014751595428352585,
+        "median": -0.0007665184730953
+      },
+      "3": {
+        "n": 1280,
+        "win_rate": 0.4828125,
+        "avg": -0.008823502120208689,
+        "median": -0.0018246222353919001
+      },
+      "7": {
+        "n": 1279,
+        "win_rate": 0.5269741985926505,
+        "avg": -0.009265197646586239,
+        "median": 0.0051325919589393
+      },
+      "14": {
+        "n": 1279,
+        "win_rate": 0.5605942142298671,
+        "avg": -0.0029845646682952376,
+        "median": 0.0187831768068598
+      }
+    }
+  },
+  "interpretation_guardrails": [
+    "This is historical research evidence, not a blind OOS acceptance decision.",
+    "2026 data is excluded from this run.",
+    "The candidate parameters were fixed before this runtime result was inspected.",
+    "The aggregate profile is mixed: pooled PF and mean trade return are positive, but median trade return, cross-symbol breadth, benchmark comparison, and median drawdown are weak.",
+    "No parameter change or strategy promotion beyond BACKTESTED is authorized by this evidence."
+  ]
+}
