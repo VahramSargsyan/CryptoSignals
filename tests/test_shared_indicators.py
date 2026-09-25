@@ -9,7 +9,9 @@ from core.indicators.technical import (
     candle_body_strength,
     ema_sma_seed,
     macd,
+    moving_average_trend_features,
     rsi_wilder,
+    simple_moving_average,
     true_stoch_rsi,
     vahram_close_range_oscillator,
 )
@@ -63,6 +65,33 @@ class SharedIndicatorTests(unittest.TestCase):
              == result.loc[comparable, "macd_hist"]).all()
         )
 
+    def test_simple_moving_average_uses_exact_window(self):
+        values = pd.Series([1, 2, 3, 4, 5], dtype="float64")
+        result = simple_moving_average(values, window=3, name="sma_3")
+        self.assertTrue(pd.isna(result.iloc[0]))
+        self.assertTrue(pd.isna(result.iloc[1]))
+        self.assertAlmostEqual(result.iloc[2], 2.0, places=12)
+        self.assertAlmostEqual(result.iloc[4], 4.0, places=12)
+        self.assertEqual(result.name, "sma_3")
+
+    def test_ma_50_100_200_features_capture_price_and_stack_state(self):
+        close = pd.Series(range(1, 251), dtype="float64")
+        result = moving_average_trend_features(close)
+        self.assertIn("sma_50", result.columns)
+        self.assertIn("sma_100", result.columns)
+        self.assertIn("sma_200", result.columns)
+        self.assertTrue(pd.isna(result["sma_200"].iloc[198]))
+        self.assertTrue(pd.notna(result["sma_200"].iloc[199]))
+        self.assertTrue(bool(result["close_above_sma_50"].iloc[-1]))
+        self.assertTrue(bool(result["close_above_sma_100"].iloc[-1]))
+        self.assertTrue(bool(result["close_above_sma_200"].iloc[-1]))
+        self.assertTrue(bool(result["ma_bull_stack"].iloc[-1]))
+        self.assertFalse(bool(result["ma_bear_stack"].iloc[-1]))
+
+    def test_ma_trend_windows_must_be_strictly_ordered(self):
+        with self.assertRaises(ValueError):
+            moving_average_trend_features(pd.Series(range(300)), fast_window=50, medium_window=50, slow_window=200)
+
     def test_true_stoch_rsi_is_based_on_rsi_not_close_range(self):
         close = pd.Series(
             [1, 2, 3, 2, 4, 5, 4, 6, 5, 7, 6, 8, 7, 9, 8, 10, 9, 11, 10, 12],
@@ -113,6 +142,11 @@ class SharedIndicatorTests(unittest.TestCase):
         self.assertIn("rsi", features.columns)
         self.assertIn("macd", features.columns)
         self.assertIn("macd_signal", features.columns)
+        self.assertIn("sma_50", features.columns)
+        self.assertIn("sma_100", features.columns)
+        self.assertIn("sma_200", features.columns)
+        self.assertIn("ma_bull_stack", features.columns)
+        self.assertIn("ma_bear_stack", features.columns)
         self.assertFalse(features["vahram_close_range"].equals(features["stoch_rsi_k"]))
 
 
