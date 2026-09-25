@@ -351,3 +351,28 @@ Summary:
 No canonical strategy, paper-live profile, or status is changed by this research.
 
 Decision log: `docs/evidence/2026-09-26_LINK_GRID_MA_EXIT_RESEARCH_DECISION_LOG_V1.md`.
+
+
+## Volatility / multi-indicator exit research — 2026-09-26
+
+Status: **TESTED / NOT PROMOTED / DUPLICATE-WORK GUARD ACTIVE**
+
+Tested research families:
+
+- volatility selecting +3/+12, +6/+18, or +9/+24;
+- inverse volatility logic;
+- MA pairs used as three-grid regime selectors;
+- volatility + MA;
+- volatility + ADX + MA/DI;
+- high-volatility brake rules that retain WIDE by default.
+
+Key observations:
+
+- constant WIDE remained the best shared full-period return reference at +253.03% geometric return;
+- inverse ATR came closest at +251.54% and beat WIDE in 11/15 asset-year windows, but had slightly higher median drawdown and lower full-period compounded return;
+- BBW high-volatility brake returned +249.84% with lower median drawdown of 36.82% versus WIDE 38.67%; it remains a risk-management candidate only;
+- adding multiple indicators did not improve shared historical performance and increased complexity.
+
+No canonical strategy or paper-live profile is changed.
+
+Decision log: `docs/evidence/2026-09-26_LINK_GRID_VOLATILITY_REGIME_RESEARCH_V1.md`.
