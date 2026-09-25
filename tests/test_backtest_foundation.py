@@ -1,3 +1,4 @@
+import math
 import unittest
 
 import pandas as pd
@@ -26,6 +27,15 @@ class BacktestFoundationTests(unittest.TestCase):
     def test_last_candle_cannot_execute_without_future_data(self):
         with self.assertRaises(IndexError):
             next_candle_open_fill(self.candles, signal_position=1, side="BUY", policy=ExecutionPolicy())
+
+    def test_non_finite_costs_are_rejected(self):
+        for bad in (math.nan, math.inf, -math.inf):
+            with self.subTest(fee_bps=bad):
+                with self.assertRaises(ValueError):
+                    ExecutionPolicy(fee_bps=bad, slippage_bps=5)
+            with self.subTest(slippage_bps=bad):
+                with self.assertRaises(ValueError):
+                    ExecutionPolicy(fee_bps=10, slippage_bps=bad)
 
     def test_manifest_run_id_is_deterministic_and_records_cost_assumptions(self):
         manifest = BacktestRunManifest(
