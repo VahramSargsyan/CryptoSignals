@@ -7,7 +7,7 @@ from typing import Iterable, Optional
 
 import pandas as pd
 
-from core.indicators.technical import build_standard_features
+from core.indicators.technical import build_standard_features, simple_moving_average
 
 STRATEGY_ID = "VAHRAM_LINK_LEVEL_GRID_V1"
 STRATEGY_NAME = "VAHRAM_LINK_LEVEL_GRID"
@@ -147,6 +147,7 @@ class GridBacktestConfig:
     dynamic_exit_policy: str = "NONE"
     dynamic_wide_micro_exit_sublevels: int = 6
     dynamic_wide_mid_recovery_sublevels: int = 18
+    ma_exit_policy: str = "NONE"
     fee_bps: float = 10.0
     slippage_bps: float = 5.0
     rolling_range: RollingRangePolicy = RollingRangePolicy()
@@ -210,6 +211,16 @@ class GridBacktestConfig:
             raise ValueError("dynamic_wide_micro_exit_sublevels must be between 1 and 64")
         if not 1 <= self.dynamic_wide_mid_recovery_sublevels <= TOTAL_SUBLEVELS:
             raise ValueError("dynamic_wide_mid_recovery_sublevels must be between 1 and 64")
+        if self.ma_exit_policy not in {
+            "NONE",
+            "M25_100",
+            "M25_200",
+            "M50_100",
+            "M50_200",
+            "NEAREST_PAIRS",
+            "FARTHEST_PAIRS",
+        }:
+            raise ValueError("Unknown ma_exit_policy")
         if not 1 <= self.ten_sublevel_from_main <= MAIN_LEVELS:
             raise ValueError("ten_sublevel_from_main must be between 1 and 16")
 
@@ -488,6 +499,64 @@ def _dynamic_exit_uses_wide(
     )
 
 
+
+def _moving_average_exit_target(
+    *,
+    layer: str,
+    lot: OpenLot,
+    policy: str,
+    previous_features: pd.Series,
+) -> tuple[Optional[float], Optional[str]]:
+    """Return a causal MA reclaim target using only the previous closed candle."""
+    if policy == "NONE":
+        return None, None
+
+    if layer == "MICRO":
+        pair = ("sma_25", "sma_50")
+        fixed = {
+            "M25_100": "sma_25",
+            "M25_200": "sma_25",
+            "M50_100": "sma_50",
+            "M50_200": "sma_50",
+        }.get(policy)
+    elif layer == "MID":
+        pair = ("sma_100", "sma_200")
+        fixed = {
+            "M25_100": "sma_100",
+            "M50_100": "sma_100",
+            "M25_200": "sma_200",
+            "M50_200": "sma_200",
+        }.get(policy)
+    else:
+        raise ValueError("layer must be MICRO or MID")
+
+    def valid(name: str) -> Optional[float]:
+        value = previous_features.get(name)
+        if pd.isna(value):
+            return None
+        value = float(value)
+        if not math.isfinite(value) or value <= lot.entry_price:
+            return None
+        return value
+
+    if fixed is not None:
+        value = valid(fixed)
+        return (value, f"{layer}_{fixed.upper()}_RECLAIM") if value is not None else (None, None)
+
+    candidates = [(name, valid(name)) for name in pair]
+    candidates = [(name, value) for name, value in candidates if value is not None]
+    if not candidates:
+        return None, None
+
+    if policy == "NEAREST_PAIRS":
+        name, value = min(candidates, key=lambda item: item[1])
+    elif policy == "FARTHEST_PAIRS":
+        name, value = max(candidates, key=lambda item: item[1])
+    else:
+        raise ValueError(f"Unknown MA exit policy: {policy}")
+    return value, f"{layer}_{name.upper()}_RECLAIM"
+
+
 def _buy_limit_fill(candle: pd.Series, limit_price: float, slippage_bps: float) -> float:
     if float(candle["low"]) > limit_price:
         raise ValueError("Buy limit cannot fill when candle low is above limit")
@@ -593,9 +662,17 @@ def run_grid_backtest(
     )
     feature_frame = (
         build_standard_features(frame)
-        if cfg.entry_filter != "NONE" or cfg.dynamic_exit_policy != "NONE"
+        if cfg.entry_filter != "NONE"
+        or cfg.dynamic_exit_policy != "NONE"
+        or cfg.ma_exit_policy != "NONE"
         else None
     )
+    if feature_frame is not None and cfg.ma_exit_policy != "NONE":
+        feature_frame["sma_25"] = simple_moving_average(
+            frame["close"],
+            window=25,
+            name="sma_25",
+        )
     if schedule[first_evaluation_position] is None:
         raise ValueError("No valid H/L range at evaluation_start")
 
@@ -677,10 +754,34 @@ def run_grid_backtest(
             for slot_id, lot in list(lots.items()):
                 if lot.entry_position >= position:
                     continue
-                if float(candle["high"]) < lot.target_price:
+
+                effective_target = lot.target_price
+                ma_exit_reason = None
+                if cfg.ma_exit_policy != "NONE":
+                    previous_features = feature_frame.iloc[position - 1]
+                    ma_target, ma_exit_reason = _moving_average_exit_target(
+                        layer=layer,
+                        lot=lot,
+                        policy=cfg.ma_exit_policy,
+                        previous_features=previous_features,
+                    )
+                    if layer == "MICRO":
+                        if ma_target is None:
+                            continue
+                        effective_target = ma_target
+                    else:
+                        # Mid keeps its percentage target; MA replaces only the
+                        # fixed sublevel-recovery alternative.
+                        effective_target = lot.percent_target_price
+                        if ma_target is not None:
+                            effective_target = min(effective_target, ma_target)
+                            if effective_target == lot.percent_target_price:
+                                ma_exit_reason = "MID_PERCENT_TARGET"
+
+                if float(candle["high"]) < effective_target:
                     continue
 
-                fill = _sell_limit_fill(candle, lot.target_price, cfg.slippage_bps)
+                fill = _sell_limit_fill(candle, effective_target, cfg.slippage_bps)
                 sell_fraction = 1.0 - cfg.runner_fraction
                 sold_units = lot.units * sell_fraction
                 runner_units = lot.units - sold_units
@@ -705,7 +806,11 @@ def run_grid_backtest(
                 gross_return = (fill / lot.entry_price) - 1.0
                 marked_exit_value = proceeds + runner_units * fill * (1.0 - fee_rate)
                 net_return = (marked_exit_value / lot.invested_cash) - 1.0
-                if layer == "MID" and lot.grid_target_price is not None:
+                if cfg.ma_exit_policy != "NONE":
+                    exit_reason = ma_exit_reason or (
+                        "MID_PERCENT_TARGET" if layer == "MID" else "MA_RECLAIM"
+                    )
+                elif layer == "MID" and lot.grid_target_price is not None:
                     if lot.grid_target_price <= lot.percent_target_price:
                         exit_reason = (
                             "MID_FIRST_OF_PERCENT_OR_RECOVERY:"
@@ -731,7 +836,7 @@ def run_grid_backtest(
                         "fill_price": fill,
                         "units": sold_units,
                         "cash_value": proceeds,
-                        "target_price": lot.target_price,
+                        "target_price": effective_target,
                         "reason": exit_reason,
                     }
                 )
@@ -760,7 +865,8 @@ def run_grid_backtest(
                         "gross_return": gross_return,
                         "net_return": net_return,
                         "holding_candles": position - lot.entry_position,
-                        "target_price": lot.target_price,
+                        "target_price": effective_target,
+                        "configured_target_price": lot.target_price,
                         "percent_target_price": lot.percent_target_price,
                         "grid_target_price": lot.grid_target_price,
                         "exit_reason": exit_reason,
@@ -1060,6 +1166,7 @@ def run_grid_backtest(
         "dynamic_exit_policy": cfg.dynamic_exit_policy,
         "dynamic_wide_micro_exit_sublevels": cfg.dynamic_wide_micro_exit_sublevels,
         "dynamic_wide_mid_recovery_sublevels": cfg.dynamic_wide_mid_recovery_sublevels,
+        "ma_exit_policy": cfg.ma_exit_policy,
         "micro_initial_capital": cfg.micro_capital,
         "mid_initial_capital": cfg.mid_capital,
         "total_initial_capital": total_initial,
@@ -1100,6 +1207,7 @@ def run_grid_backtest(
             "runner_fraction_is_configurable": True,
             "entry_filter_is_causal_previous_candle_only": True,
             "dynamic_exit_policy_is_causal_previous_candle_only": True,
+            "ma_exit_policy_is_causal_previous_candle_only": True,
             "mid_entry_at_A_boundary_is_owner_confirmed": False,
             "micro_exit_one_sublevel_up_is_historical_observed": True,
             "mid_percent_targets_are_current_chart_values": True,
