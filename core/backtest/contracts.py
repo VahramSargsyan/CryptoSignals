@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import asdict, dataclass, field
 from hashlib import sha256
 from typing import Any, Mapping
@@ -18,6 +19,8 @@ class ExecutionPolicy:
     def __post_init__(self) -> None:
         if self.entry_rule != ENTRY_RULE_NEXT_CANDLE_OPEN:
             raise ValueError("Foundation currently supports NEXT_CANDLE_OPEN only")
+        if not math.isfinite(self.fee_bps) or not math.isfinite(self.slippage_bps):
+            raise ValueError("Fees and slippage must be finite")
         if self.fee_bps < 0 or self.slippage_bps < 0:
             raise ValueError("Fees and slippage must be non-negative")
 
