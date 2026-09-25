@@ -46,6 +46,7 @@ def attach_regime_to_events(
     ).drop(columns=["timestamp"])
     for column in REGIME_DIMENSIONS:
         result[column] = result[column].fillna("UNKNOWN")
+    result["calendar_year"] = result["signal_timestamp"].dt.year.astype(int)
     return result
 
 
@@ -72,6 +73,7 @@ def attach_regime_to_trades(
     ).drop(columns=["timestamp"])
     for column in REGIME_DIMENSIONS:
         result[column] = result[column].fillna("UNKNOWN")
+    result["calendar_year"] = result["entry_signal_timestamp"].dt.year.astype(int)
     return result
 
 
@@ -79,6 +81,8 @@ def summarize_events_by_regime(
     events: pd.DataFrame,
     *,
     dimensions: Iterable[str] = REGIME_DIMENSIONS,
+    group_by_symbol: bool = True,
+    group_by_year: bool = False,
 ) -> pd.DataFrame:
     if events.empty:
         return pd.DataFrame()
@@ -86,45 +90,35 @@ def summarize_events_by_regime(
     for dimension in dimensions:
         if dimension not in events.columns:
             raise ValueError(f"Missing regime dimension: {dimension}")
-        grouped = events.groupby(
-            [
-                "strategy_id",
-                "strategy_version",
-                "symbol",
-                "timeframe",
-                "signal",
-                "horizon_candles",
-                dimension,
-            ],
-            dropna=False,
-        )
-        for keys, group in grouped:
-            (
-                strategy_id,
-                strategy_version,
-                symbol,
-                timeframe,
-                signal,
-                horizon,
-                regime_value,
-            ) = keys
+        group_columns = [
+            "strategy_id",
+            "strategy_version",
+            "timeframe",
+            "signal",
+            "horizon_candles",
+        ]
+        if group_by_symbol:
+            group_columns.insert(2, "symbol")
+        if group_by_year:
+            if "calendar_year" not in events.columns:
+                raise ValueError("calendar_year is required for yearly regime summary")
+            group_columns.append("calendar_year")
+        group_columns.append(dimension)
+
+        for keys, group in events.groupby(group_columns, dropna=False):
+            values = dict(zip(group_columns, keys if isinstance(keys, tuple) else (keys,)))
             directional = group["directional_return"].astype(float)
-            rows.append(
-                {
-                    "regime_dimension": dimension,
-                    "regime_value": str(regime_value),
-                    "strategy_id": strategy_id,
-                    "strategy_version": strategy_version,
-                    "symbol": symbol,
-                    "timeframe": timeframe,
-                    "signal": signal,
-                    "horizon_candles": int(horizon),
-                    "observation_count": int(len(group)),
-                    "win_rate": float((directional > 0).mean()),
-                    "average_directional_return": float(directional.mean()),
-                    "median_directional_return": float(directional.median()),
-                }
-            )
+            row = {
+                "regime_dimension": dimension,
+                "regime_value": str(values.pop(dimension)),
+                **values,
+                "observation_count": int(len(group)),
+                "win_rate": float((directional > 0).mean()),
+                "average_directional_return": float(directional.mean()),
+                "median_directional_return": float(directional.median()),
+            }
+            row["symbol_scope"] = row.get("symbol", "ALL_SYMBOLS_POOLED")
+            rows.append(row)
     return pd.DataFrame(rows)
 
 
@@ -140,6 +134,8 @@ def summarize_trades_by_regime(
     trades: pd.DataFrame,
     *,
     dimensions: Iterable[str] = REGIME_DIMENSIONS,
+    group_by_symbol: bool = True,
+    group_by_year: bool = False,
 ) -> pd.DataFrame:
     if trades.empty:
         return pd.DataFrame()
@@ -147,32 +143,32 @@ def summarize_trades_by_regime(
     for dimension in dimensions:
         if dimension not in trades.columns:
             raise ValueError(f"Missing regime dimension: {dimension}")
-        grouped = trades.groupby(
-            [
-                "strategy_id",
-                "strategy_version",
-                "symbol",
-                "timeframe",
-                dimension,
-            ],
-            dropna=False,
-        )
-        for keys, group in grouped:
-            strategy_id, strategy_version, symbol, timeframe, regime_value = keys
+        group_columns = [
+            "strategy_id",
+            "strategy_version",
+            "timeframe",
+        ]
+        if group_by_symbol:
+            group_columns.insert(2, "symbol")
+        if group_by_year:
+            if "calendar_year" not in trades.columns:
+                raise ValueError("calendar_year is required for yearly regime summary")
+            group_columns.append("calendar_year")
+        group_columns.append(dimension)
+
+        for keys, group in trades.groupby(group_columns, dropna=False):
+            values = dict(zip(group_columns, keys if isinstance(keys, tuple) else (keys,)))
             returns = group["net_return"].astype(float)
-            rows.append(
-                {
-                    "regime_dimension": dimension,
-                    "regime_value": str(regime_value),
-                    "strategy_id": strategy_id,
-                    "strategy_version": strategy_version,
-                    "symbol": symbol,
-                    "timeframe": timeframe,
-                    "trade_count": int(len(group)),
-                    "win_rate": float((returns > 0).mean()),
-                    "average_return": float(returns.mean()),
-                    "median_return": float(returns.median()),
-                    "profit_factor": _profit_factor(returns),
-                }
-            )
+            row = {
+                "regime_dimension": dimension,
+                "regime_value": str(values.pop(dimension)),
+                **values,
+                "trade_count": int(len(group)),
+                "win_rate": float((returns > 0).mean()),
+                "average_return": float(returns.mean()),
+                "median_return": float(returns.median()),
+                "profit_factor": _profit_factor(returns),
+            }
+            row["symbol_scope"] = row.get("symbol", "ALL_SYMBOLS_POOLED")
+            rows.append(row)
     return pd.DataFrame(rows)
