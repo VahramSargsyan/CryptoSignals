@@ -116,7 +116,7 @@ def main() -> int:
         "source_commit_sha": source_commit_sha,
         "retrieved_at": retrieved_at,
         "source": "BINANCE_SPOT_REST",
-        "endpoint": "https://api.binance.com/api/v3/klines",
+        "endpoint": "https://data-api.binance.vision/api/v3/klines",
         "symbols": symbols,
         "start": start,
         "end": end,
@@ -194,11 +194,11 @@ def main() -> int:
                     result["evidence"],
                 )
                 result["event_observations"].to_csv(
-                    symbol_dir / "event_study" / f"{strategy_id}_{run_id}_observations.csv",
+                    event_dir / f"{strategy_id}_{run_id}_observations.csv",
                     index=False,
                 )
                 result["event_summary"].to_csv(
-                    symbol_dir / "event_study" / f"{strategy_id}_{run_id}_summary.csv",
+                    event_dir / f"{strategy_id}_{run_id}_summary.csv",
                     index=False,
                 )
 
