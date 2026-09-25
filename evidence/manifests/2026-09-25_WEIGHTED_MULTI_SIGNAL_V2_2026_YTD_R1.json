@@ -1,0 +1,153 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "WEIGHTED_MULTI_SIGNAL_V2_2026_YTD_R1",
+  "status": "TEMPORAL_HOLDOUT_TESTED_NONBLIND",
+  "acceptance_decision_allowed": false,
+  "validation_type": "NONBLIND_TEMPORAL_HOLDOUT_2026_YTD",
+  "strategy": {
+    "strategy_id": "WEIGHTED_MULTI_SIGNAL_V2",
+    "strategy_version": "2.0.0",
+    "parameters": {
+      "core_blocks": [
+        "macd",
+        "stochrsi",
+        "volume_candle"
+      ],
+      "min_candle_body_strength": 0.5,
+      "ma_role": "CONTEXT_ONLY",
+      "core_base_strength": 80,
+      "ma_aligned_strength": 100,
+      "bollinger_role": "NOT_USED"
+    }
+  },
+  "lineage": {
+    "derived_from": "WEIGHTED_MULTI_SIGNAL_V1",
+    "diagnostic_source": "docs/14_WEIGHTED_MULTI_SIGNAL_V1_DIAGNOSTIC_R1.md",
+    "development_period": "2021-01-01/2026-01-01"
+  },
+  "source_commit_sha": "5c235702c4f762083181afee2869b9980fac163c",
+  "research_branch_head_sha": "86c12514d4b3a05be2b111fd3032e5c126c0bcd3",
+  "workflow_run_id": 36184684883,
+  "artifact": {
+    "artifact_id": 10885147822,
+    "digest": "sha256:04a22a2b4edbe62352796384e142702b7477b93b7f17817e333a85d48181b12f",
+    "file_count": 120,
+    "expires_at": "2026-10-25T20:16:06Z"
+  },
+  "verification": {
+    "unit_regression_tests": 94,
+    "unit_regression_passed": 94,
+    "successful_symbols": 13,
+    "requested_symbols": 13,
+    "runtime_status": "PASS",
+    "critical_data_quality_issues": 0
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "timeframe": "1D",
+    "requested_start": "2026-01-01T00:00:00Z",
+    "exclusive_end": "2026-09-25T00:00:00Z",
+    "last_included_candle": "2026-09-24T00:00:00Z"
+  },
+  "execution": {
+    "engine_name": "LONG_ONLY_SIGNAL_FLIP_V1",
+    "signal_calculated_at": "CANDLE_CLOSE",
+    "entry_rule": "NEXT_CANDLE_OPEN",
+    "fee_bps": 10,
+    "slippage_bps": 5
+  },
+  "aggregate": {
+    "signal_count": 235,
+    "event_observation_count": 904,
+    "closed_trades": 45,
+    "pooled_win_rate": 0.4,
+    "pooled_average_net_trade_return": 0.036938546798233655,
+    "pooled_median_net_trade_return": -0.028431138186062355,
+    "pooled_profit_factor": 1.523690113064084,
+    "pooled_expectancy": 0.036938546798233655,
+    "positive_total_return_symbols": 5,
+    "benchmark_beaten_symbols": 11,
+    "median_symbol_max_drawdown": 0.3259646172347573,
+    "median_symbol_total_return": -0.029836133259662,
+    "mean_symbol_total_return": 0.04502100599392686
+  },
+  "ma_context_strength": {
+    "strength_80": {
+      "trades": 44,
+      "win_rate": 0.4090909090909091,
+      "average_return": 0.03820250372956184,
+      "median_return": -0.029881718710673577,
+      "profit_factor": 1.5327082148174822
+    },
+    "strength_100": {
+      "trades": 1,
+      "win_rate": 0,
+      "average_return": -0.01867555818020661,
+      "median_return": -0.01867555818020661,
+      "profit_factor": 0
+    },
+    "caveat": "The run starts at 2026-01-01 with no pre-start warm-up history. SMA200 context is unavailable until roughly 200 daily candles accumulate. MA 80/100 strength separation is therefore not a valid test of MA usefulness. Trading decisions are unaffected because MA is context-only."
+  },
+  "directional_event_study": {
+    "BUY": {
+      "1": {
+        "n": 159,
+        "win_rate": 0.44654088050314467,
+        "avg": 0.020005695843714564,
+        "median": -0.0033685156074556
+      },
+      "3": {
+        "n": 157,
+        "win_rate": 0.40764331210191085,
+        "avg": 0.010562722071334879,
+        "median": -0.0124999999999999
+      },
+      "7": {
+        "n": 148,
+        "win_rate": 0.39864864864864863,
+        "avg": 0.008036509583167678,
+        "median": -0.01125752907431335
+      },
+      "14": {
+        "n": 146,
+        "win_rate": 0.4383561643835616,
+        "avg": -0.010241234966431702,
+        "median": -0.0099014419553511
+      }
+    },
+    "SELL": {
+      "1": {
+        "n": 76,
+        "win_rate": 0.4868421052631579,
+        "avg": -0.011872241614705537,
+        "median": -0.00203636032184025
+      },
+      "3": {
+        "n": 75,
+        "win_rate": 0.48,
+        "avg": -0.015258042339293239,
+        "median": -0.0065681444991789
+      },
+      "7": {
+        "n": 75,
+        "win_rate": 0.4533333333333333,
+        "avg": -0.02048296433882513,
+        "median": -0.0090985836225494
+      },
+      "14": {
+        "n": 68,
+        "win_rate": 0.36764705882352944,
+        "avg": -0.030321824162775773,
+        "median": -0.0141088785389521
+      }
+    }
+  },
+  "interpretation_guardrails": [
+    "This is a nonblind temporal holdout, not a blind OOS acceptance test.",
+    "V2 rules were frozen before this runtime and were derived only from V1 2021-2025 diagnostics.",
+    "Pooled trading economics are positive, but the median trade and median symbol total return remain negative.",
+    "SELL directional event returns are negative on all four horizons in this 2026 run; SELL is currently used only as a long exit.",
+    "MA context cannot be evaluated from this run because 200-day prehistory was not loaded before the evaluation period.",
+    "No parameter tuning or ACCEPTED promotion is authorized by this evidence."
+  ]
+}
