@@ -6,6 +6,7 @@ from strategies.crypto.link_level_grid.strategy import (
     GridBacktestConfig,
     GridDefinition,
     RollingRangePolicy,
+    _dynamic_exit_uses_wide,
     _entry_filter_allows,
     _mid_target,
     build_causal_range_schedule,
@@ -326,9 +327,57 @@ class LinkLevelGridStrategyTests(unittest.TestCase):
             )
         )
 
+    def test_dynamic_exit_policy_uses_previous_closed_indicator_context(self):
+        previous_candle = pd.Series(
+            {
+                "open": 90.0,
+                "high": 102.0,
+                "low": 88.0,
+                "close": 100.0,
+                "volume": 200.0,
+            }
+        )
+        previous_features = pd.Series(
+            {
+                "rsi": 55.0,
+                "stoch_rsi_k": 60.0,
+                "stoch_rsi_d": 50.0,
+                "bb_lower": 80.0,
+                "sma_200": 95.0,
+                "macd": 2.0,
+                "macd_signal": 1.0,
+                "volume_ma": 100.0,
+                "candle_body_strength": 0.8,
+            }
+        )
+        self.assertTrue(
+            _dynamic_exit_uses_wide(
+                policy="SMA200_BULL_WIDE",
+                previous_candle=previous_candle,
+                previous_features=previous_features,
+            )
+        )
+        self.assertTrue(
+            _dynamic_exit_uses_wide(
+                policy="SMA200_OR_MACD_WIDE",
+                previous_candle=previous_candle,
+                previous_features=previous_features,
+            )
+        )
+        self.assertFalse(
+            _dynamic_exit_uses_wide(
+                policy="RSI_OVERSOLD_WIDE",
+                previous_candle=previous_candle,
+                previous_features=previous_features,
+            )
+        )
+
+
     def test_entry_filter_config_validation(self):
         with self.assertRaisesRegex(ValueError, "Unknown entry_filter"):
             GridBacktestConfig(entry_filter="FUTURE_MAGIC")
+        with self.assertRaisesRegex(ValueError, "Unknown dynamic_exit_policy"):
+            GridBacktestConfig(dynamic_exit_policy="FUTURE_MAGIC")
 
 
     def test_backtest_keeps_micro_and_mid_capital_separate(self):
