@@ -146,6 +146,7 @@ def compare_strategies_on_dataset(
     horizons: tuple[int, ...] = (1, 3, 7, 14),
     trading_policy: LongOnlyTradingPolicy | None = None,
     strategy_ids: tuple[str, ...] | None = None,
+    evaluation_start: str | pd.Timestamp | None = None,
 ) -> dict:
     if dataset.candles.empty:
         raise ValueError("Cannot compare strategies on an empty dataset")
@@ -164,8 +165,27 @@ def compare_strategies_on_dataset(
 
     policy = trading_policy or LongOnlyTradingPolicy()
     execution = ExecutionPolicy(fee_bps=fee_bps, slippage_bps=slippage_bps)
-    start = pd.Timestamp(dataset.candles.iloc[0]["timestamp"]).isoformat()
-    end = pd.Timestamp(dataset.candles.iloc[-1]["timestamp"]).isoformat()
+
+    all_candles = dataset.candles.copy()
+    all_timestamps = pd.to_datetime(all_candles["timestamp"], utc=True)
+    if evaluation_start is None:
+        evaluation_candles = all_candles.reset_index(drop=True)
+        evaluation_boundary = pd.Timestamp(evaluation_candles.iloc[0]["timestamp"])
+    else:
+        evaluation_boundary = pd.Timestamp(evaluation_start)
+        if evaluation_boundary.tzinfo is None:
+            evaluation_boundary = evaluation_boundary.tz_localize("UTC")
+        else:
+            evaluation_boundary = evaluation_boundary.tz_convert("UTC")
+        evaluation_candles = all_candles.loc[
+            all_timestamps >= evaluation_boundary
+        ].reset_index(drop=True)
+
+    if evaluation_candles.empty:
+        raise ValueError("evaluation_start leaves no candles in the evaluation period")
+
+    start = pd.Timestamp(evaluation_candles.iloc[0]["timestamp"]).isoformat()
+    end = pd.Timestamp(evaluation_candles.iloc[-1]["timestamp"]).isoformat()
 
     summary_rows = []
     results = {}
@@ -187,18 +207,23 @@ def compare_strategies_on_dataset(
             engine_name=ENGINE_NAME,
             engine_config=policy.to_config(),
         )
-        outputs = generator(
-            dataset.candles,
+        generated_outputs = generator(
+            all_candles,
             symbol=dataset.symbol,
             timeframe=dataset.timeframe,
             source_commit_sha=source_commit_sha,
             run_id=manifest.run_id,
             **generator_kwargs,
         )
-        events = run_event_study(dataset.candles, outputs, horizons=horizons)
+        outputs = [
+            output
+            for output in generated_outputs
+            if pd.Timestamp(output.timestamp) >= evaluation_boundary
+        ]
+        events = run_event_study(evaluation_candles, outputs, horizons=horizons)
         event_summary = summarize_event_study(events)
         trading = run_long_only_backtest(
-            dataset.candles,
+            evaluation_candles,
             outputs,
             manifest=manifest,
             policy=policy,
@@ -237,6 +262,8 @@ def compare_strategies_on_dataset(
         "dataset_id": dataset.dataset_id,
         "symbol": dataset.symbol,
         "timeframe": dataset.timeframe,
+        "data_start": pd.Timestamp(all_candles.iloc[0]["timestamp"]).isoformat(),
+        "evaluation_start": start,
         "summary": pd.DataFrame(summary_rows),
         "strategies": results,
     }
