@@ -182,3 +182,18 @@ The job runs daily after the UTC daily candle closes and produces a reproducible
 Optional Telegram/SMTP reporting is controlled only through GitHub repository secrets.
 
 Protocol: `docs/15_GRID_PAPER_LIVE_V1.md`.
+
+
+## Moving-average exit research decision memory — 2026-09-26
+
+MA-based exit research has already tested three families without changing grid entries:
+
+- MA directly replacing fixed recovery exits;
+- MA selecting BASE versus WIDE exits;
+- MA-managed runners after WIDE recovery.
+
+Current decision: **TESTED / NOT PROMOTED**. Constant WIDE (+6/+18) remains the stronger shared historical reference after the explored MA variants; MA40/90 produced a slightly higher aggregate development result in one post-hoc regime-selector scan but did not show broad enough asset/year stability to promote.
+
+Future chats should not repeat MA25/50, MA50/100, MA100/200, MA40/90, direct-MA exits, or MA-runner variants without materially new evidence or a new mechanism.
+
+Decision log: `docs/evidence/2026-09-26_LINK_GRID_MA_EXIT_RESEARCH_DECISION_LOG_V1.md`.
