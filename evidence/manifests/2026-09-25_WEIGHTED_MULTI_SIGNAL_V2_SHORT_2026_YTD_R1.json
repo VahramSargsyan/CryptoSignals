@@ -1,0 +1,100 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "WEIGHTED_MULTI_SIGNAL_V2_SHORT_2026_YTD_R1",
+  "status": "NONBLIND_SHORT_TEMPORAL_RESEARCH_COMPLETED",
+  "acceptance_decision_allowed": false,
+  "validation_type": "NONBLIND_SHORT_TEMPORAL_HOLDOUT_2026_YTD_WARMUP_CORRECTED",
+  "strategy": {
+    "strategy_id": "WEIGHTED_MULTI_SIGNAL_V2",
+    "strategy_version": "2.0.0",
+    "formula_changed": false
+  },
+  "execution": {
+    "engine_name": "SHORT_ONLY_SIGNAL_FLIP_V1",
+    "position_mode": "SHORT_ONLY_FULL_EQUITY_1X_NOTIONAL",
+    "entry_signal": "SELL",
+    "exit_signal": "BUY",
+    "fee_bps": 10,
+    "slippage_bps": 5,
+    "bankruptcy_policy": "ZERO_EQUITY_LIQUIDATION_AT_INTRADAY_HIGH"
+  },
+  "source_commit_sha": "30c871ee9237217816572dcbf72ef0b6d43a8fb8",
+  "research_branch_head_sha": "9e13d2cae7972f2283257b021b57a450d7c067a9",
+  "workflow_run_id": 36193046268,
+  "artifact": {
+    "artifact_id": 10889021937,
+    "digest": "sha256:3dab477e0b3017414d8904001651298486082f867288012993af74b897faf5dc",
+    "file_count": 81,
+    "expires_at": "2026-10-25T21:43:40Z"
+  },
+  "verification": {
+    "unit_regression_tests": 103,
+    "unit_regression_passed": 103,
+    "successful_symbols": 13,
+    "requested_symbols": 13,
+    "runtime_status": "PASS"
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "timeframe": "1D",
+    "data_start": "2025-01-01T00:00:00Z",
+    "evaluation_start": "2026-01-01T00:00:00Z",
+    "exclusive_end": "2026-09-25T00:00:00Z"
+  },
+  "aggregate": {
+    "signal_count": 296,
+    "event_observation_count": 1148,
+    "closed_trades": 48,
+    "pooled_win_rate": 0.4791666666666667,
+    "pooled_average_net_trade_return": 0.01756653359868977,
+    "pooled_median_net_trade_return": -0.014372581516856553,
+    "pooled_profit_factor": 1.2796044181173336,
+    "positive_total_return_symbols": 8,
+    "short_benchmark_beaten_symbols": 4,
+    "median_symbol_max_drawdown": 0.2803536010622978,
+    "median_symbol_total_return": 0.0482570952991858,
+    "mean_symbol_total_return": 0.02117747432025037,
+    "zero_equity_liquidations": 0
+  },
+  "entry_strength_context": {
+    "80": {
+      "trades": 20,
+      "win_rate": 0.45,
+      "average_return": -0.01180584397817514,
+      "median_return": -0.041989480730914075,
+      "profit_factor": 0.8460669810645572
+    },
+    "100": {
+      "trades": 28,
+      "win_rate": 0.5,
+      "average_return": 0.038546803296450424,
+      "median_return": 0.0018264733512502462,
+      "profit_factor": 1.7283914375157328
+    }
+  },
+  "comparison_to_long_2026_corrected": {
+    "long_run": "WEIGHTED_MULTI_SIGNAL_V2_2026_YTD_WARMUP_R2",
+    "long_pooled_profit_factor": 1.0328856047419288,
+    "long_average_trade": 0.002704637516209993,
+    "long_median_trade": -0.03809047331735138,
+    "long_positive_total_return_symbols": 4,
+    "long_median_symbol_max_drawdown": 0.3890307663964628,
+    "short_pooled_profit_factor": 1.2796044181173336,
+    "short_average_trade": 0.01756653359868977,
+    "short_median_trade": -0.014372581516856553,
+    "short_positive_total_return_symbols": 8,
+    "short_median_symbol_max_drawdown": 0.2803536010622978
+  },
+  "future_unseen_boundary": {
+    "start": "2026-09-26T00:00:00Z",
+    "rule": "Do not tune this short hypothesis from future unseen data. Any formula/execution-policy change after observing that period requires a new version/profile."
+  },
+  "interpretation_guardrails": [
+    "2026 is nonblind because the bearish directional evidence was already inspected before the short engine was built.",
+    "The 2026 short profile is stronger than the corrected 2026 long profile on pooled PF, average trade, positive-symbol breadth, and median drawdown.",
+    "Median short trade remains negative.",
+    "Strength-100 entries are descriptively stronger than strength-80 entries, but a separately frozen threshold-100 policy must be rerun before treating that as an execution rule.",
+    "No zero-equity liquidation occurred in this 2026 period, but development history contains two such failures.",
+    "No live/paper-live shorting or acceptance is authorized."
+  ]
+}
