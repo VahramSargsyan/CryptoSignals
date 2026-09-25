@@ -38,8 +38,22 @@ class DataFoundationTests(unittest.TestCase):
         self.assertEqual(report.duplicate_timestamps, 1)
         self.assertEqual(report.out_of_order_rows, 1)
         self.assertEqual(report.missing_candles, 1)
+        self.assertEqual(report.off_grid_timestamps, 0)
         self.assertEqual(report.invalid_ohlc_rows, 1)
         self.assertEqual(report.negative_volume_rows, 1)
+        self.assertTrue(report.has_critical_issues)
+
+    def test_partial_interval_gap_and_off_grid_timestamp_are_detected(self):
+        frame = pd.DataFrame(
+            [
+                {"timestamp": "2026-01-01T00:00:00Z", "open": 10, "high": 12, "low": 9, "close": 11, "volume": 100},
+                {"timestamp": "2026-01-02T12:00:00Z", "open": 11, "high": 13, "low": 10, "close": 12, "volume": 120},
+            ]
+        )
+        frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True)
+        report = validate_candles(frame, symbol="TEST", timeframe="1D")
+        self.assertEqual(report.missing_candles, 1)
+        self.assertEqual(report.off_grid_timestamps, 1)
         self.assertTrue(report.has_critical_issues)
 
     def test_closed_candle_filter(self):
