@@ -197,3 +197,12 @@ Current decision: **TESTED / NOT PROMOTED**. Constant WIDE (+6/+18) remains the 
 Future chats should not repeat MA25/50, MA50/100, MA100/200, MA40/90, direct-MA exits, or MA-runner variants without materially new evidence or a new mechanism.
 
 Decision log: `docs/evidence/2026-09-26_LINK_GRID_MA_EXIT_RESEARCH_DECISION_LOG_V1.md`.
+
+
+## Volatility / multi-indicator exit research — 2026-09-26
+
+A second exit-regime research pass tested ATR%, Bollinger bandwidth, realized volatility, MA pairs, and simple MA/volatility/ADX combinations for choosing among +3/+12, +6/+18, and +9/+24 exits.
+
+Current decision: **TESTED / NOT PROMOTED**. Constant WIDE (+6/+18) remains the strongest shared historical return reference. The closest volatility-only candidate was inverse ATR logic (+251.54% geometric vs +253.03% WIDE), while a BBW high-volatility brake reduced median drawdown (36.82% vs 38.67%) at a modest return cost (+249.84%). Multi-indicator combinations did not improve on WIDE.
+
+Decision log: `docs/evidence/2026-09-26_LINK_GRID_VOLATILITY_REGIME_RESEARCH_V1.md`.
