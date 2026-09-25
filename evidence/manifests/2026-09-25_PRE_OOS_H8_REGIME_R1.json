@@ -1,0 +1,140 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "PRE_OOS_REGIME_H8_2026_09_25_R1",
+  "status": "BACKTEST_EXECUTED_PRE_OOS_REGIME_RESEARCH",
+  "acceptance_decision_allowed": false,
+  "protected_period": "2026",
+  "out_of_sample_status": "NOT_OPENED",
+  "source_commit_sha": "61de61d4e34a997dd15e31ab8d80b851038f3e3b",
+  "workflow_run_id": 36115936390,
+  "research_branch_head_sha": "5e4f78995d45f965584f0c04bffb215aced98865",
+  "artifact": {
+    "artifact_id": 10854967356,
+    "digest": "sha256:5e23e48dfd7a07349fbf625eb63a1e2be476452a52129d585315693975e4c497",
+    "file_count": 181,
+    "expires_at": "2026-10-25T09:00:38Z"
+  },
+  "verification": {
+    "unit_regression_tests": 51,
+    "unit_regression_passed": 51,
+    "successful_downloads": 13,
+    "successful_comparisons": 13,
+    "requested_symbols": 13,
+    "regime_rows": 1826,
+    "event_rows": 9804,
+    "trade_rows": 295,
+    "runtime_status": "PASS"
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "endpoint": "https://data-api.binance.vision/api/v3/klines",
+    "timeframe": "1D",
+    "requested_start": "2021-01-01T00:00:00Z",
+    "exclusive_end": "2026-01-01T00:00:00Z",
+    "protected_period": "2026"
+  },
+  "regime_config": {
+    "benchmark_symbol": "BTCUSDT",
+    "trend_fast_window": 50,
+    "trend_slow_window": 200,
+    "breadth_window": 50,
+    "volume_window": 20,
+    "volatility_window": 20,
+    "volatility_baseline_window": 252,
+    "minimum_breadth_assets": 5,
+    "breadth_bull_threshold": 0.6,
+    "breadth_bear_threshold": 0.4,
+    "volume_high_threshold": 0.6,
+    "volume_low_threshold": 0.4,
+    "volatility_high_multiple": 1.25,
+    "volatility_low_multiple": 0.8
+  },
+  "regime_distribution_days": {
+    "btc_trend": {
+      "BTC_BEAR": 543,
+      "BTC_BULL": 851,
+      "BTC_TRANSITION": 233,
+      "UNKNOWN": 199
+    },
+    "broad_crypto_trend": {
+      "BROAD_BEAR": 951,
+      "BROAD_BULL": 663,
+      "BROAD_SIDEWAYS": 163,
+      "UNKNOWN": 49
+    },
+    "volatility_regime": {
+      "VOL_HIGH": 328,
+      "VOL_LOW": 477,
+      "VOL_NORMAL": 750,
+      "UNKNOWN": 271
+    },
+    "volume_regime": {
+      "VOLUME_HIGH": 498,
+      "VOLUME_LOW": 1081,
+      "VOLUME_NORMAL": 228,
+      "UNKNOWN": 19
+    }
+  },
+  "key_event_findings": {
+    "VAHRAM_ORIGINAL_V1": {
+      "BUY_VOL_HIGH": {
+        "1": {"n": 70, "win_rate": 0.6428571428571429, "avg": 0.0242745171490833},
+        "3": {"n": 70, "win_rate": 0.6714285714285714, "avg": 0.0324259736744434},
+        "7": {"n": 70, "win_rate": 0.6285714285714286, "avg": 0.0187026547646911},
+        "14": {"n": 69, "win_rate": 0.5797101449275363, "avg": 0.0311976176482851}
+      },
+      "BUY_BROAD_BEAR": {
+        "1": {"n": 498, "win_rate": 0.5923694779116466, "avg": 0.0090068680962995},
+        "3": {"n": 498, "win_rate": 0.5863453815261044, "avg": 0.0150739331474133},
+        "7": {"n": 498, "win_rate": 0.5943775100401606, "avg": 0.0247218972832971},
+        "14": {"n": 486, "win_rate": 0.5432098765432098, "avg": 0.0276218997236278}
+      },
+      "SELL_BROAD_BULL": {
+        "1": {"n": 600, "win_rate": 0.5116666666666667, "avg": -0.0049022805422779},
+        "3": {"n": 600, "win_rate": 0.4783333333333333, "avg": -0.0244840682199519},
+        "7": {"n": 600, "win_rate": 0.46, "avg": -0.0423099153774812},
+        "14": {"n": 600, "win_rate": 0.4633333333333333, "avg": -0.0660818550788788}
+      }
+    },
+    "VAHRAM_TRUE_STOCHRSI_V2": {
+      "BUY_VOL_HIGH": {
+        "1": {"n": 59, "win_rate": 0.6271186440677966, "avg": 0.0338864751840737},
+        "3": {"n": 59, "win_rate": 0.7796610169491526, "avg": 0.0538316245723271},
+        "7": {"n": 59, "win_rate": 0.7457627118644068, "avg": 0.0696555242132041},
+        "14": {"n": 58, "win_rate": 0.6724137931034483, "avg": 0.0735942367902086}
+      },
+      "BUY_BROAD_BEAR": {
+        "1": {"n": 436, "win_rate": 0.5986238532110092, "avg": 0.0110750838355082},
+        "3": {"n": 436, "win_rate": 0.6123853211009175, "avg": 0.0183032926420841},
+        "7": {"n": 436, "win_rate": 0.5986238532110092, "avg": 0.0302576524471746},
+        "14": {"n": 424, "win_rate": 0.5566037735849056, "avg": 0.0333622628705169}
+      },
+      "SELL_BROAD_BULL": {
+        "1": {"n": 527, "win_rate": 0.5123339658444023, "avg": -0.0040201357993705},
+        "3": {"n": 527, "win_rate": 0.4895635673624288, "avg": -0.0223560296711481},
+        "7": {"n": 527, "win_rate": 0.4648956356736243, "avg": -0.0357300678479518},
+        "14": {"n": 527, "win_rate": 0.4686907020872865, "avg": -0.0619491654218671}
+      }
+    }
+  },
+  "descriptive_trade_regime_findings": {
+    "VAHRAM_ORIGINAL_V1": {
+      "BTC_TRANSITION": {"trade_count": 22, "win_rate": 0.6363636363636364, "average_return": 0.0723722608169526, "profit_factor": 1.796635636784132},
+      "BROAD_BULL": {"trade_count": 16, "win_rate": 0.5625, "average_return": 0.0192948071242528, "profit_factor": 1.203823363513404},
+      "VOL_HIGH": {"trade_count": 10, "win_rate": 0.5, "average_return": -0.0146377298404021, "profit_factor": 0.879159783674048}
+    },
+    "VAHRAM_TRUE_STOCHRSI_V2": {
+      "BTC_TRANSITION": {"trade_count": 23, "win_rate": 0.6086956521739131, "average_return": 0.0113479862298571, "profit_factor": 1.106479302661356},
+      "BROAD_BULL": {"trade_count": 18, "win_rate": 0.6666666666666666, "average_return": 0.0367053670456823, "profit_factor": 1.4859942208634551},
+      "VOL_HIGH": {"trade_count": 10, "win_rate": 0.6, "average_return": 0.0655744490915204, "profit_factor": 1.6095311874790037}
+    }
+  },
+  "interpretation_guardrails": [
+    "This is pre-OOS descriptive evidence. It does not assign ACCEPTED, REJECTED or REGIME_SPECIFIC.",
+    "2026 remained unopened during this run.",
+    "Regime thresholds were fixed before the runtime evidence was inspected.",
+    "Pooled cross-symbol statistics are descriptive and are not a portfolio backtest.",
+    "Small trade-count regime buckets are hypothesis-generating, not acceptance evidence.",
+    "VAHRAM_ORIGINAL_V1 and VAHRAM_TRUE_STOCHRSI_V2 remain immutable strategy identities."
+  ]
+}
