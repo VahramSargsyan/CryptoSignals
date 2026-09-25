@@ -1,0 +1,54 @@
+{
+  "request_id": "WEIGHTED_MULTI_SIGNAL_V2_2026_YTD_R1",
+  "purpose": "First temporal holdout run for V2 core-confirmation candidate derived from 2021-2025 V1 diagnostics",
+  "strategy_ids": [
+    "WEIGHTED_MULTI_SIGNAL_V2"
+  ],
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "TWTUSDT",
+    "ATOMUSDT",
+    "SAGAUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "TONUSDT",
+    "TIAUSDT",
+    "WUSDT",
+    "OSMOUSDT",
+    "DOGEUSDT"
+  ],
+  "start": "2026-01-01T00:00:00Z",
+  "end": "2026-09-25T00:00:00Z",
+  "timeframe": "1D",
+  "fee_bps": 10,
+  "slippage_bps": 5,
+  "validation_type": "NONBLIND_TEMPORAL_HOLDOUT_2026_YTD",
+  "horizons": [
+    1,
+    3,
+    7,
+    14
+  ],
+  "strategy_parameters": {
+    "core_blocks": [
+      "macd",
+      "stochrsi",
+      "volume_candle"
+    ],
+    "min_candle_body_strength": 0.5,
+    "ma_role": "CONTEXT_ONLY",
+    "core_base_strength": 80,
+    "ma_aligned_strength": 100,
+    "bollinger_role": "NOT_USED"
+  },
+  "lineage": {
+    "derived_from": "WEIGHTED_MULTI_SIGNAL_V1",
+    "diagnostic_source": "docs/14_WEIGHTED_MULTI_SIGNAL_V1_DIAGNOSTIC_R1.md",
+    "development_period": "2021-01-01/2026-01-01"
+  },
+  "acceptance_decision_allowed": false,
+  "blind_period": false,
+  "note": "2026 was already opened elsewhere in the laboratory. This run tests temporal portability only and cannot establish blind OOS acceptance."
+}
