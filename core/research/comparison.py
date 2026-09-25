@@ -32,6 +32,14 @@ from strategies.crypto.true_stochrsi.strategy import (
     STRATEGY_VERSION as TRUE_STOCHRSI_VERSION,
     generate_true_stochrsi_outputs,
 )
+from strategies.crypto.weighted_multi_signal.strategy import (
+    BLOCK_WEIGHT as WEIGHTED_BLOCK_WEIGHT,
+    MIN_TRIGGERED_BLOCKS as WEIGHTED_MIN_BLOCKS,
+    SIGNAL_THRESHOLD as WEIGHTED_SIGNAL_THRESHOLD,
+    STRATEGY_ID as WEIGHTED_MULTI_ID,
+    STRATEGY_VERSION as WEIGHTED_MULTI_VERSION,
+    generate_weighted_multi_signal_outputs,
+)
 from strategies.crypto.vahram_original.contract_adapter import generate_vahram_original_outputs
 from strategies.crypto.vahram_original.strategy import (
     STRATEGY_ID as ORIGINAL_ID,
@@ -86,6 +94,23 @@ def _strategy_specs() -> dict[str, tuple[str, Callable, dict, dict]]:
                 "slow_window": MACD_SLOW_WINDOW,
                 "signal_window": MACD_SIGNAL_WINDOW,
             },
+        ),
+        WEIGHTED_MULTI_ID: (
+            WEIGHTED_MULTI_VERSION,
+            generate_weighted_multi_signal_outputs,
+            {
+                "block_weight": WEIGHTED_BLOCK_WEIGHT,
+                "signal_threshold": WEIGHTED_SIGNAL_THRESHOLD,
+                "min_triggered_blocks": WEIGHTED_MIN_BLOCKS,
+                "blocks": [
+                    "ma_trend",
+                    "macd",
+                    "stochrsi",
+                    "bollinger_reversion",
+                    "volume_candle",
+                ],
+            },
+            {},
         ),
     }
 
