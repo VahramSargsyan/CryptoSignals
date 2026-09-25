@@ -37,6 +37,11 @@ on:
         required: true
         default: false
         type: boolean
+  push:
+    branches:
+      - feature/historical-data-download-v1
+    paths:
+      - research_requests/run_link_download_v1.trigger
 
 permissions:
   contents: read
@@ -60,12 +65,12 @@ jobs:
 
       - name: Download and validate candles
         env:
-          SYMBOL: ${{ inputs.symbol }}
-          TIMEFRAME: ${{ inputs.timeframe }}
-          YEARS: ${{ inputs.years }}
-          START: ${{ inputs.start }}
-          END: ${{ inputs.end }}
-          ALLOW_QUALITY_ISSUES: ${{ inputs.allow_quality_issues }}
+          SYMBOL: ${{ inputs.symbol || 'LINKUSDT' }}
+          TIMEFRAME: ${{ inputs.timeframe || '1D' }}
+          YEARS: ${{ inputs.years || 3 }}
+          START: ${{ inputs.start || '' }}
+          END: ${{ inputs.end || '' }}
+          ALLOW_QUALITY_ISSUES: ${{ inputs.allow_quality_issues || false }}
         run: |
           args=(
             --symbol "$SYMBOL"
@@ -91,7 +96,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: historical-${{ inputs.symbol }}-${{ inputs.timeframe }}
+          name: historical-${{ inputs.symbol || 'LINKUSDT' }}-${{ inputs.timeframe || '1D' }}
           path: |
             data/historical/**
             evidence/datasets/**
