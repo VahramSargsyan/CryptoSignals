@@ -1,6 +1,6 @@
 # WEIGHTED_MULTI_SIGNAL_V2 — Core Confirmation
 
-Status: **EXPERIMENTAL / FROZEN BEFORE TEMPORAL HOLDOUT**  
+Status: **TEMPORAL_HOLDOUT_TESTED / NONBLIND**  
 WORKFLOW_MODE: **BUILD_NEW_APP**  
 RISK_CLASS: **L2 — research-only strategy candidate**  
 MIGRATION_REQUIRED: **NO**  
@@ -95,3 +95,31 @@ No ACCEPTED status may be assigned from the 2026 nonblind temporal holdout alone
 ## Promotion
 
 `EXPERIMENTAL -> TEMPORAL_HOLDOUT_TESTED -> future unseen evidence -> acceptance decision -> PAPER_LIVE`
+
+
+## First 2026 temporal holdout — 2026-09-25
+
+Run: `WEIGHTED_MULTI_SIGNAL_V2_2026_YTD_R1`
+
+- source commit: `5c235702c4f762083181afee2869b9980fac163c`
+- Binance 1D, 13/13 symbols
+- period: 2026-01-01 inclusive through 2026-09-25 exclusive
+- 94/94 unit/regression tests passed
+- 235 actionable signals
+- 45 closed trades
+- pooled win rate: 40.00%
+- pooled average net trade: +3.69%
+- pooled median net trade: -2.84%
+- pooled profit factor: 1.524
+- positive total return: 5/13 symbols
+- benchmark beaten: 11/13 symbols
+- median symbol max drawdown: 32.60%
+- median symbol total return: -2.98%
+
+This result supports some temporal portability of the core confirmation pattern, but it does not qualify as blind OOS acceptance.
+
+### MA context warm-up caveat
+
+The research request begins exactly at 2026-01-01. SMA200 therefore has no pre-start warm-up history. Only 1 of 45 entries had strength 100; 44 had strength 80.
+
+Because MA is context-only, this does not alter the V2 trading decisions or the trading metrics above. It does mean that this run cannot be used to judge whether aligned MA50/100/200 context improves outcomes. A future research infrastructure step must support prehistory/warm-up before evaluation start.
