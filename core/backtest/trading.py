@@ -134,6 +134,10 @@ def _validate_outputs(
             or output.timeframe != manifest.timeframe.upper()
         ):
             raise ValueError("Strategy output identity does not match run manifest")
+        if output.run_id != manifest.run_id:
+            raise ValueError("Strategy output run_id does not match run manifest")
+        if output.source_commit_sha != manifest.source_commit_sha:
+            raise ValueError("Strategy output source_commit_sha does not match run manifest")
 
         timestamp = pd.Timestamp(output.timestamp)
         if timestamp.tzinfo is None:
@@ -359,7 +363,8 @@ def _build_equity_curve(
             cash = 0.0
             current_trade = trade
 
-        if units != 0.0:
+        exposed_during_candle = units != 0.0
+        if exposed_during_candle:
             equity = units * float(candle["close"]) * (1.0 - fee_rate)
         else:
             equity = cash
@@ -380,7 +385,7 @@ def _build_equity_curve(
             {
                 "timestamp": pd.Timestamp(candle["timestamp"]),
                 "equity": float(equity),
-                "in_position": units != 0.0,
+                "in_position": exposed_during_candle,
             }
         )
 
