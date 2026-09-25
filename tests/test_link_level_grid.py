@@ -6,6 +6,7 @@ from strategies.crypto.link_level_grid.strategy import (
     GridBacktestConfig,
     GridDefinition,
     RollingRangePolicy,
+    _entry_filter_allows,
     _mid_target,
     build_causal_range_schedule,
     main_level_allocations,
@@ -271,6 +272,64 @@ class LinkLevelGridStrategyTests(unittest.TestCase):
         )
         self.assertAlmostEqual(result.summary["runner_fraction"], 0.25)
         self.assertAlmostEqual(result.summary["profit_reinvest_fraction"], 0.5)
+
+    def test_indicator_filter_uses_previous_closed_candle_values(self):
+        previous_candle = pd.Series(
+            {
+                "open": 90.0,
+                "high": 102.0,
+                "low": 88.0,
+                "close": 100.0,
+                "volume": 200.0,
+            }
+        )
+        previous_features = pd.Series(
+            {
+                "rsi": 25.0,
+                "stoch_rsi_k": 15.0,
+                "stoch_rsi_d": 10.0,
+                "bb_lower": 101.0,
+                "sma_200": 95.0,
+                "macd": 2.0,
+                "macd_signal": 1.0,
+                "volume_ma": 100.0,
+                "candle_body_strength": 0.8,
+            }
+        )
+
+        self.assertTrue(
+            _entry_filter_allows(
+                filter_name="RSI_OVERSOLD_30",
+                previous_candle=previous_candle,
+                previous_features=previous_features,
+            )
+        )
+        self.assertTrue(
+            _entry_filter_allows(
+                filter_name="STOCH_OVERSOLD_20",
+                previous_candle=previous_candle,
+                previous_features=previous_features,
+            )
+        )
+        self.assertTrue(
+            _entry_filter_allows(
+                filter_name="BOLLINGER_LOWER",
+                previous_candle=previous_candle,
+                previous_features=previous_features,
+            )
+        )
+        self.assertTrue(
+            _entry_filter_allows(
+                filter_name="DIP_IN_BULL",
+                previous_candle=previous_candle,
+                previous_features=previous_features,
+            )
+        )
+
+    def test_entry_filter_config_validation(self):
+        with self.assertRaisesRegex(ValueError, "Unknown entry_filter"):
+            GridBacktestConfig(entry_filter="FUTURE_MAGIC")
+
 
     def test_backtest_keeps_micro_and_mid_capital_separate(self):
         candles = []
