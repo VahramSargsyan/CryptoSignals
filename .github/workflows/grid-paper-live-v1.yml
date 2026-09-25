@@ -4,12 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "20 0 * * *"
-  push:
-    branches:
-      - feature/grid-paper-live-v1
-    paths:
-      - research_requests/run_grid_paper_live_v1.trigger
-
 permissions:
   contents: read
 
