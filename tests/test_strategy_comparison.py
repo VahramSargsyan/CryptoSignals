@@ -78,6 +78,41 @@ class StrategyComparisonTests(unittest.TestCase):
             {"VAHRAM_ORIGINAL_V1", "VAHRAM_TRUE_STOCHRSI_V2"},
         )
 
+    def test_macd_candidate_can_be_selected_without_expanding_defaults(self):
+        dataset = load_csv_dataset(
+            FIXTURE,
+            symbol="SAGAUSDT",
+            timeframe="1D",
+            source="BINANCE",
+        )
+        comparison = compare_strategies_on_dataset(
+            dataset,
+            source_commit_sha="macd-test-sha",
+            validation_type="LOCAL_CANDIDATE_SMOKE",
+            strategy_ids=("MACD_CROSS_V1",),
+        )
+        self.assertEqual(list(comparison["summary"]["strategy_id"]), ["MACD_CROSS_V1"])
+        result = comparison["strategies"]["MACD_CROSS_V1"]
+        self.assertEqual(
+            result["manifest"].parameters,
+            {
+                "fast_window": 12,
+                "slow_window": 26,
+                "signal_window": 9,
+                "signal_logic": "STRICT_MACD_SIGNAL_CROSS",
+            },
+        )
+
+        default = compare_strategies_on_dataset(
+            dataset,
+            source_commit_sha="default-test-sha",
+            validation_type="LOCAL_FIXTURE_SMOKE",
+        )
+        self.assertEqual(
+            set(default["summary"]["strategy_id"]),
+            {"VAHRAM_ORIGINAL_V1", "VAHRAM_TRUE_STOCHRSI_V2"},
+        )
+
     def test_unknown_candidate_is_rejected_before_execution(self):
         dataset = load_csv_dataset(
             FIXTURE,
