@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -33,6 +34,7 @@ class CandleQualityReport:
     duplicate_timestamps: int
     out_of_order_rows: int
     missing_candles: int
+    off_grid_timestamps: int
     invalid_ohlc_rows: int
     null_cells: int
     negative_volume_rows: int
@@ -44,6 +46,7 @@ class CandleQualityReport:
                 self.duplicate_timestamps,
                 self.out_of_order_rows,
                 self.missing_candles,
+                self.off_grid_timestamps,
                 self.invalid_ohlc_rows,
                 self.null_cells,
                 self.negative_volume_rows,
@@ -88,13 +91,18 @@ def validate_candles(frame: pd.DataFrame, symbol: str, timeframe: str) -> Candle
     diffs_in_input_order = timestamps.diff()
     out_of_order_rows = int((diffs_in_input_order < pd.Timedelta(0)).sum())
 
-    unique_sorted = pd.Series(timestamps.drop_duplicates().sort_values().to_numpy())
     expected = TIMEFRAME_DELTAS[timeframe]
+    valid_timestamps = timestamps.dropna()
+    off_grid_timestamps = int(
+        ((valid_timestamps.astype("int64") % expected.value) != 0).sum()
+    )
+
+    unique_sorted = pd.Series(valid_timestamps.drop_duplicates().sort_values().to_numpy())
     missing_candles = 0
     if len(unique_sorted) > 1:
         for delta in unique_sorted.diff().dropna():
             if delta > expected:
-                missing_candles += max(int(delta / expected) - 1, 0)
+                missing_candles += max(math.ceil(delta / expected) - 1, 0)
 
     null_cells = int(frame.loc[:, CANONICAL_COLUMNS].isna().sum().sum())
     numeric = frame.loc[:, ["open", "high", "low", "close", "volume"]]
@@ -105,8 +113,8 @@ def validate_candles(frame: pd.DataFrame, symbol: str, timeframe: str) -> Candle
     invalid_ohlc_rows = int(invalid_ohlc.sum())
     negative_volume_rows = int((numeric["volume"] < 0).sum())
 
-    start = timestamps.min().isoformat() if len(timestamps) else None
-    end = timestamps.max().isoformat() if len(timestamps) else None
+    start = timestamps.min().isoformat() if len(valid_timestamps) else None
+    end = timestamps.max().isoformat() if len(valid_timestamps) else None
     return CandleQualityReport(
         symbol=symbol,
         timeframe=timeframe,
@@ -116,6 +124,7 @@ def validate_candles(frame: pd.DataFrame, symbol: str, timeframe: str) -> Candle
         duplicate_timestamps=duplicate_timestamps,
         out_of_order_rows=out_of_order_rows,
         missing_candles=missing_candles,
+        off_grid_timestamps=off_grid_timestamps,
         invalid_ohlc_rows=invalid_ohlc_rows,
         null_cells=null_cells,
         negative_volume_rows=negative_volume_rows,
