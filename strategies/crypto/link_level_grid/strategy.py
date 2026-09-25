@@ -139,6 +139,8 @@ class GridBacktestConfig:
     micro_exit_sublevels: int = 1
     mid_recovery_sublevels: int = 10
     mid_target_scale: float = 1.0
+    profit_reinvest_fraction: float = 1.0
+    runner_fraction: float = 0.0
     fee_bps: float = 10.0
     slippage_bps: float = 5.0
     rolling_range: RollingRangePolicy = RollingRangePolicy()
@@ -168,6 +170,10 @@ class GridBacktestConfig:
             raise ValueError("mid_recovery_sublevels must be between 1 and 64")
         if not math.isfinite(self.mid_target_scale) or self.mid_target_scale <= 0:
             raise ValueError("mid_target_scale must be finite and positive")
+        if (not math.isfinite(self.profit_reinvest_fraction) or not 0.0 <= self.profit_reinvest_fraction <= 1.0):
+            raise ValueError("profit_reinvest_fraction must be between 0 and 1")
+        if not math.isfinite(self.runner_fraction) or not 0.0 <= self.runner_fraction < 1.0:
+            raise ValueError("runner_fraction must be between 0 and 1")
         if not 1 <= self.ten_sublevel_from_main <= MAIN_LEVELS:
             raise ValueError("ten_sublevel_from_main must be between 1 and 16")
 
