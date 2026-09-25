@@ -28,7 +28,7 @@ The strategy now has executable code in:
 To make the strategy executable without pretending unresolved details are known, the code labels these assumptions explicitly:
 
 1. trailing H/L range refresh every **30 daily candles** by default;
-2. first usable range after **90 historical daily candles**;
+2. first trading candle requires **a full 3-year prehistory (1095 daily candles)**;
 3. default clean capital curve is `linear_depth_reserved`:
    weights 1..16, normalized to 100%, so deeper levels receive progressively more reserved capital;
 4. Mid entries occur at each main level's lower **A** boundary;
@@ -65,6 +65,22 @@ Useful as a neutral comparison.
 Reproduces the historical workbook allocation shape as closely as the current evidence allows.
 
 This preset is retained for comparison only because the owner explicitly identified the original capital distribution as a mistake.
+
+## Required prehistory before trading
+
+A three-year strategy evaluation requires three years of prior daily history before the first simulated trade.
+
+Default structure:
+
+```text
+6 years downloaded
+first 3 years = prehistory only
+final 3 years = trading/evaluation
+```
+
+At the first trading candle, H/L is built from the preceding three years. No orders are allowed during the prehistory segment.
+
+This requirement supersedes the earlier 90-candle warmup research implementation.
 
 ## Look-ahead protection
 
