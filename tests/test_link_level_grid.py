@@ -5,6 +5,7 @@ import pandas as pd
 from strategies.crypto.link_level_grid.strategy import (
     GridBacktestConfig,
     GridDefinition,
+    OpenLot,
     RollingRangePolicy,
     _dynamic_exit_uses_wide,
     _entry_filter_allows,
