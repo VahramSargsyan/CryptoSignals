@@ -175,3 +175,47 @@ By direction:
 So full bullish MA50 > MA100 > MA200 alignment almost never accompanied V2 BUY signals during this 2026 period, while bearish MA alignment frequently accompanied SELL signals.
 
 This is evidence about context, not authorization to build a short strategy or change V2.
+
+
+## Warm-up-corrected development history — 2021–2025 R2
+
+Run: `WEIGHTED_MULTI_SIGNAL_V2_2021_2025_WARMUP_R2`
+
+This is **development evidence only**, not validation.
+
+- warm-up data: 2020-01-01 onward;
+- evaluation: 2021-01-01 through 2025-12-31;
+- 96/96 tests PASS;
+- 13/13 symbols PASS;
+- actionable signals: 1,498;
+- closed trades: 263;
+- pooled win rate: 38.40%;
+- average net trade: +37.20%;
+- median net trade: -4.62%;
+- pooled PF: 4.829;
+- positive total return: 7/13 symbols;
+- benchmark beaten: 6/13;
+- median symbol max drawdown: 82.83%;
+- median symbol total return: +78.92%.
+
+The headline PF is not stable. 2021 contributes about 97.1% of the pooled trade-return sum. The single largest trade is a DOGE 2021 winner of roughly +5,689%, and the top 10 winning trades account for about 81.6% of positive-return mass. Removing those ten winners reduces pooled PF below 1.
+
+Year PF:
+
+- 2021: 37.16
+- 2022: 0.70
+- 2023: 3.25
+- 2024: 2.03
+- 2025: 0.34
+
+Therefore the warm-up-corrected development history strengthens the evidence that V2 is a **right-tail capture pattern**, not evidence of stable cross-period profitability.
+
+### Development vs corrected 2026 temporal evidence
+
+The warm-up-corrected 2026 YTD R2 has PF 1.033, average trade +0.27%, median trade -3.81%, and only 4/13 symbols with positive total return.
+
+That 2026 run is still NONBLIND, but it is the more relevant portability estimate than the 2021–2025 development history.
+
+### Reserved future boundary
+
+`2026-09-26T00:00:00Z` onward is reserved as future unseen evidence for V2/2.0.0. Do not tune this version from that period.

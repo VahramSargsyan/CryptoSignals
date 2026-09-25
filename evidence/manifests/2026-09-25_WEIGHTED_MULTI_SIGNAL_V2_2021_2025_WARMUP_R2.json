@@ -1,0 +1,243 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "WEIGHTED_MULTI_SIGNAL_V2_2021_2025_WARMUP_R2",
+  "status": "DEVELOPMENT_RESEARCH_COMPLETED_WARMUP_CORRECTED",
+  "acceptance_decision_allowed": false,
+  "validation_type": "DEVELOPMENT_RESEARCH_2021_2025_WARMUP_CORRECTED",
+  "strategy": {
+    "strategy_id": "WEIGHTED_MULTI_SIGNAL_V2",
+    "strategy_version": "2.0.0",
+    "parameters": {
+      "core_blocks": [
+        "macd",
+        "stochrsi",
+        "volume_candle"
+      ],
+      "min_candle_body_strength": 0.5,
+      "ma_role": "CONTEXT_ONLY",
+      "core_base_strength": 80,
+      "ma_aligned_strength": 100,
+      "bollinger_role": "NOT_USED"
+    }
+  },
+  "lineage": {
+    "derived_from": "WEIGHTED_MULTI_SIGNAL_V1",
+    "diagnostic_source": "docs/14_WEIGHTED_MULTI_SIGNAL_V1_DIAGNOSTIC_R1.md",
+    "warmup_semantics": "docs/15_RESEARCH_WARMUP_EVALUATION_BOUNDARY.md",
+    "prior_no_warmup_development_run": "WEIGHTED_MULTI_SIGNAL_V2_2021_2025_R1",
+    "methodological_interpretation": "R2 is preferred for development diagnostics because indicators use pre-start history while evaluation remains bounded to 2021-2025. This period is still development data, not validation."
+  },
+  "source_commit_sha": "f2fa363fe119ab0c4df65dac8664bee21e1a9389",
+  "research_branch_head_sha": "7c8d02f82a62343d5302f7024408b4269d709c64",
+  "workflow_run_id": 36185776557,
+  "artifact": {
+    "artifact_id": 10886310164,
+    "digest": "sha256:9cf4300d9eff107df3022c05b97a0402c16cc6c6eb17cec102d7977bb6db751c",
+    "file_count": 81,
+    "expires_at": "2026-10-25T20:27:10Z"
+  },
+  "verification": {
+    "unit_regression_tests": 96,
+    "unit_regression_passed": 96,
+    "successful_symbols": 13,
+    "requested_symbols": 13,
+    "runtime_status": "PASS",
+    "critical_data_quality_issues": 0
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "timeframe": "1D",
+    "data_start": "2020-01-01T00:00:00Z",
+    "evaluation_start": "2021-01-01T00:00:00Z",
+    "exclusive_end": "2026-01-01T00:00:00Z",
+    "last_included_evaluation_candle": "2025-12-31T00:00:00Z",
+    "warmup_is_excluded_from_metrics": true
+  },
+  "execution": {
+    "engine_name": "LONG_ONLY_SIGNAL_FLIP_V1",
+    "signal_calculated_at": "CANDLE_CLOSE",
+    "entry_rule": "NEXT_CANDLE_OPEN",
+    "fee_bps": 10,
+    "slippage_bps": 5
+  },
+  "aggregate": {
+    "signal_count": 1498,
+    "event_observation_count": 5979,
+    "closed_trades": 263,
+    "pooled_win_rate": 0.3840304182509506,
+    "pooled_average_net_trade_return": 0.3720340174794132,
+    "pooled_median_net_trade_return": -0.04619012559358282,
+    "pooled_profit_factor": 4.82938915760513,
+    "pooled_expectancy": 0.3720340174794132,
+    "positive_total_return_symbols": 7,
+    "benchmark_beaten_symbols": 6,
+    "median_symbol_max_drawdown": 0.8283398856146795,
+    "median_symbol_total_return": 0.7892017711462065,
+    "mean_symbol_total_return": 25.054970635690594,
+    "median_symbol_exposure": 0.5800756620428752
+  },
+  "temporal_diagnostics": {
+    "2021": {
+      "trades": 33,
+      "win_rate": 0.6060606060606061,
+      "average_return": 2.880125888407901,
+      "median_return": 0.10698785494222562,
+      "profit_factor": 37.15792793320327,
+      "sum_trade_returns": 95.04415431746074
+    },
+    "2022": {
+      "trades": 46,
+      "win_rate": 0.30434782608695654,
+      "average_return": -0.03088490343110215,
+      "median_return": -0.08047290555075409,
+      "profit_factor": 0.6991158936514731,
+      "sum_trade_returns": -1.4207055578306989
+    },
+    "2023": {
+      "trades": 49,
+      "win_rate": 0.4897959183673469,
+      "average_return": 0.11639614157589957,
+      "median_return": -0.004532243927481416,
+      "profit_factor": 3.2462428088981268,
+      "sum_trade_returns": 5.703410937219079
+    },
+    "2024": {
+      "trades": 58,
+      "win_rate": 0.41379310344827586,
+      "average_return": 0.09254604015534988,
+      "median_return": -0.05470539821431891,
+      "profit_factor": 2.0305024046311377,
+      "sum_trade_returns": 5.367670329010293
+    },
+    "2025": {
+      "trades": 77,
+      "win_rate": 0.24675324675324675,
+      "average_return": -0.08895562894511323,
+      "median_return": -0.09742637343962401,
+      "profit_factor": 0.34471464687626435,
+      "sum_trade_returns": -6.849583428773719
+    }
+  },
+  "ma_context_entry_strength": {
+    "strength_80": {
+      "trades": 200,
+      "win_rate": 0.4,
+      "average_return": 0.14094920070634737,
+      "median_return": -0.058032002302055685,
+      "profit_factor": 2.3472155538171475
+    },
+    "strength_100": {
+      "trades": 63,
+      "win_rate": 0.3333333333333333,
+      "average_return": 1.105636610409781,
+      "median_return": -0.037822490111031004,
+      "profit_factor": 16.055558407273402
+    },
+    "caveat": "This is descriptive context, not causal MA evidence. Strength does not change trade eligibility. The strength-100 result is dominated by exceptional 2021 winners."
+  },
+  "directional_event_study": {
+    "BUY": {
+      "1": {
+        "n": 901,
+        "win_rate": 0.51165371809101,
+        "avg": 0.007908904971491403,
+        "median": 0.001434720229555
+      },
+      "3": {
+        "n": 901,
+        "win_rate": 0.5305216426193119,
+        "avg": 0.021927214782658667,
+        "median": 0.0051829030136516
+      },
+      "7": {
+        "n": 900,
+        "win_rate": 0.5055555555555555,
+        "avg": 0.038853905642047076,
+        "median": 0.0028123346835925
+      },
+      "14": {
+        "n": 899,
+        "win_rate": 0.5094549499443827,
+        "avg": 0.06583144384243418,
+        "median": 0.0057581420181527
+      }
+    },
+    "SELL": {
+      "1": {
+        "n": 596,
+        "win_rate": 0.45805369127516776,
+        "avg": -0.0011685752302094871,
+        "median": -0.00321157264197165
+      },
+      "3": {
+        "n": 596,
+        "win_rate": 0.5067114093959731,
+        "avg": 0.006816196112788565,
+        "median": 0.0011485445179343998
+      },
+      "7": {
+        "n": 595,
+        "win_rate": 0.5126050420168067,
+        "avg": -0.0005567319063785967,
+        "median": 0.002841324760003
+      },
+      "14": {
+        "n": 591,
+        "win_rate": 0.49915397631133673,
+        "avg": -0.011069734137488968,
+        "median": 0
+      }
+    }
+  },
+  "tail_concentration": {
+    "largest_winner": {
+      "symbol": "DOGEUSDT",
+      "entry_signal_timestamp": "2021-01-01T00:00:00Z",
+      "exit_signal_timestamp": "2021-05-19T00:00:00Z",
+      "entry_strength": 100,
+      "net_return": 56.892678
+    },
+    "year_2021_share_of_pooled_trade_return_sum": 0.9713751974217096,
+    "positive_return_mass_top_1_share": 0.4610576970700307,
+    "positive_return_mass_top_3_share": 0.6549600149428155,
+    "positive_return_mass_top_5_share": 0.7300394770459706,
+    "positive_return_mass_top_10_share": 0.8161584357236633,
+    "profit_factor_after_removing_top_1_winner": 2.6027621143447326,
+    "profit_factor_after_removing_top_5_winners": 1.3037444225355996,
+    "profit_factor_after_removing_top_10_winners": 0.8878424572333065
+  },
+  "comparison_to_no_warmup_r1": {
+    "prior_closed_trades": 260,
+    "prior_pooled_profit_factor": 2.2494707032047137,
+    "prior_average_net_trade_return": 0.12220430581663531,
+    "prior_median_net_trade_return": -0.04631422844438715,
+    "corrected_closed_trades": 263,
+    "corrected_pooled_profit_factor": 4.82938915760513,
+    "corrected_average_net_trade_return": 0.3720340174794132,
+    "corrected_median_net_trade_return": -0.04619012559358282,
+    "interpretation": "Warm-up adds a small number of early 2021 trades, including extreme winners. It therefore increases the headline development PF while also making tail concentration even more explicit. This is not stronger validation."
+  },
+  "relation_to_2026_corrected_temporal_run": {
+    "run": "WEIGHTED_MULTI_SIGNAL_V2_2026_YTD_WARMUP_R2",
+    "pooled_profit_factor": 1.0328856047419288,
+    "pooled_average_net_trade_return": 0.002704637516209993,
+    "pooled_median_net_trade_return": -0.03809047331735138,
+    "positive_total_return_symbols": 4,
+    "note": "The warm-up-corrected 2026 nonblind temporal run is far weaker than the development history and is the more relevant temporal portability estimate."
+  },
+  "future_unseen_boundary": {
+    "start": "2026-09-26T00:00:00Z",
+    "rule": "Do not tune WEIGHTED_MULTI_SIGNAL_V2/2.0.0 from this period. Formula changes require a new version."
+  },
+  "interpretation_guardrails": [
+    "This is development evidence, not independent validation.",
+    "The warm-up-corrected R2 is methodologically preferable to the no-warmup R1 for 2021-2025 diagnostics.",
+    "The very high pooled PF is dominated by early-2021 right-tail winners and must not be interpreted as stable expected performance.",
+    "2021 contributes about 97.1% of the pooled trade-return sum.",
+    "Removing the ten largest winners reduces pooled PF below 1.",
+    "2022 and 2025 remain losing years.",
+    "MA strength is context-only and its historical association is dominated by 2021; no MA rule change is authorized.",
+    "The warm-up-corrected 2026 temporal evidence has PF only slightly above 1 and materially weakens portability confidence.",
+    "No parameter tuning, short implementation, or ACCEPTED promotion is authorized by this evidence."
+  ]
+}
