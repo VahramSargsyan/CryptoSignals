@@ -1,0 +1,131 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "MACD_CROSS_V1_2021_2025_R1",
+  "status": "BACKTESTED_HISTORICAL_RESEARCH",
+  "acceptance_decision_allowed": false,
+  "validation_type": "HISTORICAL_RESEARCH_2021_2025",
+  "strategy": {
+    "strategy_id": "MACD_CROSS_V1",
+    "strategy_version": "1.0.0",
+    "parameters": {
+      "fast_window": 12,
+      "slow_window": 26,
+      "signal_window": 9,
+      "signal_logic": "STRICT_MACD_SIGNAL_CROSS"
+    }
+  },
+  "oss_provenance": {
+    "repository": "w1ld3r/crypto-signal",
+    "source_commit": "8ae473999f83d3025e6e9429c3734429fb0e180d",
+    "license": "MIT",
+    "local_implementation": "project-owned SMA-seeded EMA/MACD; no TA-Lib dependency"
+  },
+  "source_commit_sha": "70a64942e408bbedd67cc398347c3a4c41e30498",
+  "research_branch_head_sha": "1a43283fbadd1ce61a63054bbba0a103932ce860",
+  "workflow_run_id": 36171552609,
+  "artifact": {
+    "artifact_id": 10880385830,
+    "digest": "sha256:8082ddb6bcffc3fe92e923ceccad4054f0799367046251ce149eae489e6511b4",
+    "file_count": 81,
+    "expires_at": "2026-10-25T18:09:33Z"
+  },
+  "verification": {
+    "unit_regression_tests": 79,
+    "unit_regression_passed": 79,
+    "successful_symbols": 13,
+    "requested_symbols": 13,
+    "runtime_status": "PASS",
+    "critical_data_quality_issues": 0
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "timeframe": "1D",
+    "requested_start": "2021-01-01T00:00:00Z",
+    "exclusive_end": "2026-01-01T00:00:00Z",
+    "last_included_candle": "2025-12-31T00:00:00Z"
+  },
+  "execution": {
+    "engine_name": "LONG_ONLY_SIGNAL_FLIP_V1",
+    "signal_calculated_at": "CANDLE_CLOSE",
+    "entry_rule": "NEXT_CANDLE_OPEN",
+    "fee_bps": 10,
+    "slippage_bps": 5
+  },
+  "aggregate": {
+    "signal_count": 1330,
+    "event_observation_count": 5281,
+    "closed_trades": 665,
+    "pooled_win_rate": 0.3172932330827068,
+    "pooled_average_net_trade_return": 0.021929473567723644,
+    "pooled_median_net_trade_return": -0.04498867449060495,
+    "pooled_profit_factor": 1.3295865356741738,
+    "pooled_expectancy": 0.021929473567723644,
+    "positive_total_return_symbols": 7,
+    "benchmark_beaten_symbols": 2,
+    "median_symbol_max_drawdown": 0.7649949508265982,
+    "median_symbol_total_return": 0.14426037963965133,
+    "mean_symbol_total_return": 1.062302593152843,
+    "median_symbol_exposure": 0.4950711938663746
+  },
+  "directional_event_study": {
+    "BUY": {
+      "1": {
+        "n": 665,
+        "win_rate": 0.47218045112781953,
+        "avg": 0.00019119754149271985,
+        "median": -0.0025054807391167
+      },
+      "3": {
+        "n": 665,
+        "win_rate": 0.48872180451127817,
+        "avg": 0.0054117433063368145,
+        "median": -0.0010085389632218
+      },
+      "7": {
+        "n": 659,
+        "win_rate": 0.4142640364188164,
+        "avg": -0.006303540080673296,
+        "median": -0.0179606025492468
+      },
+      "14": {
+        "n": 648,
+        "win_rate": 0.4660493827160494,
+        "avg": 0.012349419714509015,
+        "median": -0.0147853790944992
+      }
+    },
+    "SELL": {
+      "1": {
+        "n": 664,
+        "win_rate": 0.47289156626506024,
+        "avg": -0.00006494690164502116,
+        "median": -0.00159616922770525
+      },
+      "3": {
+        "n": 664,
+        "win_rate": 0.4924698795180723,
+        "avg": -0.00030294490066499916,
+        "median": -0.0003102676464571
+      },
+      "7": {
+        "n": 660,
+        "win_rate": 0.5363636363636364,
+        "avg": 0.0016010098348714272,
+        "median": 0.00771955086249915
+      },
+      "14": {
+        "n": 656,
+        "win_rate": 0.5442073170731707,
+        "avg": -0.004071393321298227,
+        "median": 0.017167486210498947
+      }
+    }
+  },
+  "interpretation_guardrails": [
+    "This is historical research evidence, not a blind OOS acceptance decision.",
+    "2026 data is excluded from this run.",
+    "MACD 12/26/9 parameters were frozen before the runtime result was inspected.",
+    "Pooled profit factor and mean trade return are positive, but median trade return is negative, benchmark breadth is weak, and median symbol drawdown is high.",
+    "No parameter change or strategy promotion beyond BACKTESTED is authorized by this evidence."
+  ]
+}
