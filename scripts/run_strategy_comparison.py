@@ -184,8 +184,9 @@ def main() -> int:
                 slippage_bps=slippage_bps,
                 horizons=horizons,
             )
-            successful_symbols += 1
             comparison["summary"].to_csv(symbol_dir / "strategy_summary.csv", index=False)
+            event_dir = symbol_dir / "event_study"
+            event_dir.mkdir(parents=True, exist_ok=True)
 
             for strategy_id, result in comparison["strategies"].items():
                 run_id = result["manifest"].run_id
@@ -204,6 +205,7 @@ def main() -> int:
 
             for row in comparison["summary"].to_dict("records"):
                 summary_rows.append({"status": "OK", **row})
+            successful_symbols += 1
 
         except BinancePublicApiError as exc:
             _json_dump(
@@ -252,7 +254,13 @@ def main() -> int:
             **run_header,
             "successful_symbols": successful_symbols,
             "requested_symbol_count": len(symbols),
-            "status": "PASS_WITH_PARTIALS" if successful_symbols else "FAIL_NO_SUCCESSFUL_SYMBOLS",
+            "status": (
+                "PASS"
+                if successful_symbols == len(symbols)
+                else "PASS_WITH_PARTIALS"
+                if successful_symbols
+                else "FAIL_NO_SUCCESSFUL_SYMBOLS"
+            ),
         },
     )
 
