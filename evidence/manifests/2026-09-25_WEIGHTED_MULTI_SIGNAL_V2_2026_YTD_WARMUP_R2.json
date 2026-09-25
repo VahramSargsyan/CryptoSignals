@@ -1,0 +1,204 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "WEIGHTED_MULTI_SIGNAL_V2_2026_YTD_WARMUP_R2",
+  "status": "TEMPORAL_HOLDOUT_TESTED_NONBLIND_WARMUP_CORRECTED",
+  "acceptance_decision_allowed": false,
+  "validation_type": "NONBLIND_TEMPORAL_HOLDOUT_2026_YTD_WARMUP_CORRECTED",
+  "strategy": {
+    "strategy_id": "WEIGHTED_MULTI_SIGNAL_V2",
+    "strategy_version": "2.0.0",
+    "parameters": {
+      "core_blocks": [
+        "macd",
+        "stochrsi",
+        "volume_candle"
+      ],
+      "min_candle_body_strength": 0.5,
+      "ma_role": "CONTEXT_ONLY",
+      "core_base_strength": 80,
+      "ma_aligned_strength": 100,
+      "bollinger_role": "NOT_USED"
+    }
+  },
+  "lineage": {
+    "derived_from": "WEIGHTED_MULTI_SIGNAL_V1",
+    "diagnostic_source": "docs/14_WEIGHTED_MULTI_SIGNAL_V1_DIAGNOSTIC_R1.md",
+    "prior_temporal_run": "WEIGHTED_MULTI_SIGNAL_V2_2026_YTD_R1",
+    "warmup_semantics": "docs/15_RESEARCH_WARMUP_EVALUATION_BOUNDARY.md",
+    "methodological_interpretation": "R2 supersedes R1 for 2026 temporal interpretation because R2 loads indicator prehistory while keeping evaluation metrics bounded to 2026."
+  },
+  "source_commit_sha": "f2fa363fe119ab0c4df65dac8664bee21e1a9389",
+  "research_branch_head_sha": "59036097a1b38ea4bc9701c977ca790e40b0b9df",
+  "workflow_run_id": 36185586588,
+  "artifact": {
+    "artifact_id": 10886118122,
+    "digest": "sha256:96dd37f3f0d469dca3ce9fded173f9ee5bbe2635335f6d4086c25fcf7943fd59",
+    "file_count": 81,
+    "expires_at": "2026-10-25T20:25:08Z"
+  },
+  "verification": {
+    "unit_regression_tests": 96,
+    "unit_regression_passed": 96,
+    "successful_symbols": 13,
+    "requested_symbols": 13,
+    "runtime_status": "PASS",
+    "critical_data_quality_issues": 0
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "timeframe": "1D",
+    "data_start": "2025-01-01T00:00:00Z",
+    "evaluation_start": "2026-01-01T00:00:00Z",
+    "exclusive_end": "2026-09-25T00:00:00Z",
+    "last_included_evaluation_candle": "2026-09-24T00:00:00Z",
+    "warmup_is_excluded_from_metrics": true
+  },
+  "execution": {
+    "engine_name": "LONG_ONLY_SIGNAL_FLIP_V1",
+    "signal_calculated_at": "CANDLE_CLOSE",
+    "entry_rule": "NEXT_CANDLE_OPEN",
+    "fee_bps": 10,
+    "slippage_bps": 5
+  },
+  "aggregate": {
+    "signal_count": 296,
+    "event_observation_count": 1148,
+    "closed_trades": 57,
+    "pooled_win_rate": 0.3333333333333333,
+    "pooled_average_net_trade_return": 0.002704637516209993,
+    "pooled_median_net_trade_return": -0.03809047331735138,
+    "pooled_profit_factor": 1.0328856047419288,
+    "pooled_expectancy": 0.002704637516209993,
+    "positive_total_return_symbols": 4,
+    "benchmark_beaten_symbols": 8,
+    "median_symbol_max_drawdown": 0.3890307663964628,
+    "median_symbol_total_return": -0.1092750398439209,
+    "mean_symbol_total_return": -0.092566248647426
+  },
+  "comparison_to_prior_no_warmup_run": {
+    "prior_run": "WEIGHTED_MULTI_SIGNAL_V2_2026_YTD_R1",
+    "prior_closed_trades": 45,
+    "prior_pooled_profit_factor": 1.523690113064084,
+    "prior_average_net_trade_return": 0.036938546798233655,
+    "prior_median_net_trade_return": -0.028431138186062355,
+    "interpretation": "Warm-up-corrected indicator state materially weakens the 2026 result. R1 must not be used as the primary estimate of temporal portability."
+  },
+  "ma_context": {
+    "unique_actionable_signals": {
+      "strength_80": 218,
+      "strength_100": 78
+    },
+    "by_direction": {
+      "BUY_strength_80": 184,
+      "BUY_strength_100": 1,
+      "SELL_strength_80": 34,
+      "SELL_strength_100": 77
+    },
+    "entry_trade_context": {
+      "strength_80": {
+        "trades": 56,
+        "win_rate": 0.3392857142857143,
+        "average_return": 0.003086426725074573,
+        "median_return": -0.04090883408743201,
+        "profit_factor": 1.037016853197843
+      },
+      "strength_100": {
+        "trades": 1,
+        "win_rate": 0,
+        "average_return": -0.01867555818020661,
+        "median_return": -0.01867555818020661,
+        "profit_factor": 0
+      }
+    },
+    "interpretation": "With valid SMA200 prehistory, bullish full MA alignment is almost absent among V2 BUY signals in 2026, while bearish full MA alignment is common among SELL signals. The long-only engine cannot use this asymmetry as a short strategy."
+  },
+  "directional_event_study": {
+    "BUY": {
+      "1": {
+        "n": 185,
+        "win_rate": 0.4864864864864865,
+        "avg": 0.018945321008587222,
+        "median": -0.0013989682609075
+      },
+      "3": {
+        "n": 183,
+        "win_rate": 0.4262295081967213,
+        "avg": 0.012577154694067892,
+        "median": -0.0073409461663946
+      },
+      "7": {
+        "n": 174,
+        "win_rate": 0.3793103448275862,
+        "avg": -0.0007558400424681985,
+        "median": -0.0155033640856422
+      },
+      "14": {
+        "n": 172,
+        "win_rate": 0.42441860465116277,
+        "avg": -0.017182636297471184,
+        "median": -0.0205599680244042
+      }
+    },
+    "SELL": {
+      "1": {
+        "n": 111,
+        "win_rate": 0.5045045045045045,
+        "avg": -0.004675563273801189,
+        "median": 0.0004555223463451
+      },
+      "3": {
+        "n": 110,
+        "win_rate": 0.509090909090909,
+        "avg": -0.002442207559440335,
+        "median": 0.0011539011241579501
+      },
+      "7": {
+        "n": 110,
+        "win_rate": 0.5636363636363636,
+        "avg": 0.020781738900482138,
+        "median": 0.02300887844366095
+      },
+      "14": {
+        "n": 103,
+        "win_rate": 0.5533980582524272,
+        "avg": 0.03403389227768188,
+        "median": 0.0162644748028935
+      }
+    },
+    "SELL_ma_aligned_strength_100": {
+      "1": {
+        "n": 77,
+        "win_rate": 0.4935064935064935,
+        "avg": -0.00830705374382366,
+        "median": 0
+      },
+      "3": {
+        "n": 77,
+        "win_rate": 0.5194805194805194,
+        "avg": -0.004018219883296847,
+        "median": 0.0026852312282448
+      },
+      "7": {
+        "n": 77,
+        "win_rate": 0.5584415584415584,
+        "avg": 0.026215732311861358,
+        "median": 0.0191877794336812
+      },
+      "14": {
+        "n": 75,
+        "win_rate": 0.5466666666666666,
+        "avg": 0.03488150358628227,
+        "median": 0.0341648590021692
+      }
+    }
+  },
+  "interpretation_guardrails": [
+    "This is a nonblind temporal holdout, not a blind OOS acceptance test.",
+    "The warm-up-corrected R2 run is methodologically preferable to R1 for 2026 interpretation.",
+    "Pooled profit factor is only slightly above 1 and median trade return is negative.",
+    "Cross-symbol median total return is negative and only 4/13 symbols have positive strategy total return.",
+    "BUY directional performance becomes negative at +7 and +14 candles.",
+    "SELL directional performance is positive at +7 and +14 candles, especially under MA-aligned bearish context, but the current engine is long-only.",
+    "No parameter tuning, short implementation, or ACCEPTED promotion is authorized by this evidence."
+  ]
+}
