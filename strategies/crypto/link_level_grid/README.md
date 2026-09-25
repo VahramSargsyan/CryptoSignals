@@ -119,3 +119,18 @@ The strategy registry status is **BACKTESTED** because a historical run complete
 It does **not** prove the strategy is profitable, accepted, or that the remaining assumptions match the owner's final intended rules.
 
 Those assumptions should be frozen after reviewing the first LINK evidence.
+
+
+## Research optimizer
+
+Parameter-search tooling is available in:
+
+- `scripts/optimize_link_level_grid.py`;
+- `.github/workflows/link-level-grid-optimizer.yml`;
+- `.github/workflows/link-level-grid-exit-refine.yml`.
+
+The optimizer can vary capital-depth exponents and exit distances while preserving the default strategy behavior when optimizer parameters are unset.
+
+Selection uses an earlier training segment and reports a later temporal holdout separately. Optimizer winners are research hypotheses only and do not automatically replace canonical strategy rules.
+
+Evidence: `docs/evidence/2026-09-25_LEVEL_GRID_OPTIMIZER_V1.md`.
