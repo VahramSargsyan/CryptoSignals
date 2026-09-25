@@ -1,6 +1,6 @@
 # STOCHRSI_CROSS_V1
 
-Status: **EXPERIMENTAL**  
+Status: **BACKTESTED**  
 WORKFLOW_MODE: **BUILD_NEW_APP**  
 RISK_CLASS: **L2 — research-only strategy candidate**  
 MIGRATION_REQUIRED: **NO**  
@@ -16,7 +16,7 @@ Create one independently testable StochRSI K/D crossover candidate from a previo
 - strategy_version: `1.0.0`
 - timeframe for first research run: `1D`
 - execution engine: existing `LONG_ONLY_SIGNAL_FLIP_V1`
-- initial status: `EXPERIMENTAL`
+- current status: `BACKTESTED`
 
 ## OSS provenance
 
@@ -108,3 +108,24 @@ Remove the new strategy files and explicit-candidate selection support. Existing
 `EXPERIMENTAL -> BACKTESTED -> future held-out/walk-forward evidence -> acceptance decision -> PAPER_LIVE`
 
 No direct promotion to live signals is allowed.
+
+
+## First historical evidence — 2026-09-25
+
+Run: `STOCHRSI_CROSS_V1_2021_2025_R1`
+
+- source commit: `51e9e2136bd564be347c41af715b456b3aa98e86`
+- Binance 1D, 13/13 symbols
+- period: 2021-01-01 inclusive through 2026-01-01 exclusive
+- 73/73 unit/regression tests passed
+- 2,562 signals
+- 1,256 closed trades
+- pooled win rate: 35.35%
+- pooled average net trade return: +0.46%
+- pooled median net trade return: -2.26%
+- pooled profit factor: 1.108
+- positive total return: 5/13 symbols
+- benchmark beaten: 3/13 symbols
+- median symbol max drawdown: 88.10%
+
+Interpretation: this is a valid historical baseline, but the evidence is mixed and is not sufficient for acceptance. No parameter tuning is authorized from this run without creating a new strategy version/research hypothesis.
