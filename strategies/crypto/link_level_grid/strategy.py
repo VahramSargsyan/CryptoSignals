@@ -144,6 +144,9 @@ class GridBacktestConfig:
     profit_reinvest_fraction: float = 1.0
     runner_fraction: float = 0.0
     entry_filter: str = "NONE"
+    dynamic_exit_policy: str = "NONE"
+    dynamic_wide_micro_exit_sublevels: int = 6
+    dynamic_wide_mid_recovery_sublevels: int = 18
     fee_bps: float = 10.0
     slippage_bps: float = 5.0
     rolling_range: RollingRangePolicy = RollingRangePolicy()
@@ -190,6 +193,23 @@ class GridBacktestConfig:
             "V2_CORE_BULL",
         }:
             raise ValueError("Unknown entry_filter")
+        if self.dynamic_exit_policy not in {
+            "NONE",
+            "RSI_OVERSOLD_WIDE",
+            "STOCH_OVERSOLD_WIDE",
+            "BOLLINGER_LOWER_WIDE",
+            "SMA200_BULL_WIDE",
+            "MACD_BULL_WIDE",
+            "STOCH_BULL_WIDE",
+            "CORE_BULL_WIDE",
+            "V2_CORE_BULL_WIDE",
+            "SMA200_OR_MACD_WIDE",
+        }:
+            raise ValueError("Unknown dynamic_exit_policy")
+        if not 1 <= self.dynamic_wide_micro_exit_sublevels <= TOTAL_SUBLEVELS:
+            raise ValueError("dynamic_wide_micro_exit_sublevels must be between 1 and 64")
+        if not 1 <= self.dynamic_wide_mid_recovery_sublevels <= TOTAL_SUBLEVELS:
+            raise ValueError("dynamic_wide_mid_recovery_sublevels must be between 1 and 64")
         if not 1 <= self.ten_sublevel_from_main <= MAIN_LEVELS:
             raise ValueError("ten_sublevel_from_main must be between 1 and 16")
 
@@ -210,6 +230,7 @@ class OpenLot:
     grid_target_price: Optional[float]
     entry_grid_high: float
     entry_grid_low: float
+    recovery_sublevels_used: int
 
 
 @dataclass(frozen=True)
@@ -429,6 +450,44 @@ def _entry_filter_allows(
     raise ValueError(f"Unknown entry filter: {filter_name}")
 
 
+
+def _dynamic_exit_uses_wide(
+    *,
+    policy: str,
+    previous_candle: pd.Series,
+    previous_features: pd.Series,
+) -> bool:
+    if policy == "NONE":
+        return False
+    mapping = {
+        "RSI_OVERSOLD_WIDE": "RSI_OVERSOLD_30",
+        "STOCH_OVERSOLD_WIDE": "STOCH_OVERSOLD_20",
+        "BOLLINGER_LOWER_WIDE": "BOLLINGER_LOWER",
+        "SMA200_BULL_WIDE": "SMA200_BULL",
+        "MACD_BULL_WIDE": "MACD_BULL",
+        "STOCH_BULL_WIDE": "STOCH_BULL",
+        "CORE_BULL_WIDE": "CORE_BULL",
+        "V2_CORE_BULL_WIDE": "V2_CORE_BULL",
+    }
+    if policy == "SMA200_OR_MACD_WIDE":
+        return _entry_filter_allows(
+            filter_name="SMA200_BULL",
+            previous_candle=previous_candle,
+            previous_features=previous_features,
+        ) or _entry_filter_allows(
+            filter_name="MACD_BULL",
+            previous_candle=previous_candle,
+            previous_features=previous_features,
+        )
+    if policy not in mapping:
+        raise ValueError(f"Unknown dynamic exit policy: {policy}")
+    return _entry_filter_allows(
+        filter_name=mapping[policy],
+        previous_candle=previous_candle,
+        previous_features=previous_features,
+    )
+
+
 def _buy_limit_fill(candle: pd.Series, limit_price: float, slippage_bps: float) -> float:
     if float(candle["low"]) > limit_price:
         raise ValueError("Buy limit cannot fill when candle low is above limit")
@@ -534,7 +593,7 @@ def run_grid_backtest(
     )
     feature_frame = (
         build_standard_features(frame)
-        if cfg.entry_filter != "NONE"
+        if cfg.entry_filter != "NONE" or cfg.dynamic_exit_policy != "NONE"
         else None
     )
     if schedule[first_evaluation_position] is None:
@@ -650,14 +709,14 @@ def run_grid_backtest(
                     if lot.grid_target_price <= lot.percent_target_price:
                         exit_reason = (
                             "MID_FIRST_OF_PERCENT_OR_RECOVERY:"
-                            f"{cfg.mid_recovery_sublevels}_SUBLEVELS"
+                            f"{lot.recovery_sublevels_used}_SUBLEVELS"
                         )
                     else:
                         exit_reason = "MID_FIRST_OF_PERCENT_OR_RECOVERY:PERCENT"
                 elif layer == "MID":
                     exit_reason = "MID_PERCENT_TARGET"
                 else:
-                    exit_reason = f"MICRO_{cfg.micro_exit_sublevels}_SUBLEVEL_RECOVERY"
+                    exit_reason = f"MICRO_{lot.recovery_sublevels_used}_SUBLEVEL_RECOVERY"
 
                 events.append(
                     {
@@ -713,15 +772,36 @@ def run_grid_backtest(
                 exited_today.add((layer, slot_id))
 
         entry_allowed = True
-        if cfg.entry_filter != "NONE":
+        wide_exit_active = False
+        if cfg.entry_filter != "NONE" or cfg.dynamic_exit_policy != "NONE":
             if position <= 0:
-                entry_allowed = False
+                entry_allowed = cfg.entry_filter == "NONE"
             else:
-                entry_allowed = _entry_filter_allows(
-                    filter_name=cfg.entry_filter,
-                    previous_candle=frame.iloc[position - 1],
-                    previous_features=feature_frame.iloc[position - 1],
-                )
+                previous_candle = frame.iloc[position - 1]
+                previous_features = feature_frame.iloc[position - 1]
+                if cfg.entry_filter != "NONE":
+                    entry_allowed = _entry_filter_allows(
+                        filter_name=cfg.entry_filter,
+                        previous_candle=previous_candle,
+                        previous_features=previous_features,
+                    )
+                if cfg.dynamic_exit_policy != "NONE":
+                    wide_exit_active = _dynamic_exit_uses_wide(
+                        policy=cfg.dynamic_exit_policy,
+                        previous_candle=previous_candle,
+                        previous_features=previous_features,
+                    )
+
+        micro_exit_distance = (
+            cfg.dynamic_wide_micro_exit_sublevels
+            if wide_exit_active
+            else cfg.micro_exit_sublevels
+        )
+        mid_recovery_distance = (
+            cfg.dynamic_wide_mid_recovery_sublevels
+            if wide_exit_active
+            else cfg.mid_recovery_sublevels
+        )
 
         if grid is not None and entry_allowed:
             # Micro: one independent reserved slot at every sublevel.
@@ -738,7 +818,7 @@ def run_grid_backtest(
                 fill = _buy_limit_fill(candle, limit_price, cfg.slippage_bps)
                 units = (budget * (1.0 - fee_rate)) / fill
                 target = grid.boundary_price(
-                    max(0, sublevel - cfg.micro_exit_sublevels)
+                    max(0, sublevel - micro_exit_distance)
                 )
                 micro_lots[sublevel] = OpenLot(
                     layer="MICRO",
@@ -755,6 +835,7 @@ def run_grid_backtest(
                     grid_target_price=target,
                     entry_grid_high=grid.high,
                     entry_grid_low=grid.low,
+                    recovery_sublevels_used=micro_exit_distance,
                 )
                 micro_cash[sublevel] = 0.0
                 events.append(
@@ -796,7 +877,7 @@ def run_grid_backtest(
                     entry_sublevel=entry_sublevel,
                     entry_price=fill,
                     ten_sublevel_from_main=cfg.ten_sublevel_from_main,
-                    recovery_sublevels=cfg.mid_recovery_sublevels,
+                    recovery_sublevels=mid_recovery_distance,
                     target_scale=cfg.mid_target_scale,
                 )
                 mid_lots[main_level] = OpenLot(
@@ -814,6 +895,7 @@ def run_grid_backtest(
                     grid_target_price=grid_target,
                     entry_grid_high=grid.high,
                     entry_grid_low=grid.low,
+                    recovery_sublevels_used=mid_recovery_distance,
                 )
                 mid_cash[main_level] = 0.0
                 events.append(
@@ -975,6 +1057,9 @@ def run_grid_backtest(
         "profit_reinvest_fraction": cfg.profit_reinvest_fraction,
         "runner_fraction": cfg.runner_fraction,
         "entry_filter": cfg.entry_filter,
+        "dynamic_exit_policy": cfg.dynamic_exit_policy,
+        "dynamic_wide_micro_exit_sublevels": cfg.dynamic_wide_micro_exit_sublevels,
+        "dynamic_wide_mid_recovery_sublevels": cfg.dynamic_wide_mid_recovery_sublevels,
         "micro_initial_capital": cfg.micro_capital,
         "mid_initial_capital": cfg.mid_capital,
         "total_initial_capital": total_initial,
@@ -1014,6 +1099,7 @@ def run_grid_backtest(
             "profit_reinvestment_is_configurable": True,
             "runner_fraction_is_configurable": True,
             "entry_filter_is_causal_previous_candle_only": True,
+            "dynamic_exit_policy_is_causal_previous_candle_only": True,
             "mid_entry_at_A_boundary_is_owner_confirmed": False,
             "micro_exit_one_sublevel_up_is_historical_observed": True,
             "mid_percent_targets_are_current_chart_values": True,
