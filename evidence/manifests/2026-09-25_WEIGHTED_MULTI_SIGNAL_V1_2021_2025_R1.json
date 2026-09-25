@@ -1,0 +1,155 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "WEIGHTED_MULTI_SIGNAL_V1_2021_2025_R1",
+  "status": "BACKTESTED_HISTORICAL_RESEARCH",
+  "acceptance_decision_allowed": false,
+  "validation_type": "HISTORICAL_RESEARCH_2021_2025",
+  "strategy": {
+    "strategy_id": "WEIGHTED_MULTI_SIGNAL_V1",
+    "strategy_version": "1.0.0",
+    "parameters": {
+      "block_weight": 20,
+      "signal_threshold": 60,
+      "min_triggered_blocks": 3,
+      "blocks": [
+        "ma_trend",
+        "macd",
+        "stochrsi",
+        "bollinger_reversion",
+        "volume_candle"
+      ]
+    }
+  },
+  "concept_provenance": {
+    "reference_repository": "Rikj000/MoniGoMani",
+    "reference_commit": "6572c167c2e8fab999ded4ce2b5c035868f89e95",
+    "license": "GPL-3.0",
+    "reuse_mode": "REFERENCE_ONLY_NO_CODE_COPY"
+  },
+  "source_commit_sha": "9c402f8363e1151a8062be24931741460ce2ea3f",
+  "research_branch_head_sha": "719416a91db59859da8d8a7615babebf79092ae5",
+  "workflow_run_id": 36174420370,
+  "artifact": {
+    "artifact_id": 10881750519,
+    "digest": "sha256:44e9a9724009740ad2c32c0d86455f68d82a7918912bd1cb7cc6beb25463c5ce",
+    "file_count": 81,
+    "expires_at": "2026-10-25T18:36:34Z"
+  },
+  "verification": {
+    "unit_regression_tests": 88,
+    "unit_regression_passed": 88,
+    "successful_symbols": 13,
+    "requested_symbols": 13,
+    "runtime_status": "PASS",
+    "critical_data_quality_issues": 0
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "timeframe": "1D",
+    "requested_start": "2021-01-01T00:00:00Z",
+    "exclusive_end": "2026-01-01T00:00:00Z",
+    "last_included_candle": "2025-12-31T00:00:00Z"
+  },
+  "execution": {
+    "engine_name": "LONG_ONLY_SIGNAL_FLIP_V1",
+    "signal_calculated_at": "CANDLE_CLOSE",
+    "entry_rule": "NEXT_CANDLE_OPEN",
+    "fee_bps": 10,
+    "slippage_bps": 5
+  },
+  "aggregate": {
+    "signal_count": 3425,
+    "event_observation_count": 13666,
+    "closed_trades": 391,
+    "pooled_win_rate": 0.391304347826087,
+    "pooled_average_net_trade_return": 0.07737669077685161,
+    "pooled_median_net_trade_return": -0.0368542799904239,
+    "pooled_profit_factor": 2.013499621675214,
+    "pooled_expectancy": 0.07737669077685161,
+    "positive_total_return_symbols": 6,
+    "benchmark_beaten_symbols": 4,
+    "median_symbol_max_drawdown": 0.802018073942211,
+    "median_symbol_total_return": -0.18474398197574404,
+    "mean_symbol_total_return": 5.498931686999223,
+    "median_symbol_exposure": 0.48521358159912376
+  },
+  "directional_event_study": {
+    "BUY": {
+      "1": {
+        "n": 1647,
+        "win_rate": 0.47783849423193686,
+        "avg": 0.0027069190699296895,
+        "median": -0.0017737683204331
+      },
+      "3": {
+        "n": 1647,
+        "win_rate": 0.4899817850637523,
+        "avg": 0.01081144341369101,
+        "median": -0.001858979904261
+      },
+      "7": {
+        "n": 1646,
+        "win_rate": 0.46354799513973266,
+        "avg": 0.015900547087783278,
+        "median": -0.0103975463397178
+      },
+      "14": {
+        "n": 1645,
+        "win_rate": 0.46261398176291796,
+        "avg": 0.02638488342079598,
+        "median": -0.0164995374186827
+      }
+    },
+    "SELL": {
+      "1": {
+        "n": 1777,
+        "win_rate": 0.4727068092290377,
+        "avg": -0.0007838722298001359,
+        "median": -0.001601922306768
+      },
+      "3": {
+        "n": 1775,
+        "win_rate": 0.4923943661971831,
+        "avg": -0.0006335798470269232,
+        "median": -0.0008570302188855
+      },
+      "7": {
+        "n": 1771,
+        "win_rate": 0.5341614906832298,
+        "avg": -0.0002811895287898929,
+        "median": 0.0067867593125695
+      },
+      "14": {
+        "n": 1758,
+        "win_rate": 0.5364050056882821,
+        "avg": -0.0017675903022589684,
+        "median": 0.01059239066314535
+      }
+    }
+  },
+  "concentration_notes": {
+    "strongest_total_return_symbols": [
+      "SOLUSDT",
+      "BNBUSDT",
+      "XRPUSDT",
+      "ATOMUSDT"
+    ],
+    "negative_total_return_symbols": [
+      "DOGEUSDT",
+      "TONUSDT",
+      "TWTUSDT",
+      "OSMOUSDT",
+      "TIAUSDT",
+      "WUSDT",
+      "SAGAUSDT"
+    ],
+    "caution": "Mean cross-symbol return is dominated by a few large winners; median symbol total return remains negative."
+  },
+  "interpretation_guardrails": [
+    "This is historical research evidence, not a blind OOS acceptance decision.",
+    "2026 data is excluded from this run.",
+    "All five block weights and decision thresholds were frozen before runtime inspection.",
+    "The combined candidate improves pooled profit factor versus the prior single-indicator historical baselines, but cross-symbol robustness and drawdown remain weak.",
+    "No tuning or promotion beyond BACKTESTED is authorized by this evidence."
+  ]
+}
