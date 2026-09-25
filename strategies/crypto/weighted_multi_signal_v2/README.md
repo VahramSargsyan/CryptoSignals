@@ -123,3 +123,36 @@ This result supports some temporal portability of the core confirmation pattern,
 The research request begins exactly at 2026-01-01. SMA200 therefore has no pre-start warm-up history. Only 1 of 45 entries had strength 100; 44 had strength 80.
 
 Because MA is context-only, this does not alter the V2 trading decisions or the trading metrics above. It does mean that this run cannot be used to judge whether aligned MA50/100/200 context improves outcomes. A future research infrastructure step must support prehistory/warm-up before evaluation start.
+
+
+## Development evidence — 2021–2025
+
+Run: `WEIGHTED_MULTI_SIGNAL_V2_2021_2025_R1`
+
+This run is **development evidence only** because V2 was derived from V1 diagnostics on the same period.
+
+- source commit: `5c235702c4f762083181afee2869b9980fac163c`
+- 13/13 symbols
+- 94/94 tests
+- 1,474 actionable signals
+- 260 closed trades
+- pooled win rate: 38.46%
+- pooled average net trade: +12.22%
+- pooled median net trade: -4.63%
+- pooled PF: 2.249
+- positive total return: 7/13 symbols
+- benchmark beaten: 5/13
+- median symbol max drawdown: 82.83%
+- median symbol total return: +57.89%
+
+The pooled result is highly tail-dependent. 2021 contributes about 91.2% of the pooled trade-return sum, and removing the ten largest winners reduces pooled PF below 1.
+
+The raw strength split (80 vs 100) is **not** a clean MA usefulness test because this historical request also loaded no pre-start SMA200 warm-up. MA remains context-only.
+
+### Future unseen boundary
+
+The first explicitly reserved future period begins at:
+
+`2026-09-26T00:00:00Z`
+
+The existing 2026 YTD temporal holdout ends at 2026-09-24 and remains NONBLIND. Data from the reserved future period must not be used to tune V2/2.0.0.
