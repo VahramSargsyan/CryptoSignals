@@ -128,3 +128,36 @@ Artifact ID: 10862039461
 Evidence: `docs/evidence/2026-09-25_ETH_CROSS_ASSET_GRID_VALIDATION.md`
 
 Interpretation: the current research implementation remained profitable on ETH without symbol-specific tuning and finished close to buy-and-hold over the same three-year period. The Mid layer individually exceeded buy-and-hold on its normalized pool. Strategy status remains `BACKTESTED`.
+
+
+## Backtest methodology correction — 2026-09-25
+
+Owner clarification established that a 3-year trading evaluation requires a full 3-year prehistory before the first trade.
+
+Canonical research window structure from this point forward:
+
+```text
+6 years total data
+3 years prehistory only
+3 years trading/evaluation
+```
+
+The earlier LINK, SOL and ETH 3-year-only runs are retained as runtime smoke tests but are superseded as performance evidence.
+
+Corrected LINK run:
+
+- run ID: `RUN-93c77fa26c49e02ceb21`
+- dataset: `BINANCE:LINKUSDT:1D:1262fdbb884059ba`
+- dataset candles: 2191
+- prehistory candles: 1095
+- trading candles: 1096
+- strategy return: +482.2161%
+- Micro: +471.1002%
+- Mid: +493.3320%
+- buy-and-hold: +89.6299%
+- max drawdown: 35.9760%
+- closed trades: 625
+- GitHub Actions run: 36135794525
+- evidence: `docs/evidence/2026-09-25_GRID_PREHISTORY_METHOD_CORRECTION.md`
+
+Status remains `BACKTESTED`. The result is not promoted to `ACCEPTED` because range-refresh cadence and several portfolio rules remain research assumptions.
