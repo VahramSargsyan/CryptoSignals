@@ -1,0 +1,22 @@
+{
+  "request_id": "H7_PATCH_SMOKE_ETH_2026_09_25",
+  "purpose": "Exact-source runtime validation of H7 evidence/artifact PATCH_FIX before merge",
+  "symbols": [
+    "ETHUSDT"
+  ],
+  "start": "2021-01-01T00:00:00Z",
+  "end": "2026-01-01T00:00:00Z",
+  "timeframe": "1D",
+  "fee_bps": 10,
+  "slippage_bps": 5,
+  "validation_type": "PATCH_RUNTIME_SMOKE_PRE_OOS",
+  "horizons": [
+    1,
+    3,
+    7,
+    14
+  ],
+  "protected_period": "2026",
+  "acceptance_decision_allowed": false,
+  "supersedes_workflow_run_id": 36112478336
+}
