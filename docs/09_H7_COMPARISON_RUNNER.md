@@ -30,7 +30,7 @@ GET /api/v3/klines
 
 with UTC klines, startTime/endTime pagination and at most 1000 rows per request.
 
-No API key or secret is required.
+No API key or secret is required. The market-data-only Binance domain is used by default.
 
 The client is bounded by max_pages and rejects overlapping/backwards pagination.
 
