@@ -53,6 +53,9 @@ jobs:
       - name: Install dependency
         run: python -m pip install "pandas==2.2.3"
 
+      - name: Run unit and regression tests
+        run: python -m unittest discover -s tests -v
+
       - name: Run LINK level-grid research backtest
         env:
           SYMBOL: ${{ inputs.symbol || 'LINKUSDT' }}
