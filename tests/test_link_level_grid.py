@@ -5,13 +5,11 @@ import pandas as pd
 from strategies.crypto.link_level_grid.strategy import (
     GridBacktestConfig,
     GridDefinition,
-    _mid_target,
     RollingRangePolicy,
     _mid_target,
     build_causal_range_schedule,
     main_level_allocations,
     micro_sublevel_allocations,
-    main_level_allocations,
     run_grid_backtest,
     sublevel_label,
 )
@@ -218,6 +216,61 @@ class LinkLevelGridStrategyTests(unittest.TestCase):
         self.assertNotEqual(grid_6, grid_12)
         self.assertGreater(pct_12, pct_6)
         self.assertNotEqual(target_6, target_12)
+
+    def test_reinvestment_and_runner_parameters_are_validated(self):
+        with self.assertRaisesRegex(ValueError, "profit_reinvest_fraction"):
+            GridBacktestConfig(profit_reinvest_fraction=1.1)
+        with self.assertRaisesRegex(ValueError, "runner_fraction"):
+            GridBacktestConfig(runner_fraction=1.0)
+
+    def test_partial_runner_and_profit_reserve_are_tracked(self):
+        candles = []
+        for i, ts in enumerate(pd.date_range("2026-01-01", periods=140, freq="D", tz="UTC")):
+            phase = i % 20
+            center = 80.0 + (10.0 if phase < 10 else -10.0)
+            candles.append(
+                {
+                    "timestamp": ts,
+                    "open": center,
+                    "high": center + 8.0,
+                    "low": center - 8.0,
+                    "close": center + (2.0 if phase % 2 == 0 else -2.0),
+                    "volume": 1000.0,
+                }
+            )
+        frame = pd.DataFrame(candles)
+        cfg = GridBacktestConfig(
+            micro_capital=1000.0,
+            mid_capital=1000.0,
+            allocation_preset="linear_depth_reserved",
+            profit_reinvest_fraction=0.5,
+            runner_fraction=0.25,
+            fee_bps=0.0,
+            slippage_bps=0.0,
+            rolling_range=RollingRangePolicy(
+                lookback_candles=120,
+                min_history_candles=30,
+                refresh_candles=30,
+            ),
+        )
+        result = run_grid_backtest(
+            frame,
+            dataset_id="TEST:RUNNER",
+            source_commit_sha="abc123",
+            config=cfg,
+            evaluation_start=pd.Timestamp("2026-01-31T00:00:00Z"),
+        )
+        self.assertGreater(result.summary["closed_trade_count"], 0)
+        self.assertGreater(
+            result.summary["micro_runner_units_end"] + result.summary["mid_runner_units_end"],
+            0.0,
+        )
+        self.assertGreaterEqual(
+            result.summary["micro_profit_reserve_end"] + result.summary["mid_profit_reserve_end"],
+            0.0,
+        )
+        self.assertAlmostEqual(result.summary["runner_fraction"], 0.25)
+        self.assertAlmostEqual(result.summary["profit_reinvest_fraction"], 0.5)
 
     def test_backtest_keeps_micro_and_mid_capital_separate(self):
         candles = []
