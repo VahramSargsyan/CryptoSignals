@@ -98,6 +98,85 @@ class LinkLevelGridStrategyTests(unittest.TestCase):
         self.assertAlmostEqual(target, percent_target)
         self.assertAlmostEqual(target, entry * 1.53)
 
+    def test_evaluation_start_requires_full_prehistory_and_blocks_early_trades(self):
+        candles = []
+        for i, ts in enumerate(pd.date_range("2025-01-01", periods=20, freq="D", tz="UTC")):
+            candles.append(
+                {
+                    "timestamp": ts,
+                    "open": 100.0,
+                    "high": 110.0 + i,
+                    "low": 90.0 - i,
+                    "close": 100.0,
+                    "volume": 1000.0,
+                }
+            )
+        frame = pd.DataFrame(candles)
+        cfg = GridBacktestConfig(
+            micro_capital=1000.0,
+            mid_capital=1000.0,
+            allocation_preset="equal_reserved",
+            fee_bps=0.0,
+            slippage_bps=0.0,
+            rolling_range=RollingRangePolicy(
+                lookback_candles=10,
+                min_history_candles=10,
+                refresh_candles=30,
+            ),
+        )
+
+        result = run_grid_backtest(
+            frame,
+            dataset_id="TEST:PREHISTORY",
+            source_commit_sha="abc123",
+            config=cfg,
+            evaluation_start=pd.Timestamp("2025-01-11T00:00:00Z"),
+        )
+
+        self.assertEqual(result.summary["prehistory_candles"], 10)
+        self.assertEqual(result.summary["candles"], 10)
+        self.assertEqual(
+            result.summary["period_start"],
+            "2025-01-11T00:00:00+00:00",
+        )
+        self.assertTrue((result.trades["entry_timestamp"] >= pd.Timestamp("2025-01-11T00:00:00Z")).all() if not result.trades.empty else True)
+
+        first_range = result.range_history.iloc[0]
+        self.assertEqual(first_range["timestamp"], pd.Timestamp("2025-01-11T00:00:00Z"))
+        # Jan 11 grid must use only Jan 1..Jan 10 history.
+        self.assertEqual(first_range["high"], 119.0)
+        self.assertEqual(first_range["low"], 81.0)
+
+    def test_evaluation_start_rejects_insufficient_prehistory(self):
+        frame = pd.DataFrame(
+            [
+                {
+                    "timestamp": ts,
+                    "open": 100.0,
+                    "high": 101.0,
+                    "low": 99.0,
+                    "close": 100.0,
+                    "volume": 1.0,
+                }
+                for ts in pd.date_range("2025-01-01", periods=12, freq="D", tz="UTC")
+            ]
+        )
+        cfg = GridBacktestConfig(
+            rolling_range=RollingRangePolicy(
+                lookback_candles=10,
+                min_history_candles=10,
+                refresh_candles=30,
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "Insufficient prehistory"):
+            run_grid_backtest(
+                frame,
+                dataset_id="TEST:SHORT",
+                source_commit_sha="abc123",
+                config=cfg,
+                evaluation_start=pd.Timestamp("2025-01-06T00:00:00Z"),
+            )
+
     def test_backtest_keeps_micro_and_mid_capital_separate(self):
         candles = []
         # 140 daily candles, oscillating enough to create fills/exits after
@@ -133,6 +212,7 @@ class LinkLevelGridStrategyTests(unittest.TestCase):
             dataset_id="TEST:LINKUSDT:1D",
             source_commit_sha="abc123",
             config=cfg,
+            evaluation_start=pd.Timestamp("2026-01-31T00:00:00Z"),
         )
         self.assertEqual(result.summary["micro_initial_capital"], 700.0)
         self.assertEqual(result.summary["mid_initial_capital"], 1300.0)
