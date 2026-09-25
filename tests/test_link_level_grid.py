@@ -5,11 +5,13 @@ import pandas as pd
 from strategies.crypto.link_level_grid.strategy import (
     GridBacktestConfig,
     GridDefinition,
+    _mid_target,
     RollingRangePolicy,
     _mid_target,
     build_causal_range_schedule,
     main_level_allocations,
     micro_sublevel_allocations,
+    main_level_allocations,
     run_grid_backtest,
     sublevel_label,
 )
@@ -176,6 +178,46 @@ class LinkLevelGridStrategyTests(unittest.TestCase):
                 config=cfg,
                 evaluation_start=pd.Timestamp("2025-01-06T00:00:00Z"),
             )
+
+    def test_power_allocation_moves_more_capital_deeper(self):
+        equalish = main_level_allocations(
+            "linear_depth_reserved",
+            layer="MICRO",
+            power=0.0,
+        )
+        steep = main_level_allocations(
+            "linear_depth_reserved",
+            layer="MICRO",
+            power=2.0,
+        )
+        self.assertAlmostEqual(sum(equalish), 1.0, places=12)
+        self.assertAlmostEqual(sum(steep), 1.0, places=12)
+        self.assertAlmostEqual(equalish[0], equalish[-1], places=12)
+        self.assertGreater(steep[-1], steep[0])
+
+    def test_optimizer_exit_parameters_change_targets(self):
+        grid = GridDefinition(high=100.0, low=20.0)
+        target_6, pct_6, grid_6 = _mid_target(
+            grid=grid,
+            main_level=10,
+            entry_sublevel=40,
+            entry_price=50.0,
+            ten_sublevel_from_main=7,
+            recovery_sublevels=6,
+            target_scale=1.0,
+        )
+        target_12, pct_12, grid_12 = _mid_target(
+            grid=grid,
+            main_level=10,
+            entry_sublevel=40,
+            entry_price=50.0,
+            ten_sublevel_from_main=7,
+            recovery_sublevels=12,
+            target_scale=1.25,
+        )
+        self.assertNotEqual(grid_6, grid_12)
+        self.assertGreater(pct_12, pct_6)
+        self.assertNotEqual(target_6, target_12)
 
     def test_backtest_keeps_micro_and_mid_capital_separate(self):
         candles = []

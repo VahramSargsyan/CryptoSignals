@@ -41,7 +41,7 @@ Reason: the repository acceptance standard requires predefined acceptance gates 
 ## Current non-canonical research assumptions
 
 - range refresh cadence: 30 daily candles
-- minimum history before first range: 90 candles
+- minimum history before first trading range: 1095 prior daily candles
 - default capital allocation: linear_depth_reserved
 - Mid entry location: A boundary
 - open lots retain entry-time targets after range refresh
@@ -231,3 +231,33 @@ Methodology: 6 years total data, first 3 years prehistory only, final 3 years tr
 Evidence: `docs/evidence/2026-09-25_CORRECTED_BNB_BTC_CROSS_ASSET_VALIDATION.md`
 
 Interpretation: profitable on both assets under the current research implementation, but below buy-and-hold over this specific period. Strategy status remains `BACKTESTED`.
+
+
+## Optimizer research — 2026-09-25
+
+A first cross-asset parameter search was run on LINK, ETH, SOL, BNB and BTC using the corrected 6-year / 3-year-prehistory methodology.
+
+The 3-year trading period was split into an earlier parameter-selection segment and a final 365-day temporal holdout.
+
+Key findings:
+
+- equal capital by depth maximized the historical selection segment but failed the temporal holdout and increased drawdown;
+- the existing linear-depth allocation was less profitable in-sample but materially more stable in the holdout;
+- a more bottom-heavy allocation further reduced historical return while improving holdout behavior and drawdown;
+- wider exit distances materially improved full-period returns across all five assets, but the temporal-holdout improvement was small;
+- no optimizer candidate is accepted as canonical.
+
+Promising exit research candidate:
+
+```text
+Micro recovery = 6 sublevels
+Mid recovery   = 18 sublevels
+Mid target     = 1.00 x current target percentages
+capital powers = 1 / 1
+```
+
+It improved full-period returns on all five tested assets, but did not materially improve the clean temporal holdout versus the current baseline.
+
+Evidence: `docs/evidence/2026-09-25_LEVEL_GRID_OPTIMIZER_V1.md`
+
+Status remains `BACKTESTED`. Optimizer outputs are hypotheses, not strategy promotions.
