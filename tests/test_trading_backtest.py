@@ -86,7 +86,7 @@ class TradingBacktestTests(unittest.TestCase):
         metrics = result.metrics
         self.assertEqual(metrics.trade_count, 1)
         self.assertEqual(metrics.win_rate, 0.0)
-        self.assertIsNone(metrics.profit_factor)
+        self.assertEqual(metrics.profit_factor, 0.0)
         self.assertAlmostEqual(metrics.total_return, (90 / 110) - 1)
         self.assertAlmostEqual(metrics.benchmark_return, 0.10)
         self.assertAlmostEqual(metrics.average_holding_period, 2.0)
