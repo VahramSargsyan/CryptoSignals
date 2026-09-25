@@ -188,8 +188,8 @@ def _evaluate_candidate(
             config=config,
             evaluation_start=bundle.evaluation_start,
         )
-        validation_start = pd.Timestamp(result.summary["period_end"]) - pd.Timedelta(
-            days=validation_days - 1
+        validation_start = pd.Timestamp(result.summary["period_end"]) - pd.DateOffset(
+            days=int(validation_days - 1)
         )
         train_return = _period_return(
             result.equity_curve,
