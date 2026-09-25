@@ -95,7 +95,8 @@ This is essential for a meaningful historical test.
 ```bash
 python -m scripts.run_link_level_grid_backtest \
   --symbol LINKUSDT \
-  --years 3 \
+  --history-years 6 \
+  --trade-years 3 \
   --allocation-preset linear_depth_reserved
 ```
 
