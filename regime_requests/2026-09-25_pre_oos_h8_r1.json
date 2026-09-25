@@ -1,5 +1,6 @@
 {
   "experiment_id": "PRE_OOS_REGIME_H8_2026_09_25_R1",
+  "run_nonce": "R1",
   "protected_period": "2026",
   "start": "2021-01-01T00:00:00Z",
   "end": "2026-01-01T00:00:00Z",
