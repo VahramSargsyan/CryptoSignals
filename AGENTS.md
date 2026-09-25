@@ -29,3 +29,9 @@ Rules:
 - schema/ID/relation changes require MIGRATION_PLAN + rollback;
 - do not commit secrets;
 - report exact TEST_LEVEL and residual risks.
+
+## LINK grid MA research memory
+
+For any new moving-average, exit, or runner proposal involving `VAHRAM_LINK_LEVEL_GRID_V1`, read `docs/evidence/2026-09-26_LINK_GRID_MA_EXIT_RESEARCH_DECISION_LOG_V1.md` before proposing or rerunning a hypothesis.
+
+Do not repeat a recorded MA experiment unless there is future unseen evidence, a materially different mechanism, or a documented bug/semantic correction. A future proposal must explicitly state how it differs from the recorded direct-MA-exit, BASE/WIDE-regime, and MA-runner experiments.
