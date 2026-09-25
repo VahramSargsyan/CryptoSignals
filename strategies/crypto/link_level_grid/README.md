@@ -1,6 +1,6 @@
 # VAHRAM_LINK_LEVEL_GRID_V1
 
-Status: **IMPLEMENTED FOR RESEARCH / NOT YET CANONICAL**  
+Status: **BACKTESTED / RESEARCH IMPLEMENTATION / NOT ACCEPTED FOR LIVE USE**  
 Timeframe: **1D only**  
 Initial symbol: **LINKUSDT**
 
@@ -98,7 +98,7 @@ research_artifacts/link_level_grid/<RUN_ID>/
 
 ## Important interpretation boundary
 
-A successful run proves that the strategy mechanics can be simulated deterministically.
+The strategy registry status is **BACKTESTED** because a historical run completed successfully. This does not mean **ACCEPTED** under the repository acceptance gates. A successful run proves that the strategy mechanics can be simulated deterministically.
 
 It does **not** prove the strategy is profitable, accepted, or that the remaining assumptions match the owner's final intended rules.
 
