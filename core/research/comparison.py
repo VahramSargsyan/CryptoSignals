@@ -7,7 +7,16 @@ import pandas as pd
 
 from core.backtest.contracts import BacktestRunManifest, ExecutionPolicy
 from core.backtest.event_study import run_event_study, summarize_event_study
-from core.backtest.trading import ENGINE_NAME, LongOnlyTradingPolicy, run_long_only_backtest
+from core.backtest.trading import (
+    ENGINE_NAME as LONG_ENGINE_NAME,
+    LongOnlyTradingPolicy,
+    run_long_only_backtest,
+)
+from core.backtest.trading_short import (
+    ENGINE_NAME as SHORT_ENGINE_NAME,
+    ShortOnlyTradingPolicy,
+    run_short_only_backtest,
+)
 from core.data.candles import HistoricalDataset
 from core.evidence.backtest_record import build_backtest_evidence
 from strategies.crypto.macd_cross.strategy import (
@@ -55,6 +64,9 @@ from strategies.crypto.vahram_original.strategy import (
 )
 
 DEFAULT_COMPARISON_STRATEGY_IDS = (ORIGINAL_ID, TRUE_STOCHRSI_ID)
+POSITION_MODE_LONG_ONLY = "LONG_ONLY"
+POSITION_MODE_SHORT_ONLY = "SHORT_ONLY"
+POSITION_MODES = {POSITION_MODE_LONG_ONLY, POSITION_MODE_SHORT_ONLY}
 
 
 def _strategy_specs() -> dict[str, tuple[str, Callable, dict, dict]]:
@@ -144,9 +156,10 @@ def compare_strategies_on_dataset(
     fee_bps: float = 10.0,
     slippage_bps: float = 5.0,
     horizons: tuple[int, ...] = (1, 3, 7, 14),
-    trading_policy: LongOnlyTradingPolicy | None = None,
+    trading_policy: LongOnlyTradingPolicy | ShortOnlyTradingPolicy | None = None,
     strategy_ids: tuple[str, ...] | None = None,
     evaluation_start: str | pd.Timestamp | None = None,
+    position_mode: str = POSITION_MODE_LONG_ONLY,
 ) -> dict:
     if dataset.candles.empty:
         raise ValueError("Cannot compare strategies on an empty dataset")
@@ -154,6 +167,10 @@ def compare_strategies_on_dataset(
         raise ValueError("Cannot run formal comparison with critical dataset quality issues")
 
     specs = _strategy_specs()
+    normalized_position_mode = str(position_mode).upper()
+    if normalized_position_mode not in POSITION_MODES:
+        raise ValueError(f"Unsupported position_mode: {position_mode}")
+
     selected_ids = strategy_ids or DEFAULT_COMPARISON_STRATEGY_IDS
     if not selected_ids:
         raise ValueError("At least one strategy_id is required")
@@ -163,7 +180,19 @@ def compare_strategies_on_dataset(
     if unknown:
         raise ValueError(f"Unknown strategy_ids: {unknown}")
 
-    policy = trading_policy or LongOnlyTradingPolicy()
+    if normalized_position_mode == POSITION_MODE_LONG_ONLY:
+        if trading_policy is not None and not isinstance(trading_policy, LongOnlyTradingPolicy):
+            raise ValueError("LONG_ONLY requires LongOnlyTradingPolicy")
+        policy = trading_policy or LongOnlyTradingPolicy()
+        engine_name = LONG_ENGINE_NAME
+        engine_runner = run_long_only_backtest
+    else:
+        if trading_policy is not None and not isinstance(trading_policy, ShortOnlyTradingPolicy):
+            raise ValueError("SHORT_ONLY requires ShortOnlyTradingPolicy")
+        policy = trading_policy or ShortOnlyTradingPolicy()
+        engine_name = SHORT_ENGINE_NAME
+        engine_runner = run_short_only_backtest
+
     execution = ExecutionPolicy(fee_bps=fee_bps, slippage_bps=slippage_bps)
 
     all_candles = dataset.candles.copy()
@@ -204,7 +233,7 @@ def compare_strategies_on_dataset(
             execution=execution,
             parameters=parameters,
             validation_type=validation_type,
-            engine_name=ENGINE_NAME,
+            engine_name=engine_name,
             engine_config=policy.to_config(),
         )
         generated_outputs = generator(
@@ -222,7 +251,7 @@ def compare_strategies_on_dataset(
         ]
         events = run_event_study(evaluation_candles, outputs, horizons=horizons)
         event_summary = summarize_event_study(events)
-        trading = run_long_only_backtest(
+        trading = engine_runner(
             evaluation_candles,
             outputs,
             manifest=manifest,
@@ -264,6 +293,7 @@ def compare_strategies_on_dataset(
         "timeframe": dataset.timeframe,
         "data_start": pd.Timestamp(all_candles.iloc[0]["timestamp"]).isoformat(),
         "evaluation_start": start,
+        "position_mode": normalized_position_mode,
         "summary": pd.DataFrame(summary_rows),
         "strategies": results,
     }

@@ -100,6 +100,7 @@ def main() -> int:
     fee_bps = float(request.get("fee_bps", args.fee_bps))
     slippage_bps = float(request.get("slippage_bps", args.slippage_bps))
     validation_type = request.get("validation_type", args.validation_type)
+    position_mode = str(request.get("position_mode", "LONG_ONLY")).upper()
     horizons = tuple(int(value) for value in request.get("horizons", [1, 3, 7, 14]))
 
     requested_strategy_ids = request.get("strategy_ids")
@@ -143,6 +144,7 @@ def main() -> int:
         "fee_bps": fee_bps,
         "slippage_bps": slippage_bps,
         "validation_type": validation_type,
+        "position_mode": position_mode,
         "horizons": list(horizons),
     }
     _json_dump(output_dir / "run_manifest.json", run_header)
@@ -204,6 +206,7 @@ def main() -> int:
                 horizons=horizons,
                 strategy_ids=strategy_ids,
                 evaluation_start=start,
+                position_mode=position_mode,
             )
             comparison["summary"].to_csv(symbol_dir / "strategy_summary.csv", index=False)
             event_dir = symbol_dir / "event_study"
