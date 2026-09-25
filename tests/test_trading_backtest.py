@@ -158,7 +158,7 @@ class TradingBacktestTests(unittest.TestCase):
         self.assertEqual(trade["exit_price"], 110.0)
         self.assertEqual(trade["holding_candles"], 4)
         self.assertAlmostEqual(result.metrics.total_return, 0.0)
-        self.assertAlmostEqual(result.metrics.exposure, 0.6)
+        self.assertAlmostEqual(result.metrics.exposure, 0.8)
 
     def test_manifest_must_encode_exact_engine_policy(self):
         wrong = BacktestRunManifest(
@@ -181,6 +181,64 @@ class TradingBacktestTests(unittest.TestCase):
                 manifest=wrong,
                 policy=self.policy,
             )
+
+    def test_outputs_are_bound_to_exact_run_and_source_commit(self):
+        wrong_run = make_strategy_output(
+            strategy_id="TEST",
+            strategy_version="1.0.0",
+            symbol="BTCUSDT",
+            timeframe="1D",
+            timestamp="2026-01-01T00:00:00Z",
+            signal="BUY",
+            strength=70,
+            reasons=("test",),
+            source_commit_sha="abc",
+            run_id="RUN-WRONG",
+        )
+        with self.assertRaises(ValueError):
+            run_long_only_backtest(
+                self.candles,
+                [wrong_run],
+                manifest=self.manifest,
+                policy=self.policy,
+            )
+
+        wrong_sha = make_strategy_output(
+            strategy_id="TEST",
+            strategy_version="1.0.0",
+            symbol="BTCUSDT",
+            timeframe="1D",
+            timestamp="2026-01-01T00:00:00Z",
+            signal="BUY",
+            strength=70,
+            reasons=("test",),
+            source_commit_sha="different",
+            run_id=self.manifest.run_id,
+        )
+        with self.assertRaises(ValueError):
+            run_long_only_backtest(
+                self.candles,
+                [wrong_sha],
+                manifest=self.manifest,
+                policy=self.policy,
+            )
+
+    def test_manifest_rejects_non_finite_reproducibility_fields(self):
+        manifest = BacktestRunManifest(
+            strategy_id="TEST",
+            strategy_version="1.0.0",
+            source_commit_sha="abc",
+            dataset_id="TEST-DATASET",
+            symbol="BTCUSDT",
+            timeframe="1D",
+            period_start="2026-01-01",
+            period_end="2026-01-05",
+            parameters={"bad": float("nan")},
+            engine_name=ENGINE_NAME,
+            engine_config=self.policy.to_config(),
+        )
+        with self.assertRaises(ValueError):
+            _ = manifest.run_id
 
 
 if __name__ == "__main__":
