@@ -480,6 +480,11 @@ def run_grid_backtest(
     micro_lots: dict[int, OpenLot] = {}
     mid_lots: dict[int, OpenLot] = {}
 
+    micro_profit_reserve = 0.0
+    mid_profit_reserve = 0.0
+    micro_runner_units = 0.0
+    mid_runner_units = 0.0
+
     trades: list[dict] = []
     equity_rows: list[dict] = []
     range_rows: list[dict] = []
@@ -526,10 +531,30 @@ def run_grid_backtest(
                     continue
 
                 fill = _sell_limit_fill(candle, lot.target_price, cfg.slippage_bps)
-                proceeds = lot.units * fill * (1.0 - fee_rate)
-                cash_map[slot_id] = proceeds
+                sell_fraction = 1.0 - cfg.runner_fraction
+                sold_units = lot.units * sell_fraction
+                runner_units = lot.units - sold_units
+                sold_cost_basis = lot.invested_cash * sell_fraction
+                proceeds = sold_units * fill * (1.0 - fee_rate)
+                realized_profit = proceeds - sold_cost_basis
+                if realized_profit >= 0:
+                    reinvested_profit = realized_profit * cfg.profit_reinvest_fraction
+                    reserved_profit = realized_profit - reinvested_profit
+                    next_slot_cash = sold_cost_basis + reinvested_profit
+                else:
+                    reinvested_profit = realized_profit
+                    reserved_profit = 0.0
+                    next_slot_cash = proceeds
+                cash_map[slot_id] = next_slot_cash
+                if layer == "MICRO":
+                    micro_profit_reserve += reserved_profit
+                    micro_runner_units += runner_units
+                else:
+                    mid_profit_reserve += reserved_profit
+                    mid_runner_units += runner_units
                 gross_return = (fill / lot.entry_price) - 1.0
-                net_return = (proceeds / lot.invested_cash) - 1.0
+                marked_exit_value = proceeds + runner_units * fill * (1.0 - fee_rate)
+                net_return = (marked_exit_value / lot.invested_cash) - 1.0
                 if layer == "MID" and lot.grid_target_price is not None:
                     if lot.grid_target_price <= lot.percent_target_price:
                         exit_reason = (
@@ -557,6 +582,13 @@ def run_grid_backtest(
                         "exit_price": fill,
                         "invested_cash": lot.invested_cash,
                         "proceeds": proceeds,
+                        "sold_fraction": sell_fraction,
+                        "runner_fraction": cfg.runner_fraction,
+                        "runner_units": runner_units,
+                        "realized_profit": realized_profit,
+                        "reinvested_profit": reinvested_profit,
+                        "reserved_profit": reserved_profit,
+                        "next_slot_cash": next_slot_cash,
                         "gross_return": gross_return,
                         "net_return": net_return,
                         "holding_candles": position - lot.entry_position,
@@ -653,15 +685,17 @@ def run_grid_backtest(
         mid_cash_total = sum(mid_cash.values())
         micro_open_value = sum(lot.units * close * (1.0 - fee_rate) for lot in micro_lots.values())
         mid_open_value = sum(lot.units * close * (1.0 - fee_rate) for lot in mid_lots.values())
-        micro_equity = micro_cash_total + micro_open_value
-        mid_equity = mid_cash_total + mid_open_value
+        micro_runner_value = micro_runner_units * close * (1.0 - fee_rate)
+        mid_runner_value = mid_runner_units * close * (1.0 - fee_rate)
+        micro_equity = micro_cash_total + micro_profit_reserve + micro_open_value + micro_runner_value
+        mid_equity = mid_cash_total + mid_profit_reserve + mid_open_value + mid_runner_value
         total_equity = micro_equity + mid_equity
 
         peak_equity = max(peak_equity, total_equity)
         drawdown = (total_equity / peak_equity) - 1.0
         max_drawdown = max(max_drawdown, abs(drawdown))
 
-        deployed = micro_open_value + mid_open_value
+        deployed = micro_open_value + mid_open_value + micro_runner_value + mid_runner_value
         peak_deployed = max(peak_deployed, deployed)
 
         equity_rows.append(
@@ -672,7 +706,13 @@ def run_grid_backtest(
                 "total_equity": total_equity,
                 "micro_open_lots": len(micro_lots),
                 "mid_open_lots": len(mid_lots),
-                "cash_total": micro_cash_total + mid_cash_total,
+                "cash_total": micro_cash_total + mid_cash_total + micro_profit_reserve + mid_profit_reserve,
+                "micro_profit_reserve": micro_profit_reserve,
+                "mid_profit_reserve": mid_profit_reserve,
+                "micro_runner_units": micro_runner_units,
+                "mid_runner_units": mid_runner_units,
+                "micro_runner_value": micro_runner_value,
+                "mid_runner_value": mid_runner_value,
                 "deployed_mark_value": deployed,
             }
         )
@@ -777,6 +817,8 @@ def run_grid_backtest(
         "micro_exit_sublevels": cfg.micro_exit_sublevels,
         "mid_recovery_sublevels": cfg.mid_recovery_sublevels,
         "mid_target_scale": cfg.mid_target_scale,
+        "profit_reinvest_fraction": cfg.profit_reinvest_fraction,
+        "runner_fraction": cfg.runner_fraction,
         "micro_initial_capital": cfg.micro_capital,
         "mid_initial_capital": cfg.mid_capital,
         "total_initial_capital": total_initial,
@@ -795,6 +837,12 @@ def run_grid_backtest(
         "average_closed_trade_return": avg_trade_return,
         "open_micro_lots_end": int(equity_df.iloc[-1]["micro_open_lots"]),
         "open_mid_lots_end": int(equity_df.iloc[-1]["mid_open_lots"]),
+        "micro_profit_reserve_end": float(equity_df.iloc[-1]["micro_profit_reserve"]),
+        "mid_profit_reserve_end": float(equity_df.iloc[-1]["mid_profit_reserve"]),
+        "micro_runner_units_end": float(equity_df.iloc[-1]["micro_runner_units"]),
+        "mid_runner_units_end": float(equity_df.iloc[-1]["mid_runner_units"]),
+        "micro_runner_value_end": float(equity_df.iloc[-1]["micro_runner_value"]),
+        "mid_runner_value_end": float(equity_df.iloc[-1]["mid_runner_value"]),
         "range_refresh_count": len(range_df),
         "research_assumptions": {
             "timeframe": "1D",
@@ -807,6 +855,8 @@ def run_grid_backtest(
             "range_refresh_rule_is_owner_confirmed": False,
             "default_allocation_is_owner_confirmed": False,
             "optimizer_parameters_are_research_only": True,
+            "profit_reinvestment_is_configurable": True,
+            "runner_fraction_is_configurable": True,
             "mid_entry_at_A_boundary_is_owner_confirmed": False,
             "micro_exit_one_sublevel_up_is_historical_observed": True,
             "mid_percent_targets_are_current_chart_values": True,
