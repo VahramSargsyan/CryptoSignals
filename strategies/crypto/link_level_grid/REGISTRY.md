@@ -196,3 +196,38 @@ Methodology: 6 years total data, first 3 years prehistory only, final 3 years tr
 Evidence: `docs/evidence/2026-09-25_CORRECTED_ETH_SOL_CROSS_ASSET_VALIDATION.md`
 
 These corrected runs supersede the earlier three-year-only ETH/SOL performance figures. Strategy status remains `BACKTESTED`.
+
+
+## Corrected cross-asset evidence — BNB and BTC
+
+Methodology: 6 years total data, first 3 years prehistory only, final 3 years trading/evaluation.
+
+### BNBUSDT corrected
+
+- run: `RUN-764773cb6222272429ba`
+- dataset: `BINANCE:BNBUSDT:1D:a07a7f7566e5243b`
+- strategy return: +104.1704%
+- Micro: +93.3718%
+- Mid: +114.9690%
+- buy-and-hold: +272.8709%
+- max drawdown: 26.3147%
+- closed trades: 997
+- GitHub Actions run: 36140374482
+- artifact: 10866761636
+
+### BTCUSDT corrected
+
+- run: `RUN-2ab3460b6a87f04de04f`
+- dataset: `BINANCE:BTCUSDT:1D:52681302302c81b5`
+- strategy return: +69.6046%
+- Micro: +60.8840%
+- Mid: +78.3252%
+- buy-and-hold: +221.5825%
+- max drawdown: 16.2595%
+- closed trades: 926
+- GitHub Actions run: 36140388792
+- artifact: 10866426854
+
+Evidence: `docs/evidence/2026-09-25_CORRECTED_BNB_BTC_CROSS_ASSET_VALIDATION.md`
+
+Interpretation: profitable on both assets under the current research implementation, but below buy-and-hold over this specific period. Strategy status remains `BACKTESTED`.
