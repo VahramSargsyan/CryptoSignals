@@ -1,0 +1,47 @@
+{
+  "request_id": "MACD_CROSS_V1_2021_2025_R1",
+  "purpose": "First reproducible historical research baseline for the OSS-inspired MACD_CROSS_V1 candidate",
+  "strategy_ids": [
+    "MACD_CROSS_V1"
+  ],
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "TWTUSDT",
+    "ATOMUSDT",
+    "SAGAUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "TONUSDT",
+    "TIAUSDT",
+    "WUSDT",
+    "OSMOUSDT",
+    "DOGEUSDT"
+  ],
+  "start": "2021-01-01T00:00:00Z",
+  "end": "2026-01-01T00:00:00Z",
+  "timeframe": "1D",
+  "fee_bps": 10,
+  "slippage_bps": 5,
+  "validation_type": "HISTORICAL_RESEARCH_2021_2025",
+  "horizons": [
+    1,
+    3,
+    7,
+    14
+  ],
+  "strategy_parameters": {
+    "fast_window": 12,
+    "slow_window": 26,
+    "signal_window": 9,
+    "signal_logic": "STRICT_MACD_SIGNAL_CROSS"
+  },
+  "external_provenance": {
+    "repository": "w1ld3r/crypto-signal",
+    "source_commit": "8ae473999f83d3025e6e9429c3734429fb0e180d",
+    "license": "MIT"
+  },
+  "acceptance_decision_allowed": false,
+  "note": "2026 is excluded. Historical benchmark only; no parameter tuning from this run."
+}
