@@ -8,12 +8,6 @@ on:
         required: true
         default: capital,exit
         type: string
-  push:
-    branches:
-      - research/grid-optimizer-v1
-    paths:
-      - research_requests/run_grid_optimizer_v1.trigger
-
 permissions:
   contents: read
 
