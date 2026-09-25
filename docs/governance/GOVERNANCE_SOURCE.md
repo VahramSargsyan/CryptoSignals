@@ -5,9 +5,10 @@ Universal governance version: **VAHRAM_APP_GOVERNANCE v1.0.0**
 Canonical universal source:
 `VahramSargsyan/vbos-app/docs/governance/VAHRAM_APP_UNIVERSAL_GOVERNANCE_v1.0.0.md`
 
-Local profile: **INVESTMENT_STRATEGY_LAB**
+Canonical investment-specific overlay:
+`VahramSargsyan/investment-cases` -> `PROJECT_GOVERNANCE.md`
 
-Canonical investment-specific overlay: `VahramSargsyan/investment-cases` -> `PROJECT_GOVERNANCE.md`.
+Local profile: **INVESTMENT_STRATEGY_LAB**
 
 Historical origin includes the v0.4.9 APP workflow/Golden Architecture package plus later VBOS/HMT governance improvements consolidated into v1.0.0.
 
@@ -17,7 +18,7 @@ This repository keeps a small local governance adapter so it remains safe and un
 
 It does not require a Git submodule or mandatory cross-repository fetch for basic P0 discovery.
 
-Local rules may be stricter than v1.0.0 but must not silently weaken it.
+The Investment Lab owns investment-specific governance; this repository owns CryptoSignals-specific constraints.
 
 ## Sync rule
 
