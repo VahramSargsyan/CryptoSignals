@@ -1,6 +1,6 @@
 # WEIGHTED_MULTI_SIGNAL_V1
 
-Status: **EXPERIMENTAL**  
+Status: **BACKTESTED**  
 WORKFLOW_MODE: **BUILD_NEW_APP**  
 RISK_CLASS: **L2 — research-only strategy candidate**  
 MIGRATION_REQUIRED: **NO**  
@@ -109,3 +109,25 @@ The first runtime is historical evidence only.
 ## Promotion
 
 `EXPERIMENTAL -> BACKTESTED -> future held-out/walk-forward -> acceptance decision`
+
+
+## First historical evidence — 2026-09-25
+
+Run: `WEIGHTED_MULTI_SIGNAL_V1_2021_2025_R1`
+
+- source commit: `9c402f8363e1151a8062be24931741460ce2ea3f`
+- Binance 1D, 13/13 symbols
+- period: 2021-01-01 inclusive through 2026-01-01 exclusive
+- 88/88 unit/regression tests passed
+- 3,425 actionable BUY/SELL signals
+- 391 closed trades
+- pooled win rate: 39.13%
+- pooled average net trade return: +7.74%
+- pooled median net trade return: -3.69%
+- pooled profit factor: 2.013
+- positive total return: 6/13 symbols
+- benchmark beaten: 4/13 symbols
+- median symbol max drawdown: 80.20%
+- median symbol total return: -18.47%
+
+The pooled economics are materially stronger than the first single-indicator baselines, but the result is concentrated in a small group of large winners. Cross-symbol robustness remains insufficient and drawdown is high. Status is BACKTESTED only; v1 parameters remain frozen.
