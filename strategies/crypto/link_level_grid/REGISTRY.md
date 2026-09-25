@@ -376,3 +376,22 @@ Key observations:
 No canonical strategy or paper-live profile is changed.
 
 Decision log: `docs/evidence/2026-09-26_LINK_GRID_VOLATILITY_REGIME_RESEARCH_V1.md`.
+
+
+## External crowd / market-context research — 2026-09-26
+
+Status: **PARTIALLY TESTED / NOT PROMOTED / DUPLICATE-WORK GUARD ACTIVE**
+
+Executed on a common external-data horizon ending 2026-08-15:
+
+- funding regime selector: +170.62% geometric, median DD 37.31%, but only 7/15 independent asset-window wins versus WIDE;
+- Fear & Greed selector: +165.96%;
+- broad market + stablecoin-liquidity selector: +160.15%, while winning 9/15 independent asset-windows;
+- 2-of-3 external consensus: +167.73%;
+- same-window constant WIDE control: +168.87%, median DD 38.67%.
+
+Open interest and liquidation history were not assigned strategy metrics because equal trustworthy five-asset history was not materialized. They remain **DATA_BLOCKED / UNTESTED**, not rejected.
+
+No canonical strategy or paper-live profile changed.
+
+Evidence: `docs/evidence/2026-09-26_LINK_GRID_EXTERNAL_CROWD_CONTEXT_RESEARCH_V1.md`.
