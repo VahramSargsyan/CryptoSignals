@@ -134,6 +134,11 @@ class GridBacktestConfig:
     micro_capital: float = 1000.0
     mid_capital: float = 1000.0
     allocation_preset: str = "linear_depth_reserved"
+    micro_allocation_power: Optional[float] = None
+    mid_allocation_power: Optional[float] = None
+    micro_exit_sublevels: int = 1
+    mid_recovery_sublevels: int = 10
+    mid_target_scale: float = 1.0
     fee_bps: float = 10.0
     slippage_bps: float = 5.0
     rolling_range: RollingRangePolicy = RollingRangePolicy()
@@ -151,6 +156,18 @@ class GridBacktestConfig:
             "historical_observed",
         }:
             raise ValueError("Unknown allocation_preset")
+        for name, value in (
+            ("micro_allocation_power", self.micro_allocation_power),
+            ("mid_allocation_power", self.mid_allocation_power),
+        ):
+            if value is not None and (not math.isfinite(value) or value < 0):
+                raise ValueError(f"{name} must be finite and non-negative when set")
+        if not 1 <= self.micro_exit_sublevels <= TOTAL_SUBLEVELS:
+            raise ValueError("micro_exit_sublevels must be between 1 and 64")
+        if not 1 <= self.mid_recovery_sublevels <= TOTAL_SUBLEVELS:
+            raise ValueError("mid_recovery_sublevels must be between 1 and 64")
+        if not math.isfinite(self.mid_target_scale) or self.mid_target_scale <= 0:
+            raise ValueError("mid_target_scale must be finite and positive")
         if not 1 <= self.ten_sublevel_from_main <= MAIN_LEVELS:
             raise ValueError("ten_sublevel_from_main must be between 1 and 16")
 
@@ -193,9 +210,19 @@ def _normalize(weights: Iterable[float]) -> tuple[float, ...]:
     return tuple(value / total for value in values)
 
 
-def main_level_allocations(preset: str, *, layer: str) -> tuple[float, ...]:
+def main_level_allocations(
+    preset: str,
+    *,
+    layer: str,
+    power: Optional[float] = None,
+) -> tuple[float, ...]:
     if layer not in {"MICRO", "MID"}:
         raise ValueError("layer must be MICRO or MID")
+
+    if power is not None:
+        if not math.isfinite(power) or power < 0:
+            raise ValueError("power must be finite and non-negative")
+        return _normalize(level ** power for level in range(1, MAIN_LEVELS + 1))
 
     if preset == "equal_reserved":
         return tuple(1.0 / MAIN_LEVELS for _ in range(MAIN_LEVELS))
@@ -213,8 +240,12 @@ def main_level_allocations(preset: str, *, layer: str) -> tuple[float, ...]:
     raise ValueError(f"Unknown allocation preset: {preset}")
 
 
-def micro_sublevel_allocations(preset: str) -> tuple[float, ...]:
-    main = main_level_allocations(preset, layer="MICRO")
+def micro_sublevel_allocations(
+    preset: str,
+    *,
+    power: Optional[float] = None,
+) -> tuple[float, ...]:
+    main = main_level_allocations(preset, layer="MICRO", power=power)
     return tuple(
         main[(sublevel - 1) // SUBLEVELS_PER_MAIN] / SUBLEVELS_PER_MAIN
         for sublevel in range(1, TOTAL_SUBLEVELS + 1)
@@ -330,11 +361,15 @@ def _mid_target(
     entry_sublevel: int,
     entry_price: float,
     ten_sublevel_from_main: int,
+    recovery_sublevels: int = 10,
+    target_scale: float = 1.0,
 ) -> tuple[float, float, Optional[float]]:
-    percent_target = entry_price * (1.0 + MID_TARGET_PCTS[main_level - 1])
+    percent_target = entry_price * (
+        1.0 + MID_TARGET_PCTS[main_level - 1] * target_scale
+    )
     grid_target = None
     if main_level >= ten_sublevel_from_main:
-        grid_index = max(0, entry_sublevel - 10)
+        grid_index = max(0, entry_sublevel - recovery_sublevels)
         grid_target = grid.boundary_price(grid_index)
     target = min(percent_target, grid_target) if grid_target is not None else percent_target
     return target, percent_target, grid_target
@@ -418,8 +453,15 @@ def run_grid_backtest(
 
     fee_rate = cfg.fee_bps / 10_000.0
 
-    micro_alloc = micro_sublevel_allocations(cfg.allocation_preset)
-    mid_alloc = main_level_allocations(cfg.allocation_preset, layer="MID")
+    micro_alloc = micro_sublevel_allocations(
+        cfg.allocation_preset,
+        power=cfg.micro_allocation_power,
+    )
+    mid_alloc = main_level_allocations(
+        cfg.allocation_preset,
+        layer="MID",
+        power=cfg.mid_allocation_power,
+    )
 
     micro_cash = {
         index: cfg.micro_capital * micro_alloc[index - 1]
@@ -534,7 +576,9 @@ def run_grid_backtest(
 
                 fill = _buy_limit_fill(candle, limit_price, cfg.slippage_bps)
                 units = (budget * (1.0 - fee_rate)) / fill
-                target = grid.boundary_price(sublevel - 1)
+                target = grid.boundary_price(
+                    max(0, sublevel - cfg.micro_exit_sublevels)
+                )
                 micro_lots[sublevel] = OpenLot(
                     layer="MICRO",
                     slot_id=sublevel,
@@ -574,6 +618,8 @@ def run_grid_backtest(
                     entry_sublevel=entry_sublevel,
                     entry_price=fill,
                     ten_sublevel_from_main=cfg.ten_sublevel_from_main,
+                    recovery_sublevels=cfg.mid_recovery_sublevels,
+                    target_scale=cfg.mid_target_scale,
                 )
                 mid_lots[main_level] = OpenLot(
                     layer="MID",
@@ -691,10 +737,12 @@ def run_grid_backtest(
             {
                 "main_level": level,
                 "micro_main_allocation": main_level_allocations(
-                    cfg.allocation_preset, layer="MICRO"
+                    cfg.allocation_preset,
+                    layer="MICRO",
+                    power=cfg.micro_allocation_power,
                 )[level - 1],
                 "mid_allocation": mid_alloc[level - 1],
-                "mid_target_pct": MID_TARGET_PCTS[level - 1],
+                "mid_target_pct": MID_TARGET_PCTS[level - 1] * cfg.mid_target_scale,
                 "mid_entry_sublevel": level * SUBLEVELS_PER_MAIN,
                 "mid_entry_label": f"{level}A",
                 "ten_sublevel_alternative": level >= cfg.ten_sublevel_from_main,
@@ -715,6 +763,11 @@ def run_grid_backtest(
         "candles": len(frame) - first_evaluation_position,
         "prehistory_candles": first_evaluation_position,
         "allocation_preset": cfg.allocation_preset,
+        "micro_allocation_power": cfg.micro_allocation_power,
+        "mid_allocation_power": cfg.mid_allocation_power,
+        "micro_exit_sublevels": cfg.micro_exit_sublevels,
+        "mid_recovery_sublevels": cfg.mid_recovery_sublevels,
+        "mid_target_scale": cfg.mid_target_scale,
         "micro_initial_capital": cfg.micro_capital,
         "mid_initial_capital": cfg.mid_capital,
         "total_initial_capital": total_initial,
@@ -744,6 +797,7 @@ def run_grid_backtest(
             "range_refresh_candles": cfg.rolling_range.refresh_candles,
             "range_refresh_rule_is_owner_confirmed": False,
             "default_allocation_is_owner_confirmed": False,
+            "optimizer_parameters_are_research_only": True,
             "mid_entry_at_A_boundary_is_owner_confirmed": False,
             "micro_exit_one_sublevel_up_is_historical_observed": True,
             "mid_percent_targets_are_current_chart_values": True,
