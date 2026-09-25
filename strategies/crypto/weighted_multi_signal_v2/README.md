@@ -95,3 +95,45 @@ No ACCEPTED status may be assigned from the 2026 nonblind temporal holdout alone
 ## Promotion
 
 `EXPERIMENTAL -> TEMPORAL_HOLDOUT_TESTED -> future unseen evidence -> acceptance decision -> PAPER_LIVE`
+
+
+## Development historical baseline — 2026-09-25
+
+Run: `WEIGHTED_MULTI_SIGNAL_V2_2021_2025_R1`
+
+This run is **development evidence only**. V2 was derived after inspecting V1 on the same 2021–2025 history.
+
+- source commit: `5c235702c4f762083181afee2869b9980fac163c`
+- Binance 1D, 13/13 symbols
+- 94/94 unit/regression tests passed
+- 1,474 actionable signals
+- 260 closed trades
+- pooled win rate: 38.46%
+- pooled average net trade return: +12.22%
+- pooled median net trade return: -4.63%
+- pooled profit factor: 2.249
+- positive total return: 7/13 symbols
+- benchmark beaten: 5/13 symbols
+- median symbol max drawdown: 82.83%
+- median symbol total return: +57.89%
+
+Temporal stability remains weak:
+
+- 2021 PF 12.56
+- 2022 PF 0.70
+- 2023 PF 3.25
+- 2024 PF 2.03
+- 2025 PF 0.34
+
+The result remains right-tail dependent: removing the ten largest winners reduces pooled PF below 1.
+
+MA context also does not calibrate strength monotonically in this development sample:
+
+- strength 80 / MA not aligned: PF 2.57
+- strength 100 / MA aligned: PF 0.60
+
+MA remains context-only; no strategy rule is changed from this observation.
+
+### Reserved future holdout
+
+`2026-09-26T00:00:00Z` onward is reserved for future unseen evidence. It must not be used to tune V2/2.0.0.
