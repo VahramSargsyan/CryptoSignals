@@ -66,7 +66,7 @@ def _json_dump(path: Path, value) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run V1 vs V2 CryptoSignals research comparison")
+    parser = argparse.ArgumentParser(description="Run CryptoSignals strategy research comparison")
     parser.add_argument("--request-file", type=Path)
     parser.add_argument("--tokens-file", type=Path, default=REPO_ROOT / "tokens.csv")
     parser.add_argument("--symbols", help="Comma-separated explicit symbols")
@@ -74,7 +74,7 @@ def main() -> int:
     parser.add_argument(
         "--end",
         default="2026-01-01T00:00:00Z",
-        help="Exclusive closed-candle boundary via as_of; default protects 2026 OOS",
+        help="Exclusive closed-candle boundary via as_of",
     )
     parser.add_argument("--timeframe", default="1D")
     parser.add_argument("--fee-bps", type=float, default=10.0)
@@ -92,6 +92,13 @@ def main() -> int:
     slippage_bps = float(request.get("slippage_bps", args.slippage_bps))
     validation_type = request.get("validation_type", args.validation_type)
     horizons = tuple(int(value) for value in request.get("horizons", [1, 3, 7, 14]))
+
+    requested_strategy_ids = request.get("strategy_ids")
+    strategy_ids = (
+        tuple(str(strategy_id).strip() for strategy_id in requested_strategy_ids)
+        if requested_strategy_ids
+        else None
+    )
 
     explicit_symbols = request.get("symbols")
     if explicit_symbols:
@@ -118,6 +125,7 @@ def main() -> int:
         "source": "BINANCE_SPOT_REST",
         "endpoint": "https://data-api.binance.vision/api/v3/klines",
         "symbols": symbols,
+        "strategy_ids": list(strategy_ids) if strategy_ids else None,
         "start": start,
         "end": end,
         "timeframe": timeframe,
@@ -183,6 +191,7 @@ def main() -> int:
                 fee_bps=fee_bps,
                 slippage_bps=slippage_bps,
                 horizons=horizons,
+                strategy_ids=strategy_ids,
             )
             comparison["summary"].to_csv(symbol_dir / "strategy_summary.csv", index=False)
             event_dir = symbol_dir / "event_study"
