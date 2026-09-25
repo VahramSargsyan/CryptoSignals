@@ -4,6 +4,8 @@ import unittest
 import pandas as pd
 
 from core.data.candles import load_csv_dataset
+from core.backtest.trading import ENGINE_NAME as LONG_ENGINE_NAME
+from core.backtest.trading_short import ENGINE_NAME as SHORT_ENGINE_NAME
 from core.research.comparison import compare_strategies_on_dataset
 
 FIXTURE = Path(__file__).parent / "fixtures" / "vahram_original_v1_saga_2025_03_03_2025_05_02.csv"
@@ -36,6 +38,11 @@ class StrategyComparisonTests(unittest.TestCase):
 
         for strategy_id, result in comparison["strategies"].items():
             self.assertEqual(result["manifest"].dataset_id, dataset.dataset_id)
+            self.assertEqual(result["manifest"].engine_name, LONG_ENGINE_NAME)
+            self.assertEqual(
+                result["evidence"]["trading_policy"]["position_mode"],
+                "LONG_ONLY_FULL_EQUITY",
+            )
             self.assertEqual(result["manifest"].source_commit_sha, "accepted-test-sha")
             self.assertEqual(result["evidence"]["manifest"]["dataset_id"], dataset.dataset_id)
             self.assertEqual(result["evidence"]["manifest"]["strategy_id"], strategy_id)
@@ -253,6 +260,51 @@ class StrategyComparisonTests(unittest.TestCase):
                 source_commit_sha="warmup-test-sha",
                 strategy_ids=("STOCHRSI_CROSS_V1",),
                 evaluation_start="2030-01-01T00:00:00Z",
+            )
+
+    def test_explicit_short_mode_uses_separate_engine_without_changing_strategy(self):
+        dataset = load_csv_dataset(
+            FIXTURE,
+            symbol="SAGAUSDT",
+            timeframe="1D",
+            source="BINANCE",
+        )
+        comparison = compare_strategies_on_dataset(
+            dataset,
+            source_commit_sha="short-test-sha",
+            validation_type="LOCAL_SHORT_ENGINE_SMOKE",
+            strategy_ids=("WEIGHTED_MULTI_SIGNAL_V2",),
+            position_mode="SHORT_ONLY",
+        )
+
+        result = comparison["strategies"]["WEIGHTED_MULTI_SIGNAL_V2"]
+        self.assertEqual(comparison["position_mode"], "SHORT_ONLY")
+        self.assertEqual(result["manifest"].engine_name, SHORT_ENGINE_NAME)
+        self.assertEqual(
+            result["evidence"]["trading_policy"]["position_mode"],
+            "SHORT_ONLY_FULL_EQUITY_1X_NOTIONAL",
+        )
+        self.assertEqual(
+            result["evidence"]["trading_policy"]["entry_signal"],
+            "SELL",
+        )
+        self.assertEqual(
+            result["evidence"]["trading_policy"]["exit_signal"],
+            "BUY",
+        )
+
+    def test_unsupported_position_mode_is_rejected(self):
+        dataset = load_csv_dataset(
+            FIXTURE,
+            symbol="SAGAUSDT",
+            timeframe="1D",
+            source="BINANCE",
+        )
+        with self.assertRaisesRegex(ValueError, "Unsupported position_mode"):
+            compare_strategies_on_dataset(
+                dataset,
+                source_commit_sha="test",
+                position_mode="BOTH",
             )
 
     def test_unknown_candidate_is_rejected_before_execution(self):
