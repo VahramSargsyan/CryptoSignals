@@ -10,6 +10,8 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -72,6 +74,10 @@ def main() -> int:
     parser.add_argument("--symbols", help="Comma-separated explicit symbols")
     parser.add_argument("--start", default="2021-01-01T00:00:00Z")
     parser.add_argument(
+        "--data-start",
+        help="Optional earlier warm-up boundary; defaults to --start",
+    )
+    parser.add_argument(
         "--end",
         default="2026-01-01T00:00:00Z",
         help="Exclusive closed-candle boundary via as_of",
@@ -86,8 +92,11 @@ def main() -> int:
 
     request = _load_request(args.request_file)
     start = request.get("start", args.start)
+    data_start = request.get("data_start", args.data_start or start)
     end = request.get("end", args.end)
     timeframe = request.get("timeframe", args.timeframe)
+    if pd.Timestamp(data_start) > pd.Timestamp(start):
+        raise ValueError("data_start must be less than or equal to evaluation start")
     fee_bps = float(request.get("fee_bps", args.fee_bps))
     slippage_bps = float(request.get("slippage_bps", args.slippage_bps))
     validation_type = request.get("validation_type", args.validation_type)
@@ -126,6 +135,8 @@ def main() -> int:
         "endpoint": "https://data-api.binance.vision/api/v3/klines",
         "symbols": symbols,
         "strategy_ids": list(strategy_ids) if strategy_ids else None,
+        "data_start": data_start,
+        "evaluation_start": start,
         "start": start,
         "end": end,
         "timeframe": timeframe,
@@ -143,7 +154,7 @@ def main() -> int:
             download = download_historical_dataset(
                 client,
                 symbol=symbol,
-                start=start,
+                start=data_start,
                 end=end,
                 timeframe=timeframe,
                 as_of=end,
@@ -192,6 +203,7 @@ def main() -> int:
                 slippage_bps=slippage_bps,
                 horizons=horizons,
                 strategy_ids=strategy_ids,
+                evaluation_start=start,
             )
             comparison["summary"].to_csv(symbol_dir / "strategy_summary.csv", index=False)
             event_dir = symbol_dir / "event_study"
@@ -252,8 +264,6 @@ def main() -> int:
                     "run_id": None,
                 }
             )
-
-    import pandas as pd
 
     summary = pd.DataFrame(summary_rows)
     summary.to_csv(output_dir / "comparison_summary.csv", index=False)

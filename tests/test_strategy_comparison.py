@@ -1,6 +1,8 @@
 from pathlib import Path
 import unittest
 
+import pandas as pd
+
 from core.data.candles import load_csv_dataset
 from core.research.comparison import compare_strategies_on_dataset
 
@@ -190,6 +192,68 @@ class StrategyComparisonTests(unittest.TestCase):
             set(default["summary"]["strategy_id"]),
             {"VAHRAM_ORIGINAL_V1", "VAHRAM_TRUE_STOCHRSI_V2"},
         )
+
+    def test_evaluation_start_uses_prior_candles_only_as_warmup(self):
+        dataset = load_csv_dataset(
+            FIXTURE,
+            symbol="SAGAUSDT",
+            timeframe="1D",
+            source="BINANCE",
+        )
+        boundary = pd.Timestamp("2025-04-10T00:00:00Z")
+        comparison = compare_strategies_on_dataset(
+            dataset,
+            source_commit_sha="warmup-test-sha",
+            validation_type="LOCAL_WARMUP_SMOKE",
+            fee_bps=0,
+            slippage_bps=0,
+            strategy_ids=("STOCHRSI_CROSS_V1",),
+            evaluation_start=boundary,
+        )
+
+        result = comparison["strategies"]["STOCHRSI_CROSS_V1"]
+        evaluation = dataset.candles.loc[
+            pd.to_datetime(dataset.candles["timestamp"], utc=True) >= boundary
+        ].reset_index(drop=True)
+
+        self.assertLess(
+            pd.Timestamp(comparison["data_start"]),
+            pd.Timestamp(comparison["evaluation_start"]),
+        )
+        self.assertEqual(
+            pd.Timestamp(result["manifest"].period_start),
+            pd.Timestamp(evaluation.iloc[0]["timestamp"]),
+        )
+        self.assertTrue(
+            all(pd.Timestamp(output.timestamp) >= boundary for output in result["outputs"])
+        )
+        self.assertTrue(
+            (pd.to_datetime(result["trading"].equity_curve["timestamp"], utc=True) >= boundary).all()
+        )
+
+        expected_benchmark = (
+            float(evaluation.iloc[-1]["close"]) / float(evaluation.iloc[0]["open"])
+        ) - 1.0
+        self.assertAlmostEqual(
+            result["trading"].metrics.benchmark_return,
+            expected_benchmark,
+            places=12,
+        )
+
+    def test_evaluation_start_after_dataset_is_rejected(self):
+        dataset = load_csv_dataset(
+            FIXTURE,
+            symbol="SAGAUSDT",
+            timeframe="1D",
+            source="BINANCE",
+        )
+        with self.assertRaisesRegex(ValueError, "leaves no candles"):
+            compare_strategies_on_dataset(
+                dataset,
+                source_commit_sha="warmup-test-sha",
+                strategy_ids=("STOCHRSI_CROSS_V1",),
+                evaluation_start="2030-01-01T00:00:00Z",
+            )
 
     def test_unknown_candidate_is_rejected_before_execution(self):
         dataset = load_csv_dataset(
