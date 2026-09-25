@@ -16,6 +16,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from core.backtest.trading import LongOnlyTradingPolicy
+from core.backtest.trading_short import ShortOnlyTradingPolicy
 from core.evidence.backtest_record import write_backtest_evidence
 from core.research.comparison import compare_strategies_on_dataset
 from integrations.binance.historical import download_historical_dataset
@@ -67,6 +69,34 @@ def _json_dump(path: Path, value) -> None:
     )
 
 
+def _resolve_trading_policy(position_mode: str, request: dict):
+    raw = request.get("trading_policy")
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("trading_policy must be an object")
+
+    allowed = {"entry_strength_min", "exit_strength_min"}
+    unknown = sorted(set(raw).difference(allowed))
+    if unknown:
+        raise ValueError(f"Unsupported trading_policy keys: {unknown}")
+
+    entry_strength_min = float(raw.get("entry_strength_min", 0.0))
+    exit_strength_min = float(raw.get("exit_strength_min", 0.0))
+
+    if position_mode == "LONG_ONLY":
+        return LongOnlyTradingPolicy(
+            entry_strength_min=entry_strength_min,
+            exit_strength_min=exit_strength_min,
+        )
+    if position_mode == "SHORT_ONLY":
+        return ShortOnlyTradingPolicy(
+            entry_strength_min=entry_strength_min,
+            exit_strength_min=exit_strength_min,
+        )
+    raise ValueError(f"Unsupported position_mode: {position_mode}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run CryptoSignals strategy research comparison")
     parser.add_argument("--request-file", type=Path)
@@ -101,6 +131,7 @@ def main() -> int:
     slippage_bps = float(request.get("slippage_bps", args.slippage_bps))
     validation_type = request.get("validation_type", args.validation_type)
     position_mode = str(request.get("position_mode", "LONG_ONLY")).upper()
+    trading_policy = _resolve_trading_policy(position_mode, request)
     horizons = tuple(int(value) for value in request.get("horizons", [1, 3, 7, 14]))
 
     requested_strategy_ids = request.get("strategy_ids")
@@ -145,6 +176,7 @@ def main() -> int:
         "slippage_bps": slippage_bps,
         "validation_type": validation_type,
         "position_mode": position_mode,
+        "resolved_trading_policy": trading_policy.to_config() if trading_policy else None,
         "horizons": list(horizons),
     }
     _json_dump(output_dir / "run_manifest.json", run_header)
@@ -207,6 +239,7 @@ def main() -> int:
                 strategy_ids=strategy_ids,
                 evaluation_start=start,
                 position_mode=position_mode,
+                trading_policy=trading_policy,
             )
             comparison["summary"].to_csv(symbol_dir / "strategy_summary.csv", index=False)
             event_dir = symbol_dir / "event_study"
