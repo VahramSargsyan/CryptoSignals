@@ -1,1 +1,1 @@
-Test SMA25/SMA50 micro exits and SMA100/SMA200 mid exits against static WIDE.\n
+Test SMA25/SMA50 micro exits and SMA100/SMA200 mid exits against static WIDE.\nretry: import OpenLot for tests\n
