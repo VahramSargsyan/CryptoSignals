@@ -35,3 +35,10 @@ Rules:
 For any new moving-average, exit, or runner proposal involving `VAHRAM_LINK_LEVEL_GRID_V1`, read `docs/evidence/2026-09-26_LINK_GRID_MA_EXIT_RESEARCH_DECISION_LOG_V1.md` before proposing or rerunning a hypothesis.
 
 Do not repeat a recorded MA experiment unless there is future unseen evidence, a materially different mechanism, or a documented bug/semantic correction. A future proposal must explicitly state how it differs from the recorded direct-MA-exit, BASE/WIDE-regime, and MA-runner experiments.
+
+
+## LINK grid volatility / regime research memory
+
+For any new volatility-based or multi-indicator exit-regime proposal involving `VAHRAM_LINK_LEVEL_GRID_V1`, also read `docs/evidence/2026-09-26_LINK_GRID_VOLATILITY_REGIME_RESEARCH_V1.md` before proposing or rerunning the idea.
+
+Already tested families include ATR/BBW/realized-volatility selectors, +3/+12 vs +6/+18 vs +9/+24 regime logic, MA used in the same context, MA+volatility combinations, ADX combinations, and high-volatility brake rules. A future proposal must state what is materially new.
