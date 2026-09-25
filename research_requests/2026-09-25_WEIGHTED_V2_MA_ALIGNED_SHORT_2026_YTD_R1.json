@@ -1,0 +1,45 @@
+{
+  "request_id": "WEIGHTED_V2_MA_ALIGNED_SHORT_2026_YTD_R1",
+  "profile_id": "WEIGHTED_V2_MA_ALIGNED_SHORT_V1",
+  "purpose": "Descriptive nonblind 2026 rerun of frozen MA-aligned short entry profile",
+  "strategy_ids": [
+    "WEIGHTED_MULTI_SIGNAL_V2"
+  ],
+  "position_mode": "SHORT_ONLY",
+  "trading_policy": {
+    "entry_strength_min": 100,
+    "exit_strength_min": 0
+  },
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "TWTUSDT",
+    "ATOMUSDT",
+    "SAGAUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "TONUSDT",
+    "TIAUSDT",
+    "WUSDT",
+    "OSMOUSDT",
+    "DOGEUSDT"
+  ],
+  "data_start": "2025-01-01T00:00:00Z",
+  "start": "2026-01-01T00:00:00Z",
+  "end": "2026-09-25T00:00:00Z",
+  "timeframe": "1D",
+  "fee_bps": 10,
+  "slippage_bps": 5,
+  "validation_type": "NONBLIND_MA_ALIGNED_SHORT_PROFILE_2026_YTD",
+  "horizons": [
+    1,
+    3,
+    7,
+    14
+  ],
+  "acceptance_decision_allowed": false,
+  "blind_period": false,
+  "parameter_tuning_allowed": false,
+  "note": "Profile was created after 2026 evidence was inspected. This rerun cannot validate it."
+}
