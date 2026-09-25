@@ -123,3 +123,55 @@ This result supports some temporal portability of the core confirmation pattern,
 The research request begins exactly at 2026-01-01. SMA200 therefore has no pre-start warm-up history. Only 1 of 45 entries had strength 100; 44 had strength 80.
 
 Because MA is context-only, this does not alter the V2 trading decisions or the trading metrics above. It does mean that this run cannot be used to judge whether aligned MA50/100/200 context improves outcomes. A future research infrastructure step must support prehistory/warm-up before evaluation start.
+
+
+## Warm-up-corrected 2026 temporal holdout — R2
+
+Run: `WEIGHTED_MULTI_SIGNAL_V2_2026_YTD_WARMUP_R2`
+
+This run uses:
+
+- data warm-up from 2025-01-01;
+- evaluation from 2026-01-01;
+- evaluation end 2026-09-25 exclusive;
+- 96/96 tests PASS;
+- 13/13 symbols PASS.
+
+Corrected pooled result:
+
+- actionable signals: 296
+- closed trades: 57
+- pooled win rate: 33.33%
+- average net trade: +0.27%
+- median net trade: -3.81%
+- profit factor: 1.033
+- positive total return: 4/13 symbols
+- benchmark beaten: 8/13
+- median symbol max drawdown: 38.90%
+- median symbol total return: -10.93%
+
+### Why R2 replaces R1 for interpretation
+
+R1 began downloading data exactly at 2026-01-01, so all rolling indicators had to warm from zero history. R2 calculates indicators from 2025 prehistory but excludes 2025 from signals, trades, event study, benchmark, equity and metrics.
+
+R1 PF was 1.524. R2 PF is 1.033.
+
+The difference is material. R2 is therefore the methodologically preferred 2026 temporal estimate.
+
+### MA context after correct warm-up
+
+Across 296 actionable signals:
+
+- strength 80: 218
+- strength 100: 78
+
+By direction:
+
+- BUY 80: 184
+- BUY 100: 1
+- SELL 80: 34
+- SELL 100: 77
+
+So full bullish MA50 > MA100 > MA200 alignment almost never accompanied V2 BUY signals during this 2026 period, while bearish MA alignment frequently accompanied SELL signals.
+
+This is evidence about context, not authorization to build a short strategy or change V2.
