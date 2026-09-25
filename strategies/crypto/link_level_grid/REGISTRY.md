@@ -261,3 +261,26 @@ It improved full-period returns on all five tested assets, but did not materiall
 Evidence: `docs/evidence/2026-09-25_LEVEL_GRID_OPTIMIZER_V1.md`
 
 Status remains `BACKTESTED`. Optimizer outputs are hypotheses, not strategy promotions.
+
+
+## Reinvestment / runner research — 2026-09-25
+
+The existing backtest was confirmed to already reinvest 100% of positive realized profit into the same grid slot.
+
+A 24-candidate exploratory scan across LINK, ETH, SOL, BNB and BTC tested:
+
+- profit reinvestment: 0%, 50%, 100%;
+- permanent token runner: 0%, 10%, 25%, 50%;
+- current BASE exits and the wider 6/18 research exits.
+
+Key findings:
+
+- 100% reinvestment increased historical return on all five assets, with materially higher drawdown;
+- permanent runners improved BTC and BNB in this historical period;
+- permanent runners reduced returns sharply on LINK, ETH and SOL;
+- the best shared five-asset configuration remained full reinvestment with no permanent runner;
+- no asset-specific runner setting is promoted because the same history was used to discover it.
+
+Evidence: `docs/evidence/2026-09-25_REINVEST_RUNNER_EXPLORATION_V1.md`
+
+Status remains `BACKTESTED`.
