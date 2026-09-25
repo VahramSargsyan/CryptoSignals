@@ -90,7 +90,7 @@ jobs:
             args+=(--allow-quality-issues)
           fi
 
-          python scripts/download_historical_data.py "${args[@]}"
+          python -m scripts.download_historical_data "${args[@]}"
 
       - name: Upload immutable test-data candidate
         if: always()
