@@ -1,5 +1,11 @@
 # Instructions for AI maintainers
 
+GOVERNANCE_VERSION: **VAHRAM_APP_GOVERNANCE v1.0.0**  
+CANONICAL_SOURCE: `VahramSargsyan/vbos-app/docs/governance/VAHRAM_APP_UNIVERSAL_GOVERNANCE_v1.0.0.md`  
+LAST_SYNC: **2026-09-25**
+
+Read the universal governance when accessible, then apply this repository's local rules. If the private canonical source is unavailable, the local P0 rules below remain fail-safe authority.
+
 Read `PROJECT_GOVERNANCE.md` before implementation work.
 
 For strategy-platform work also read:
