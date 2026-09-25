@@ -190,6 +190,53 @@ def macd(
     )
 
 
+def simple_moving_average(
+    values: Iterable[float] | pd.Series,
+    *,
+    window: int,
+    name: str = "sma",
+) -> pd.Series:
+    if window <= 0:
+        raise ValueError("window must be greater than 0")
+    result = _numeric_series(values, name=name).rolling(window=window).mean()
+    result.name = name
+    return result
+
+
+def moving_average_trend_features(
+    close: Iterable[float] | pd.Series,
+    *,
+    fast_window: int = 50,
+    medium_window: int = 100,
+    slow_window: int = 200,
+) -> pd.DataFrame:
+    if not (0 < fast_window < medium_window < slow_window):
+        raise ValueError("moving-average windows must satisfy fast < medium < slow")
+
+    close_series = _numeric_series(close, name="close")
+    sma_fast = simple_moving_average(close_series, window=fast_window, name=f"sma_{fast_window}")
+    sma_medium = simple_moving_average(
+        close_series,
+        window=medium_window,
+        name=f"sma_{medium_window}",
+    )
+    sma_slow = simple_moving_average(close_series, window=slow_window, name=f"sma_{slow_window}")
+
+    return pd.DataFrame(
+        {
+            f"sma_{fast_window}": sma_fast,
+            f"sma_{medium_window}": sma_medium,
+            f"sma_{slow_window}": sma_slow,
+            f"close_above_sma_{fast_window}": close_series > sma_fast,
+            f"close_above_sma_{medium_window}": close_series > sma_medium,
+            f"close_above_sma_{slow_window}": close_series > sma_slow,
+            "ma_bull_stack": (sma_fast > sma_medium) & (sma_medium > sma_slow),
+            "ma_bear_stack": (sma_fast < sma_medium) & (sma_medium < sma_slow),
+        },
+        index=close_series.index,
+    )
+
+
 def volume_moving_average(
     volume: Iterable[float] | pd.Series,
     *,
@@ -234,6 +281,8 @@ def build_standard_features(candles: pd.DataFrame) -> pd.DataFrame:
     features = features.join(stoch)
     macd_values = macd(candles["close"])
     features = features.join(macd_values)
+    ma_trend = moving_average_trend_features(candles["close"])
+    features = features.join(ma_trend)
     features["volume_ma"] = volume_moving_average(candles["volume"])
     features["candle_body_strength"] = candle_body_strength(
         candles["open"],
