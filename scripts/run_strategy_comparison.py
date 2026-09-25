@@ -10,6 +10,8 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -93,6 +95,8 @@ def main() -> int:
     data_start = request.get("data_start", args.data_start or start)
     end = request.get("end", args.end)
     timeframe = request.get("timeframe", args.timeframe)
+    if pd.Timestamp(data_start) > pd.Timestamp(start):
+        raise ValueError("data_start must be less than or equal to evaluation start")
     fee_bps = float(request.get("fee_bps", args.fee_bps))
     slippage_bps = float(request.get("slippage_bps", args.slippage_bps))
     validation_type = request.get("validation_type", args.validation_type)
@@ -260,8 +264,6 @@ def main() -> int:
                     "run_id": None,
                 }
             )
-
-    import pandas as pd
 
     summary = pd.DataFrame(summary_rows)
     summary.to_csv(output_dir / "comparison_summary.csv", index=False)
