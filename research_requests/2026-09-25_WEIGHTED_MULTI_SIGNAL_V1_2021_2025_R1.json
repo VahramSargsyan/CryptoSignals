@@ -1,0 +1,55 @@
+{
+  "request_id": "WEIGHTED_MULTI_SIGNAL_V1_2021_2025_R1",
+  "purpose": "First reproducible historical baseline for the frozen equal-weight five-block multi-signal candidate",
+  "strategy_ids": [
+    "WEIGHTED_MULTI_SIGNAL_V1"
+  ],
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "TWTUSDT",
+    "ATOMUSDT",
+    "SAGAUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "TONUSDT",
+    "TIAUSDT",
+    "WUSDT",
+    "OSMOUSDT",
+    "DOGEUSDT"
+  ],
+  "start": "2021-01-01T00:00:00Z",
+  "end": "2026-01-01T00:00:00Z",
+  "timeframe": "1D",
+  "fee_bps": 10,
+  "slippage_bps": 5,
+  "validation_type": "HISTORICAL_RESEARCH_2021_2025",
+  "horizons": [
+    1,
+    3,
+    7,
+    14
+  ],
+  "strategy_parameters": {
+    "block_weight": 20,
+    "signal_threshold": 60,
+    "min_triggered_blocks": 3,
+    "blocks": [
+      "ma_trend",
+      "macd",
+      "stochrsi",
+      "bollinger_reversion",
+      "volume_candle"
+    ]
+  },
+  "concept_provenance": {
+    "reference_repository": "Rikj000/MoniGoMani",
+    "reference_commit": "6572c167c2e8fab999ded4ce2b5c035868f89e95",
+    "license": "GPL-3.0",
+    "reuse_mode": "REFERENCE_ONLY_NO_CODE_COPY"
+  },
+  "acceptance_decision_allowed": false,
+  "parameter_tuning_allowed": false,
+  "note": "All v1 weights and thresholds were frozen before this runtime. 2026 is excluded."
+}
