@@ -38,11 +38,20 @@ class BacktestRunManifest:
     execution: ExecutionPolicy = field(default_factory=ExecutionPolicy)
     parameters: Mapping[str, Any] = field(default_factory=dict)
     validation_type: str = "RESEARCH"
+    engine_name: str = "UNSPECIFIED"
+    engine_config: Mapping[str, Any] = field(default_factory=dict)
 
     def canonical_payload(self) -> str:
         payload = asdict(self)
         payload["parameters"] = dict(sorted(self.parameters.items()))
-        return json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+        payload["engine_config"] = dict(sorted(self.engine_config.items()))
+        return json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+            allow_nan=False,
+        )
 
     @property
     def run_id(self) -> str:
