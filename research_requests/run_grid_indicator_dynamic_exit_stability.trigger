@@ -1,0 +1,1 @@
+Run three one-year temporal stability windows for indicator-driven exit-width policies versus static WIDE.\n
