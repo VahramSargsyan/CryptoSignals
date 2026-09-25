@@ -206,3 +206,16 @@ A second exit-regime research pass tested ATR%, Bollinger bandwidth, realized vo
 Current decision: **TESTED / NOT PROMOTED**. Constant WIDE (+6/+18) remains the strongest shared historical return reference. The closest volatility-only candidate was inverse ATR logic (+251.54% geometric vs +253.03% WIDE), while a BBW high-volatility brake reduced median drawdown (36.82% vs 38.67%) at a modest return cost (+249.84%). Multi-indicator combinations did not improve on WIDE.
 
 Decision log: `docs/evidence/2026-09-26_LINK_GRID_VOLATILITY_REGIME_RESEARCH_V1.md`.
+
+
+## External crowd / market-context research — 2026-09-26
+
+A first non-price-only context pass tested funding, Fear & Greed, and broad-market/stablecoin context as selectors among +3/+12, +6/+18, and +9/+24 exits while leaving grid entries untouched.
+
+On the common 2023-09-25 through 2026-08-15 horizon, constant WIDE returned +168.87% geometric across five assets. Funding reached +170.62% with lower median drawdown (37.31% vs 38.67%) but did not survive the independent-window robustness check (7/15 wins; negative mean/median return difference). Fear & Greed and the simple 2-of-3 consensus did not improve the control. Broad-market context showed 9/15 window wins but lower full-period compound.
+
+Open interest and liquidation effects remain untested; no proxy result is reported as real OI/liquidation evidence.
+
+Decision: **INTERESTING EXTERNAL INFORMATION / NO PROMOTION**.
+
+Evidence: `docs/evidence/2026-09-26_LINK_GRID_EXTERNAL_CROWD_CONTEXT_RESEARCH_V1.md`.
