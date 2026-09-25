@@ -526,13 +526,16 @@ def run_grid_backtest(
                 net_return = (proceeds / lot.invested_cash) - 1.0
                 if layer == "MID" and lot.grid_target_price is not None:
                     if lot.grid_target_price <= lot.percent_target_price:
-                        exit_reason = "MID_FIRST_OF_PERCENT_OR_10_SUBLEVELS:10_SUBLEVELS"
+                        exit_reason = (
+                            "MID_FIRST_OF_PERCENT_OR_RECOVERY:"
+                            f"{cfg.mid_recovery_sublevels}_SUBLEVELS"
+                        )
                     else:
-                        exit_reason = "MID_FIRST_OF_PERCENT_OR_10_SUBLEVELS:PERCENT"
+                        exit_reason = "MID_FIRST_OF_PERCENT_OR_RECOVERY:PERCENT"
                 elif layer == "MID":
                     exit_reason = "MID_PERCENT_TARGET"
                 else:
-                    exit_reason = "MICRO_ONE_SUBLEVEL_RECOVERY"
+                    exit_reason = f"MICRO_{cfg.micro_exit_sublevels}_SUBLEVEL_RECOVERY"
 
                 trades.append(
                     {
