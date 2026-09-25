@@ -154,3 +154,31 @@ runner_fraction = 0.0
 So the historical strategy results already included full per-slot profit compounding.
 
 Evidence: `docs/evidence/2026-09-25_REINVEST_RUNNER_EXPLORATION_V1.md`.
+
+
+## Paper-live observation
+
+A scheduled forward-observation workflow is defined in:
+
+- `.github/workflows/grid-paper-live-v1.yml`;
+- `scripts/run_grid_paper_live.py`;
+- `scripts/send_grid_paper_report.py`.
+
+Paper start:
+
+```text
+2026-09-26T00:00:00Z
+```
+
+Profiles run in parallel:
+
+- `CONTROL_BASE`: Micro +1 / Mid +10;
+- `CANDIDATE_WIDE`: Micro +6 / Mid +18.
+
+Both use linear-depth capital, 100% positive-profit reinvestment and no permanent runner.
+
+The job runs daily after the UTC daily candle closes and produces a reproducible report from newly available closed candles only. It does not send broker orders and does not require exchange trading credentials.
+
+Optional Telegram/SMTP reporting is controlled only through GitHub repository secrets.
+
+Protocol: `docs/15_GRID_PAPER_LIVE_V1.md`.
