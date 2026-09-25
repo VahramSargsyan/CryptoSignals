@@ -1,0 +1,451 @@
+{
+  "evidence_manifest_version": "1.0.0",
+  "experiment_id": "PRE_OOS_V1_V2_2026_09_25_R2",
+  "status": "BACKTEST_EXECUTED_PRE_OOS_RESEARCH",
+  "acceptance_decision_allowed": false,
+  "protected_period": "2026",
+  "out_of_sample_status": "NOT_OPENED",
+  "validation_type": "PRE_OOS_RESEARCH_2021_2025",
+  "source_commit_sha": "7b17f2544005e2da02e672c9ae86edc057a3bf35",
+  "workflow_run_id": 36113077578,
+  "artifact": {
+    "artifact_id": 10853668680,
+    "digest": "sha256:dbee81e66b3ac71bfdee8851ab462f1419908c188563f36f5173b52cd61300e7",
+    "file_count": 120,
+    "retention_days": 30
+  },
+  "tests": {
+    "unit_regression_total": 45,
+    "passed": 45,
+    "failed": 0
+  },
+  "market_data": {
+    "provider": "BINANCE_SPOT_REST",
+    "endpoint": "https://data-api.binance.vision/api/v3/klines",
+    "timeframe": "1D",
+    "requested_start": "2021-01-01T00:00:00Z",
+    "closed_candle_boundary": "2026-01-01T00:00:00Z",
+    "last_included_candle": "2025-12-31T00:00:00Z",
+    "symbols_requested": 13,
+    "symbols_successful": 13,
+    "errors": 0
+  },
+  "execution": {
+    "engine_name": "LONG_ONLY_SIGNAL_FLIP_V1",
+    "signal_calculated_at": "CANDLE_CLOSE",
+    "entry_rule": "NEXT_CANDLE_OPEN",
+    "fee_bps": 10,
+    "slippage_bps": 5
+  },
+  "datasets": [
+    {
+      "symbol": "ATOMUSDT",
+      "dataset_id": "BINANCE:ATOMUSDT:1D:511ecff75027c9e6",
+      "actual_start": "2021-01-01T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 1826,
+      "listing_truncated": false,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "BNBUSDT",
+      "dataset_id": "BINANCE:BNBUSDT:1D:8e54ce3bd5cc6524",
+      "actual_start": "2021-01-01T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 1826,
+      "listing_truncated": false,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "BTCUSDT",
+      "dataset_id": "BINANCE:BTCUSDT:1D:bce0145714e40352",
+      "actual_start": "2021-01-01T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 1826,
+      "listing_truncated": false,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "dataset_id": "BINANCE:DOGEUSDT:1D:4bdcc8a32b86e9a5",
+      "actual_start": "2021-01-01T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 1826,
+      "listing_truncated": false,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "ETHUSDT",
+      "dataset_id": "BINANCE:ETHUSDT:1D:e3b45b96eae3ed2a",
+      "actual_start": "2021-01-01T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 1826,
+      "listing_truncated": false,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "OSMOUSDT",
+      "dataset_id": "BINANCE:OSMOUSDT:1D:29e1ed787ffefd5c",
+      "actual_start": "2022-10-28T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 1161,
+      "listing_truncated": true,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "SAGAUSDT",
+      "dataset_id": "BINANCE:SAGAUSDT:1D:d62808565254bb86",
+      "actual_start": "2024-04-09T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 632,
+      "listing_truncated": true,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "SOLUSDT",
+      "dataset_id": "BINANCE:SOLUSDT:1D:196aa4da3cffd84a",
+      "actual_start": "2021-01-01T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 1826,
+      "listing_truncated": false,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "TIAUSDT",
+      "dataset_id": "BINANCE:TIAUSDT:1D:362d33ed51e5c7a9",
+      "actual_start": "2023-10-31T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 793,
+      "listing_truncated": true,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "TONUSDT",
+      "dataset_id": "BINANCE:TONUSDT:1D:7a873012fbe00107",
+      "actual_start": "2024-08-08T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 511,
+      "listing_truncated": true,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "TWTUSDT",
+      "dataset_id": "BINANCE:TWTUSDT:1D:45521f26128b5041",
+      "actual_start": "2021-01-27T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 1800,
+      "listing_truncated": true,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "WUSDT",
+      "dataset_id": "BINANCE:WUSDT:1D:b944f80876740631",
+      "actual_start": "2024-04-03T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 638,
+      "listing_truncated": true,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    },
+    {
+      "symbol": "XRPUSDT",
+      "dataset_id": "BINANCE:XRPUSDT:1D:cf6220afb5113e3b",
+      "actual_start": "2021-01-01T00:00:00+00:00",
+      "actual_end": "2025-12-31T00:00:00+00:00",
+      "closed_rows": 1826,
+      "listing_truncated": false,
+      "quality": {
+        "duplicate_timestamps": 0,
+        "out_of_order_rows": 0,
+        "missing_candles": 0,
+        "off_grid_timestamps": 0,
+        "invalid_ohlc_rows": 0,
+        "null_cells": 0,
+        "negative_volume_rows": 0
+      }
+    }
+  ],
+  "strategy_aggregates": {
+    "VAHRAM_ORIGINAL_V1": {
+      "symbols": 13,
+      "signal_count": 1296,
+      "trade_count": 149,
+      "pooled_trade_win_rate": 0.5637583892617449,
+      "pooled_average_trade_return": -0.007060819770907181,
+      "pooled_median_trade_return": 0.04126558422176285,
+      "pooled_profit_factor": 0.9330630951933792,
+      "positive_total_return_symbols": 4,
+      "benchmark_beaten_symbols": 3,
+      "median_symbol_total_return": -0.4434133731767192,
+      "mean_symbol_total_return": -0.3204847420819813,
+      "median_symbol_max_drawdown": 0.7850811833460756,
+      "mean_symbol_max_drawdown": 0.7461351622104474,
+      "median_symbol_exposure": 0.4978466838931955
+    },
+    "VAHRAM_TRUE_STOCHRSI_V2": {
+      "symbols": 13,
+      "signal_count": 1161,
+      "trade_count": 146,
+      "pooled_trade_win_rate": 0.547945205479452,
+      "pooled_average_trade_return": -0.011339572621288247,
+      "pooled_median_trade_return": 0.02196008890278167,
+      "pooled_profit_factor": 0.8926990769661229,
+      "positive_total_return_symbols": 3,
+      "benchmark_beaten_symbols": 3,
+      "median_symbol_total_return": -0.4810426326025251,
+      "mean_symbol_total_return": -0.33822462872381664,
+      "median_symbol_max_drawdown": 0.8116512801466274,
+      "mean_symbol_max_drawdown": 0.7438958798270096,
+      "median_symbol_exposure": 0.4731653888280394
+    }
+  },
+  "event_study": {
+    "all_signals": {
+      "VAHRAM_ORIGINAL_V1": {
+        "1": {
+          "n": 1296,
+          "win_rate": 0.5362654320987654,
+          "avg": -0.0012185889765115186,
+          "median": 0.0037782392606558503
+        },
+        "3": {
+          "n": 1296,
+          "win_rate": 0.5162037037037037,
+          "avg": -0.010199460331181708,
+          "median": 0.002912211540715
+        },
+        "7": {
+          "n": 1296,
+          "win_rate": 0.5131172839506173,
+          "avg": -0.020970094034215087,
+          "median": 0.0031908698920743
+        },
+        "14": {
+          "n": 1284,
+          "win_rate": 0.4883177570093458,
+          "avg": -0.04401994016185437,
+          "median": -0.0030579977295811
+        }
+      },
+      "VAHRAM_TRUE_STOCHRSI_V2": {
+        "1": {
+          "n": 1161,
+          "win_rate": 0.5366063738156761,
+          "avg": 0.0007224221412473349,
+          "median": 0.0037037037037037
+        },
+        "3": {
+          "n": 1161,
+          "win_rate": 0.5297157622739018,
+          "avg": -0.0071551509734825575,
+          "median": 0.0045789043336057
+        },
+        "7": {
+          "n": 1161,
+          "win_rate": 0.5150732127476314,
+          "avg": -0.015219850054861137,
+          "median": 0.0036164770221398
+        },
+        "14": {
+          "n": 1149,
+          "win_rate": 0.4978241949521323,
+          "avg": -0.037000634562903166,
+          "median": -0.0007372732512498
+        }
+      }
+    },
+    "buy_only": {
+      "VAHRAM_ORIGINAL_V1": {
+        "1": {
+          "n": 535,
+          "win_rate": 0.5850467289719626,
+          "avg": 0.008923885966186438
+        },
+        "3": {
+          "n": 535,
+          "win_rate": 0.5887850467289719,
+          "avg": 0.01420403923298083
+        },
+        "7": {
+          "n": 535,
+          "win_rate": 0.5981308411214953,
+          "avg": 0.024227040844562103
+        },
+        "14": {
+          "n": 523,
+          "win_rate": 0.5468451242829828,
+          "avg": 0.025483790434889866
+        }
+      },
+      "VAHRAM_TRUE_STOCHRSI_V2": {
+        "1": {
+          "n": 477,
+          "win_rate": 0.5870020964360587,
+          "avg": 0.01076570946186088
+        },
+        "3": {
+          "n": 477,
+          "win_rate": 0.6121593291404612,
+          "avg": 0.016957676189879187
+        },
+        "7": {
+          "n": 477,
+          "win_rate": 0.6079664570230608,
+          "avg": 0.029637467966887165
+        },
+        "14": {
+          "n": 465,
+          "win_rate": 0.5634408602150538,
+          "avg": 0.030616521563770156
+        }
+      }
+    },
+    "sell_only": {
+      "VAHRAM_ORIGINAL_V1": {
+        "1": {
+          "n": 761,
+          "win_rate": 0.5019710906701709,
+          "avg": -0.008348975434255812
+        },
+        "3": {
+          "n": 761,
+          "win_rate": 0.4651773981603154,
+          "avg": -0.02735566567523816
+        },
+        "7": {
+          "n": 761,
+          "win_rate": 0.4533508541392904,
+          "avg": -0.05274468951403873
+        },
+        "14": {
+          "n": 761,
+          "win_rate": 0.4480946123521682,
+          "avg": -0.09178663017775086
+        }
+      },
+      "VAHRAM_TRUE_STOCHRSI_V2": {
+        "1": {
+          "n": 684,
+          "win_rate": 0.5014619883040936,
+          "avg": -0.006281449279706847
+        },
+        "3": {
+          "n": 684,
+          "win_rate": 0.4722222222222222,
+          "avg": -0.02397067517951114
+        },
+        "7": {
+          "n": 684,
+          "win_rate": 0.4502923976608187,
+          "avg": -0.04650192709634351
+        },
+        "14": {
+          "n": 684,
+          "win_rate": 0.45321637426900585,
+          "avg": -0.08296843807007144
+        }
+      }
+    }
+  },
+  "interpretation_guardrails": [
+    "This run is descriptive pre-OOS research, not an acceptance/rejection decision.",
+    "2026 held-out data was intentionally not opened.",
+    "Cross-symbol aggregate return statistics are descriptive because symbols have different listing histories and do not represent a portfolio.",
+    "LONG_ONLY_SIGNAL_FLIP_V1 is a research engine and does not implement legacy 25/50/100 partial sizing."
+  ]
+}
