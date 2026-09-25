@@ -113,6 +113,47 @@ class StrategyComparisonTests(unittest.TestCase):
             {"VAHRAM_ORIGINAL_V1", "VAHRAM_TRUE_STOCHRSI_V2"},
         )
 
+    def test_weighted_candidate_can_be_selected_without_expanding_defaults(self):
+        dataset = load_csv_dataset(
+            FIXTURE,
+            symbol="SAGAUSDT",
+            timeframe="1D",
+            source="BINANCE",
+        )
+        comparison = compare_strategies_on_dataset(
+            dataset,
+            source_commit_sha="weighted-test-sha",
+            validation_type="LOCAL_CANDIDATE_SMOKE",
+            strategy_ids=("WEIGHTED_MULTI_SIGNAL_V1",),
+        )
+        self.assertEqual(list(comparison["summary"]["strategy_id"]), ["WEIGHTED_MULTI_SIGNAL_V1"])
+        result = comparison["strategies"]["WEIGHTED_MULTI_SIGNAL_V1"]
+        self.assertEqual(
+            result["manifest"].parameters,
+            {
+                "block_weight": 20.0,
+                "signal_threshold": 60.0,
+                "min_triggered_blocks": 3,
+                "blocks": [
+                    "ma_trend",
+                    "macd",
+                    "stochrsi",
+                    "bollinger_reversion",
+                    "volume_candle",
+                ],
+            },
+        )
+
+        default = compare_strategies_on_dataset(
+            dataset,
+            source_commit_sha="default-test-sha",
+            validation_type="LOCAL_FIXTURE_SMOKE",
+        )
+        self.assertEqual(
+            set(default["summary"]["strategy_id"]),
+            {"VAHRAM_ORIGINAL_V1", "VAHRAM_TRUE_STOCHRSI_V2"},
+        )
+
     def test_unknown_candidate_is_rejected_before_execution(self):
         dataset = load_csv_dataset(
             FIXTURE,
