@@ -1,0 +1,104 @@
+name: Download Historical Market Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: Binance Spot symbol
+        required: true
+        default: LINKUSDT
+        type: string
+      timeframe:
+        description: Candle timeframe
+        required: true
+        default: 1D
+        type: choice
+        options:
+          - 1D
+          - 4H
+          - 1H
+      years:
+        description: Lookback years when start is not specified
+        required: true
+        default: 3
+        type: number
+      start:
+        description: Optional explicit UTC start timestamp
+        required: false
+        default: ""
+        type: string
+      end:
+        description: Optional UTC closed-candle cutoff
+        required: false
+        default: ""
+        type: string
+      allow_quality_issues:
+        description: Allow a successful run when data-quality checks fail
+        required: true
+        default: false
+        type: boolean
+  push:
+    branches:
+      - feature/historical-data-download-v1
+    paths:
+      - research_requests/run_link_download_v1.trigger
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime dependency
+        run: python -m pip install "pandas==2.2.3"
+
+      - name: Download and validate candles
+        env:
+          SYMBOL: ${{ inputs.symbol || 'LINKUSDT' }}
+          TIMEFRAME: ${{ inputs.timeframe || '1D' }}
+          YEARS: ${{ inputs.years || 3 }}
+          START: ${{ inputs.start || '' }}
+          END: ${{ inputs.end || '' }}
+          ALLOW_QUALITY_ISSUES: ${{ inputs.allow_quality_issues || false }}
+        run: |
+          args=(
+            --symbol "$SYMBOL"
+            --timeframe "$TIMEFRAME"
+            --years "$YEARS"
+            --output-root data/historical
+            --manifest-root evidence/datasets
+          )
+
+          if [[ -n "$START" ]]; then
+            args+=(--start "$START")
+          fi
+          if [[ -n "$END" ]]; then
+            args+=(--end "$END")
+          fi
+          if [[ "$ALLOW_QUALITY_ISSUES" == "true" ]]; then
+            args+=(--allow-quality-issues)
+          fi
+
+          python -m scripts.download_historical_data "${args[@]}"
+
+      - name: Upload immutable test-data candidate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: historical-${{ inputs.symbol || 'LINKUSDT' }}-${{ inputs.timeframe || '1D' }}
+          path: |
+            data/historical/**
+            evidence/datasets/**
+          if-no-files-found: warn
+          retention-days: 30
