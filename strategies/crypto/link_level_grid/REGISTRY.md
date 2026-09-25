@@ -109,3 +109,22 @@ Artifact ID: 10862838818
 Evidence: `docs/evidence/2026-09-25_SOL_CROSS_ASSET_GRID_VALIDATION.md`
 
 Interpretation: the current research implementation remained profitable on SOL without symbol-specific tuning, but materially underperformed passive SOL holding over this specific three-year period. Strategy status remains `BACKTESTED`.
+
+
+### ETHUSDT — 2026-09-25
+
+Validation type: CROSS_ASSET_RESEARCH / NOT FORMAL OOS  
+Run ID: `RUN-d2e7ae9c84b3c219ee36`  
+Dataset: `BINANCE:ETHUSDT:1D:a4ee296f034719d5`  
+Candles: 1096  
+Strategy total return: +63.9134%  
+Micro return: +56.5784%  
+Mid return: +71.2484%  
+Buy-and-hold return: +70.0533%  
+Max drawdown: 32.3323%  
+Closed trades: 1433  
+GitHub Actions run: 36134629875  
+Artifact ID: 10862039461  
+Evidence: `docs/evidence/2026-09-25_ETH_CROSS_ASSET_GRID_VALIDATION.md`
+
+Interpretation: the current research implementation remained profitable on ETH without symbol-specific tuning and finished close to buy-and-hold over the same three-year period. The Mid layer individually exceeded buy-and-hold on its normalized pool. Strategy status remains `BACKTESTED`.
