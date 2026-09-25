@@ -115,7 +115,7 @@ class GridDefinition:
 @dataclass(frozen=True)
 class RollingRangePolicy:
     lookback_candles: int = 1095
-    min_history_candles: int = 90
+    min_history_candles: int = 1095
     refresh_candles: int = 30
 
     def __post_init__(self) -> None:
@@ -254,14 +254,34 @@ def _prepare_candles(candles: pd.DataFrame) -> pd.DataFrame:
 def build_causal_range_schedule(
     candles: pd.DataFrame,
     policy: RollingRangePolicy,
+    *,
+    activation_start: Optional[pd.Timestamp] = None,
 ) -> list[Optional[GridDefinition]]:
-    """Build an infrequently refreshed trailing range using past candles only."""
+    """Build an infrequently refreshed trailing range using past candles only.
+
+    When activation_start is supplied, no range is activated before that
+    timestamp. The first active range is therefore calculated exactly at the
+    start of the trading window from pre-existing history only.
+    """
     frame = _prepare_candles(candles)
     schedule: list[Optional[GridDefinition]] = [None] * len(frame)
     active: Optional[GridDefinition] = None
     last_refresh_position: Optional[int] = None
 
+    activation = None
+    if activation_start is not None:
+        activation = pd.Timestamp(activation_start)
+        if activation.tzinfo is None:
+            activation = activation.tz_localize("UTC")
+        else:
+            activation = activation.tz_convert("UTC")
+
     for position in range(len(frame)):
+        timestamp = pd.Timestamp(frame.iloc[position]["timestamp"])
+        if activation is not None and timestamp < activation:
+            schedule[position] = None
+            continue
+
         history_end = position
         history_start = max(0, history_end - policy.lookback_candles)
         history_count = history_end - history_start
@@ -325,6 +345,7 @@ def _make_run_id(
     dataset_id: str,
     config: GridBacktestConfig,
     source_commit_sha: str,
+    evaluation_start: pd.Timestamp,
 ) -> str:
     payload = repr(
         (
@@ -332,6 +353,7 @@ def _make_run_id(
             STRATEGY_VERSION,
             dataset_id,
             source_commit_sha,
+            evaluation_start.isoformat(),
             asdict(config),
         )
     ).encode("utf-8")
@@ -344,6 +366,7 @@ def run_grid_backtest(
     dataset_id: str,
     source_commit_sha: str,
     config: GridBacktestConfig | None = None,
+    evaluation_start: Optional[pd.Timestamp] = None,
 ) -> GridBacktestResult:
     """
     Portfolio-aware research backtest.
@@ -358,11 +381,39 @@ def run_grid_backtest(
     if len(frame) < cfg.rolling_range.min_history_candles + 2:
         raise ValueError("Not enough candles for configured range warmup")
 
-    schedule = build_causal_range_schedule(frame, cfg.rolling_range)
+    if evaluation_start is None:
+        evaluation_start_ts = pd.Timestamp(frame.iloc[0]["timestamp"])
+    else:
+        evaluation_start_ts = pd.Timestamp(evaluation_start)
+        if evaluation_start_ts.tzinfo is None:
+            evaluation_start_ts = evaluation_start_ts.tz_localize("UTC")
+        else:
+            evaluation_start_ts = evaluation_start_ts.tz_convert("UTC")
+
+    eligible_positions = frame.index[frame["timestamp"] >= evaluation_start_ts].tolist()
+    if not eligible_positions:
+        raise ValueError("evaluation_start is after the available dataset")
+    first_evaluation_position = int(eligible_positions[0])
+    if first_evaluation_position < cfg.rolling_range.min_history_candles:
+        raise ValueError(
+            "Insufficient prehistory before evaluation_start: "
+            f"need at least {cfg.rolling_range.min_history_candles} prior candles, "
+            f"have {first_evaluation_position}"
+        )
+
+    schedule = build_causal_range_schedule(
+        frame,
+        cfg.rolling_range,
+        activation_start=evaluation_start_ts,
+    )
+    if schedule[first_evaluation_position] is None:
+        raise ValueError("No valid H/L range at evaluation_start")
+
     run_id = _make_run_id(
         dataset_id=dataset_id,
         config=cfg,
         source_commit_sha=source_commit_sha,
+        evaluation_start=evaluation_start_ts,
     )
 
     fee_rate = cfg.fee_bps / 10_000.0
@@ -392,6 +443,9 @@ def run_grid_backtest(
     peak_deployed = 0.0
 
     for position, candle in frame.iterrows():
+        if position < first_evaluation_position:
+            continue
+
         grid = schedule[position]
         exited_today.clear()
 
@@ -628,7 +682,7 @@ def run_grid_backtest(
         avg_trade_return = float(returns.mean())
 
     benchmark_return = (
-        (final_close / float(frame.iloc[0]["open"])) - 1.0
+        (final_close / float(frame.iloc[first_evaluation_position]["open"])) - 1.0
     )
 
     allocation_rows = []
@@ -653,9 +707,13 @@ def run_grid_backtest(
         "strategy_version": STRATEGY_VERSION,
         "dataset_id": dataset_id,
         "source_commit_sha": source_commit_sha,
-        "period_start": pd.Timestamp(frame.iloc[0]["timestamp"]).isoformat(),
+        "dataset_start": pd.Timestamp(frame.iloc[0]["timestamp"]).isoformat(),
+        "dataset_end": pd.Timestamp(frame.iloc[-1]["timestamp"]).isoformat(),
+        "dataset_candles": len(frame),
+        "period_start": pd.Timestamp(frame.iloc[first_evaluation_position]["timestamp"]).isoformat(),
         "period_end": pd.Timestamp(frame.iloc[-1]["timestamp"]).isoformat(),
-        "candles": len(frame),
+        "candles": len(frame) - first_evaluation_position,
+        "prehistory_candles": first_evaluation_position,
         "allocation_preset": cfg.allocation_preset,
         "micro_initial_capital": cfg.micro_capital,
         "mid_initial_capital": cfg.mid_capital,
@@ -682,6 +740,7 @@ def run_grid_backtest(
             "range_uses_prior_candles_only": True,
             "range_lookback_candles": cfg.rolling_range.lookback_candles,
             "range_min_history_candles": cfg.rolling_range.min_history_candles,
+            "evaluation_starts_after_full_prehistory": True,
             "range_refresh_candles": cfg.rolling_range.refresh_candles,
             "range_refresh_rule_is_owner_confirmed": False,
             "default_allocation_is_owner_confirmed": False,

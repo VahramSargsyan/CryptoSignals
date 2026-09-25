@@ -1,4 +1,4 @@
-# LINK Level Grid — first executable research run
+> **SUPERSEDED PERFORMANCE EVIDENCE:** this run used insufficient prehistory before the trading window. Keep it only as an implementation/runtime smoke test. See `docs/evidence/2026-09-25_GRID_PREHISTORY_METHOD_CORRECTION.md` for the corrected methodology.\n\n# LINK Level Grid — first executable research run
 
 Date: 2026-09-25  
 Status: **RUNTIME PASS / RESEARCH ONLY**  
