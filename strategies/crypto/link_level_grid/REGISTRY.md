@@ -329,3 +329,25 @@ Runtime verification before launch:
 The strategy registry status remains `BACKTESTED` until at least one post-launch daily candle is actually observed. The configured workflow itself does not authorize live-money execution.
 
 Protocol: `docs/15_GRID_PAPER_LIVE_V1.md`.
+
+
+## Moving-average exit research decision — 2026-09-26
+
+Status: **TESTED / NOT PROMOTED / DUPLICATE-WORK GUARD ACTIVE**
+
+Explored research families:
+
+- direct MA exits replacing fixed recovery targets;
+- MA regime selection between BASE (+1/+10) and WIDE (+6/+18);
+- MA-managed runners after fixed recovery.
+
+Summary:
+
+- direct MA exits underperformed WIDE in the recorded five-asset exploratory comparison and increased trade churn;
+- MA50/100 was the strongest simple round-number regime selector, but remained below constant WIDE in aggregate;
+- post-hoc MA40/90 slightly exceeded WIDE in full-period aggregate return but lost on 3/5 assets and only 6/15 asset-year windows, so it is not promoted;
+- MA-managed runners reduced drawdown modestly but reduced shared historical return; the closest 10%-of-profit runner still remained below WIDE in aggregate.
+
+No canonical strategy, paper-live profile, or status is changed by this research.
+
+Decision log: `docs/evidence/2026-09-26_LINK_GRID_MA_EXIT_RESEARCH_DECISION_LOG_V1.md`.
