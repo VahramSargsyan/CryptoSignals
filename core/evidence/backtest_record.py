@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import math
+import numbers
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -22,10 +24,17 @@ def _json_safe(value: Any) -> Any:
         return {str(key): _json_safe(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
         return [_json_safe(item) for item in value]
-    if pd.isna(value):
+    if value is pd.NA or value is pd.NaT:
         return None
+    if isinstance(value, numbers.Real) and not isinstance(value, bool):
+        numeric = float(value)
+        if not math.isfinite(numeric):
+            raise ValueError("Evidence cannot contain NaN or Infinity")
+        if hasattr(value, "item"):
+            return value.item()
+        return value
     if hasattr(value, "item"):
-        return value.item()
+        return _json_safe(value.item())
     return value
 
 
