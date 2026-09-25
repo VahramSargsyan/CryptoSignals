@@ -13,6 +13,7 @@ from core.backtest.contracts import BacktestRunManifest
 from core.backtest.trading import LongOnlyTradingPolicy, TradingBacktestResult
 
 EVIDENCE_SCHEMA_VERSION = "1.0.0"
+OPTIONAL_TRADE_FIELDS = ("exit_signal_id", "exit_signal_timestamp", "exit_strength")
 
 
 def _json_safe(value: Any) -> Any:
@@ -38,6 +39,20 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
+def _normalize_trade_record(record: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(record)
+    for field in OPTIONAL_TRADE_FIELDS:
+        value = normalized.get(field)
+        if value is None or value is pd.NA or value is pd.NaT:
+            normalized[field] = None
+            continue
+        if isinstance(value, numbers.Real) and not isinstance(value, bool):
+            numeric = float(value)
+            if math.isnan(numeric):
+                normalized[field] = None
+    return normalized
+
+
 def build_backtest_evidence(
     *,
     manifest: BacktestRunManifest,
@@ -57,7 +72,10 @@ def build_backtest_evidence(
 
     trades = []
     if not result.trades.empty:
-        trades = [_json_safe(record) for record in result.trades.to_dict("records")]
+        trades = [
+            _json_safe(_normalize_trade_record(record))
+            for record in result.trades.to_dict("records")
+        ]
 
     return {
         "evidence_schema_version": EVIDENCE_SCHEMA_VERSION,
