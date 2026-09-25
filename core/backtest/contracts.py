@@ -45,7 +45,13 @@ class BacktestRunManifest:
         payload = asdict(self)
         payload["parameters"] = dict(sorted(self.parameters.items()))
         payload["engine_config"] = dict(sorted(self.engine_config.items()))
-        return json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+        return json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+            allow_nan=False,
+        )
 
     @property
     def run_id(self) -> str:
