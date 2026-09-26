@@ -512,3 +512,20 @@ Key result:
 No paper-live change.
 
 Evidence: `docs/evidence/2026-09-26_GRID_VS_OSS_STRATEGIES_BENCHMARK_V1.md`.
+
+
+## Bar-normalized timeframe research — expanded 2026-09-26
+
+Status: **PARTIAL MULTI-TIMEFRAME BACKTEST / SCALE-FREE HYPOTHESIS NOT CONFIRMED / NOT PROMOTED**
+
+Expanded evidence:
+
+- D1 same-calendar control: +19.32% geometric / 28.25% median DD;
+- 4H five-asset BAR_NORMALIZED: +5.93% / 40.57%;
+- 15m five-asset falling-window diagnostic: WIDE -11.74% vs BASE -10.66% vs Hold -17.26%;
+- 5m BTC: WIDE +3.54%, average +6 target ~1.87x modeled round-trip cost;
+- 1m BTC: WIDE approximately flat, average +6 target ~0.82x modeled round-trip cost.
+
+No canonical/paper-live changes.
+
+Evidence: `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
