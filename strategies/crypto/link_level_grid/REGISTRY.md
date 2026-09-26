@@ -529,3 +529,18 @@ Expanded evidence:
 No canonical/paper-live changes.
 
 Evidence: `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
+
+
+## D1/H4 capital and exit-assist — 2026-09-26
+
+Status: **TESTED / NOT PROMOTED**
+
+- 100% D1: +19.67% geometric / 28.37% median DD
+- 75/25 D1/H4: +16.36% / 31.95%
+- 50/50: +12.97% / 35.43%
+- 25/75: +9.53% / 39.37%
+- D1 entries + H4 exit spacing: +16.13% / 27.66%, 2227 exits
+
+No canonical/paper-live change.
+
+Evidence: `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
