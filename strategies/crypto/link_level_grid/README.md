@@ -345,3 +345,19 @@ Evidence: `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md
 Fixed D1/H4 capital splits did not beat pure D1 on the common 2024-09-20 through 2026-03-21 period. D1 entries with H4-derived exit spacing reduced drawdown on all five assets but lowered aggregate geometric return from +19.67% to +16.13% and increased closed exits from 932 to 2227.
 
 Evidence: `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
+
+
+## Micro / Mid redundancy test — 2026-09-26
+
+The two capital layers were reviewed specifically for architectural redundancy.
+
+Key finding:
+
+- Micro and Mid do not interact financially, so the combined result is a weighted blend rather than a new source of edge.
+- Existing canonical WIDE p=1 split scan: 20/80 = +257.23% / 39.90% DD, 50/50 = +253.03% / 38.67%, 80/20 = +248.80% / 36.73%.
+- Mid-heavy increased return modestly; Micro-heavy lowered drawdown.
+- Supplementary annual stress checks show relative leadership can switch by regime.
+
+No simplification promoted yet.
+
+Evidence: `docs/evidence/2026-09-26_GRID_MICRO_MID_REDUNDANCY_STRESS_TEST_V1.md`.
