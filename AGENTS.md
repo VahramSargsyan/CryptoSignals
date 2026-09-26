@@ -98,3 +98,8 @@ Already benchmarked on the canonical five-asset D1 development sample with norma
 Before proposing that the canonical Grid should use 1095 candles on any timeframe, read `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
 
 Already tested preliminarily: H1 on BTC/ETH/BNB; BTC 15m/5m/1m mechanics/cost smoke tests; same-calendar D1 versus 4H on BTC/ETH; recent 4H bear diagnostics on ETH/SOL/LINK. The Grid mechanics survive below D1, but 1095 bars is **not** proven scale-invariant. D1 beat 4H on the same calendar period, and 1m WIDE +6 spacing fell below the rough round-trip cost assumption. Future work should use one pinned 1m source aggregated deterministically across all timeframes.
+
+
+### Expanded timeframe evidence — 2026-09-26
+
+The bar-normalized timeframe log now includes stronger coverage: full five-asset 4H, full five-asset 15m, and longer BTC 5m/1m boundary probes. The strongest conclusion remains that 1095 bars are **not** scale-invariant. D1 materially beat 4H on the same calendar period; 5m is cost-sensitive; 1m WIDE Micro spacing falls below modeled round-trip friction. Read the evidence log before proposing lower-timeframe tuning.
