@@ -306,3 +306,19 @@ Strongest external result:
 Fibonacci beat WIDE on ETH, BNB and BTC; Grid dominated on LINK and SOL. Zenbot MACD/SRSI_MACD/Bollinger defaults were also tested, but their original defaults are intraday-oriented and the D1 results are portability evidence only.
 
 Evidence: `docs/evidence/2026-09-26_GRID_VS_OSS_STRATEGIES_BENCHMARK_V1.md`.
+
+
+## Bar-normalized timeframe research — 2026-09-26
+
+The hypothesis “use the last 1095 bars on any timeframe” was stress-tested without changing canonical Grid behavior.
+
+Key findings:
+
+- H1 mechanics remained viable in a preliminary BTC/ETH/BNB sample and WIDE beat BASE on all three;
+- BTC 15m and 5m smoke tests remained positive, but transaction-cost headroom compressed sharply;
+- on BTC 1m, average WIDE +6 spacing was only ~0.165% versus a rough ~0.30% round-trip fee/slippage assumption;
+- on the same 2024-07-01 through 2026-03-31 calendar period, BTC D1 returned +4.08% versus BTC 4H -11.72%, and ETH D1 +21.56% versus ETH 4H +6.20%.
+
+Decision: Grid mechanics are not D1-only, but **1095 candles is not yet a universal scale-free invariant**. Calendar memory appears to matter.
+
+Evidence: `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
