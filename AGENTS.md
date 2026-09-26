@@ -91,3 +91,10 @@ A 15-asset old/large-cap research universe was screened with a separate QUALITY/
 Before proposing another comparison against public crypto strategies, read `docs/evidence/2026-09-26_GRID_VS_OSS_STRATEGIES_BENCHMARK_V1.md`.
 
 Already benchmarked on the canonical five-asset D1 development sample with normalized fees/slippage: Gekko Fibonacci 8/21/55, Zenbot MACD default, Zenbot SRSI_MACD default, and Zenbot Bollinger default. The strongest external candidate was Gekko Fibonacci, nearly matching Grid BASE in aggregate and beating WIDE on ETH/BNB/BTC. Treat Zenbot D1 results as portability tests because their defaults were designed for intraday periods.
+
+
+## Grid bar-normalized timeframe research memory
+
+Before proposing that the canonical Grid should use 1095 candles on any timeframe, read `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
+
+Already tested preliminarily: H1 on BTC/ETH/BNB; BTC 15m/5m/1m mechanics/cost smoke tests; same-calendar D1 versus 4H on BTC/ETH; recent 4H bear diagnostics on ETH/SOL/LINK. The Grid mechanics survive below D1, but 1095 bars is **not** proven scale-invariant. D1 beat 4H on the same calendar period, and 1m WIDE +6 spacing fell below the rough round-trip cost assumption. Future work should use one pinned 1m source aggregated deterministically across all timeframes.
