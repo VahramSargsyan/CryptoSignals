@@ -259,3 +259,14 @@ Two additional large-cap assets, XRP and TRX, were tested with frozen WIDE param
 WIDE beat BASE on both new assets, reducing concern that the +6/+18 improvement exists only in the original five-asset set. However, Buy & Hold remained much stronger on both, so this is **generalization evidence for the grid mechanism**, not universal return superiority.
 
 Evidence: `docs/evidence/2026-09-26_GRID_UNSEEN_TOP10_XRP_TRX_VALIDATION_V1.md`.
+
+
+## Volatile-asset stress test — 2026-09-26
+
+A common-window stress test on TWT, DOGE, AVAX and SHIB found that raw realized volatility alone does not guarantee a strong grid result. DOGE was profitable under the grid while Buy & Hold was negative, but TWT, AVAX and SHIB remained negative despite high volatility. BASE also outperformed WIDE on all four assets in that specific window.
+
+Current interpretation: the grid appears to prefer **volatility with repeated recovery / mean reversion**, not volatility dominated by persistent directional decline.
+
+PEPE was not forced into a shortened-lookback test; the pinned snapshot had only 1059 daily bars, below the canonical 1095-day H/L warmup.
+
+Evidence: `docs/evidence/2026-09-26_GRID_VOLATILE_ASSET_STRESS_TEST_V1.md`.
