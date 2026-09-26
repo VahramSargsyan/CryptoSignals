@@ -452,3 +452,19 @@ Frozen WIDE parameters were applied without tuning:
 WIDE remained profitable and beat BASE on both unseen assets. Buy & Hold beat WIDE on both. The result supports cross-asset robustness of the grid mechanics while rejecting any simple claim of universal Buy & Hold outperformance.
 
 Evidence: `docs/evidence/2026-09-26_GRID_UNSEEN_TOP10_XRP_TRX_VALIDATION_V1.md`.
+
+
+## Volatile-asset stress test — 2026-09-26
+
+Status: **HYPOTHESIS REFINED / NOT PROMOTED**
+
+Common-window results (2024-05-10 through 2026-03-28):
+
+- TWT WIDE -24.03%, BASE -21.81%, Buy & Hold -61.47%;
+- DOGE WIDE +31.61%, BASE +34.61%, Buy & Hold -39.30%, Donchian 20/10 +87.71%;
+- AVAX WIDE -40.18%, BASE -17.34%, Buy & Hold -74.77%;
+- SHIB WIDE -47.75%, BASE -39.27%, Buy & Hold -74.80%.
+
+Conclusion: raw volatility by itself is not enough. Favorable grid environments appear to require repeated rebound / oscillation rather than persistent directional decline. PEPE remained canonically blocked by insufficient pinned snapshot history.
+
+Evidence: `docs/evidence/2026-09-26_GRID_VOLATILE_ASSET_STRESS_TEST_V1.md`.
