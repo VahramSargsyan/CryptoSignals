@@ -84,3 +84,10 @@ TWT, DOGE, AVAX and SHIB were tested on a common 2024-05-10 through 2026-03-28 w
 Before proposing new large-cap Grid candidates, read `docs/evidence/2026-09-26_GRID_UNIVERSE_QUALITY_SUITABILITY_SCREEN_V1.md`.
 
 A 15-asset old/large-cap research universe was screened with a separate QUALITY/SURVIVAL gate and canonical Grid test. Primary research candidates: LINK, SOL, ETH, ADA, XLM. Secondary/caveated: HBAR, UNI, DOGE, AVAX, LTC. BTC, BNB, XRP, TRX, BCH remain important survival/benchmark assets but were not first-choice WIDE candidates on the common window. Do not confuse this survivor-conditioned screen with live eligibility.
+
+
+## Grid vs published OSS-strategy benchmark memory
+
+Before proposing another comparison against public crypto strategies, read `docs/evidence/2026-09-26_GRID_VS_OSS_STRATEGIES_BENCHMARK_V1.md`.
+
+Already benchmarked on the canonical five-asset D1 development sample with normalized fees/slippage: Gekko Fibonacci 8/21/55, Zenbot MACD default, Zenbot SRSI_MACD default, and Zenbot Bollinger default. The strongest external candidate was Gekko Fibonacci, nearly matching Grid BASE in aggregate and beating WIDE on ETH/BNB/BTC. Treat Zenbot D1 results as portability tests because their defaults were designed for intraday periods.
