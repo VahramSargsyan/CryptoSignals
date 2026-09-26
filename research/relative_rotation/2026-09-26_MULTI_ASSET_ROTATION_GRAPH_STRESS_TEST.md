@@ -445,3 +445,79 @@ Suggested next stress-test layer:
 - compare no-risk-off vs simple causal absolute-trend filters;
 - do not optimize the threshold/window to the best historical row;
 - preserve manual approval for all real execution.
+
+
+## 19. Absolute-risk gate / RISK_OFF smoke test
+
+Follow-up test completed after walk-forward failure attribution.
+
+Motivation:
+The main walk-forward failure mode was post-transition stale holding: the relative router could converge into one asset and then remain silent while that asset fell sharply in absolute terms.
+
+Architecture tested:
+
+- RELATIVE ROUTER continues to choose a shadow crypto target using the unchanged 28-pair logic;
+- ABSOLUTE RISK GATE independently decides whether the portfolio actually holds that target or stays in USDT;
+- if the shadow target is below its own causal SMA at the signal close, actual capital remains in USDT;
+- when the shadow target is above the SMA, actual capital can hold/re-enter it at the next daily open;
+- relative routing continues in the background even while actual capital is in USDT;
+- 0.1% cost applied on each actual asset/cash transition;
+- USDT yield assumed 0%.
+
+This preserves the conceptual separation:
+
+RELATIVE ROUTER = WHERE capital should be in crypto  
+RISK GATE = WHETHER capital should be in crypto
+
+### Same one-year OOS window
+
+Period: 2025-03-29 -> 2026-03-28
+
+| Variant | Median return | Median max DD | Median time in USDT |
+|---|---:|---:|---:|
+| No risk gate | +41.6% | -62.2% | 0% |
+| 100d SMA gate | +63.5% | -27.0% | 79.5% |
+| 200d SMA gate | +37.4% | -15.2% | 94.2% |
+| 300d SMA gate | +42.7% | -15.2% | 92.9% |
+
+Important:
+The strong improvement does not justify selecting the best visible SMA after the fact. These are robustness candidates, not optimized production rules.
+
+### Sequential 180-day windows
+
+Median network return by non-overlapping window:
+
+| Window | No gate | SMA100 | SMA200 | SMA300 |
+|---|---:|---:|---:|---:|
+| 2023-10-31 -> 2024-04-27 | +374.2% | +184.2% | +257.4% | -12.7% |
+| 2024-04-28 -> 2024-10-24 | -29.2% | -0.1% | +5.1% | +11.3% |
+| 2024-10-25 -> 2025-04-22 | +138.3% | +105.7% | +41.4% | +23.8% |
+| 2025-04-23 -> 2025-10-19 | +20.1% | +16.0% | +23.6% | +27.8% |
+| 2025-10-20 -> 2026-03-28 | -44.9% | +16.6% | ~0.0% | ~0.0% |
+
+Median max-drawdown across those sequential windows:
+
+- no gate: ~43.7%
+- SMA100: ~17.1%
+- SMA200: ~15.2%
+- SMA300: ~15.2%
+
+Interpretation:
+
+1. The absolute-risk layer directly addresses the stale-hold failure mode.
+2. SMA100 preserved more upside in the highlighted one-year OOS sample but traded/re-entered more often.
+3. SMA200 was the most balanced of these three simple candidates across the five sequential 180-day windows: it avoided the large negative median windows while retaining substantial participation in the first bull window.
+4. SMA300 was too slow in the earliest strong regime and missed much of the upside there.
+5. None of these candidates is frozen. The test was performed after observing the stale-hold failure mode, so further independent validation is required.
+6. High USDT occupancy is a material behavioral change and must be evaluated against the owner's actual goal of keeping capital productively deployed.
+7. No USDT lending/yield was credited, so cash periods were modeled conservatively at 0% yield.
+
+Current research implication:
+
+The system is now better represented as three independent layers:
+
+1. RELATIVE ROTATION GRAPH — chooses the preferred crypto asset;
+2. ABSOLUTE RISK GATE — decides CRYPTO vs USDT;
+3. optional GRID/HOLD engine — decides how capital works inside the selected asset.
+
+Status: PROMISING_RISK_LAYER_CANDIDATE / NOT_PRODUCTION_APPROVED
