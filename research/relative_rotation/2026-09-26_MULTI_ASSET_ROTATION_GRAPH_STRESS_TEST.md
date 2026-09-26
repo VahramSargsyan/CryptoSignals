@@ -576,3 +576,86 @@ Research implication:
 - adding BTC as a ninth full graph node is a separate experiment. A 9-node complete graph would contain 36 unique pair relationships instead of 28.
 
 Status: DEFENSIVE_CRYPTO_CANDIDATE / NOT_PRODUCTION_APPROVED
+
+
+## 21. BTC as a full ninth graph node — 36-pair stress test
+
+User request:
+Promote BTC from defensive fallback candidate into the full relative-rotation universe.
+
+Configuration:
+- assets: ATOM, TWT, PEPE, BNB, SOL, TRX, AAVE, LINK, BTC
+- graph size: 9 nodes / 36 unique undirected pairs
+- same signal engine as the 8-node baseline:
+  - 1D closed candles
+  - 180d rolling median
+  - ARM 15%
+  - reversal 3%
+  - next-open execution
+  - 0.1% swap cost
+- same causal pair-specific percentile ranking for conflict routing
+- no BTC-specific parameters were introduced
+
+### Direct 8-node vs 9-node comparison
+
+Sequential non-overlapping windows:
+
+| Window | 8-node median | 9-node + BTC median | Effect of BTC |
+|---|---:|---:|---:|
+| 2023-10-31 -> 2024-04-27 | +374.2% | +352.6% | worse |
+| 2024-04-28 -> 2024-10-24 | -29.2% | -32.4% | worse |
+| 2024-10-25 -> 2025-04-22 | +138.3% | +139.5% | slightly better |
+| 2025-04-23 -> 2025-10-19 | +20.1% | +8.3% | worse |
+| 2025-10-20 -> 2026-03-28 | -44.9% | -47.8% | worse |
+
+Same highlighted one-year OOS window:
+
+2025-03-29 -> 2026-03-28
+
+- 8-node graph median return: **+41.6%**
+- 9-node graph with BTC median return: **-24.0%**
+- 8-node median max DD: ~62.2%
+- 9-node median max DD: ~62.4%
+- 8-node positive starting assets: 8/8
+- 9-node positive starting assets: 1/9
+
+### Failure attribution
+
+The 9-node graph introduced a new route that displaced the previously productive 8-node path.
+
+In the 8-node graph, a key path segment was:
+
+PEPE -> TRX -> LINK -> TWT -> ATOM ...
+
+With BTC admitted as a full node, many starts instead converged through:
+
+PEPE -> BTC -> ATOM
+
+Example during the one-year OOS test:
+- 2025-05-14 signal / 2025-05-15 execution: PEPE -> BTC
+- 2025-05-22 signal / 2025-05-23 execution: BTC -> ATOM
+
+This route caused the network to miss the profitable TRX/LINK/TWT sequence that materially supported the 8-node result.
+
+Important implication:
+
+Adding a highly liquid / large-cap asset does not automatically improve a relative-rotation graph. A new node changes routing topology and can steal capital from more useful paths even if the new pair signals are individually valid.
+
+### Current BTC status
+
+BTC_FULL_GRAPH_NODE: **REJECTED_FOR_NOW under the common 180d / 15% / 3% rule**
+
+This does NOT mean BTC is useless.
+
+Separate BTC roles remain distinct research hypotheses:
+1. DEFENSIVE_CRYPTO fallback candidate;
+2. benchmark / market-regime reference;
+3. possible future node with separately validated BTC-edge eligibility rules.
+
+Do not promote BTC to the 9-node production/research baseline without new evidence.
+
+Current canonical research baseline remains:
+- 8 assets
+- 28 unique pairs
+
+Status: FULL_NODE_FAILED_FIRST_STRESS_TEST / KEEP_8_NODE_BASELINE
