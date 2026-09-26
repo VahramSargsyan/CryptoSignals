@@ -468,3 +468,24 @@ Common-window results (2024-05-10 through 2026-03-28):
 Conclusion: raw volatility by itself is not enough. Favorable grid environments appear to require repeated rebound / oscillation rather than persistent directional decline. PEPE remained canonically blocked by insufficient pinned snapshot history.
 
 Evidence: `docs/evidence/2026-09-26_GRID_VOLATILE_ASSET_STRESS_TEST_V1.md`.
+
+
+## Quality + Grid universe screen — 2026-09-26
+
+Status: **RESEARCH UNIVERSE SCREENED / NOT PROMOTED**
+
+15-asset common-window WIDE screen:
+
+- positive assets: 15/15
+- beats Buy & Hold: 10/15
+- beats BASE: 10/15
+- geometric WIDE: +160.98%
+- geometric Buy & Hold: +72.67%
+- median WIDE DD: 43.18%
+- median Buy & Hold DD: 70.26%
+
+Tier A deep-research candidates: LINK, SOL, ETH, ADA, XLM.
+
+Survivorship bias remains an explicit limitation. No paper-live universe change.
+
+Evidence: `docs/evidence/2026-09-26_GRID_UNIVERSE_QUALITY_SUITABILITY_SCREEN_V1.md`.
