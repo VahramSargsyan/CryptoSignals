@@ -2,6 +2,9 @@ name: Grid Paper Live v1
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - smoke/grid-paper-live-forward-v1
   schedule:
     - cron: "20 0 * * *"
 permissions:
