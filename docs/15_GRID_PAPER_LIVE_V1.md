@@ -45,10 +45,11 @@ No capital moves between symbols.
 
 ## Profiles
 
-Two profiles run in parallel so the new research candidate has a live control.
+Four profiles run in parallel. The original two-profile observation remains intact, while two single-layer WIDE profiles add the forward Micro-vs-Mid comparison without changing the strategy engine.
 
 ### CONTROL_BASE
 
+- both Micro and Mid active
 - linear-depth allocation, p=1
 - Micro exit: +1 sublevel
 - Mid deep recovery: +10 sublevels
@@ -58,12 +59,34 @@ Two profiles run in parallel so the new research candidate has a live control.
 
 ### CANDIDATE_WIDE
 
+- both Micro and Mid active
 - linear-depth allocation, p=1
 - Micro exit: +6 sublevels
 - Mid deep recovery: +18 sublevels
 - Mid target scale: 1.0
 - positive-profit reinvestment: 100%
 - permanent token runner: 0%
+
+### MICRO_ONLY_WIDE
+
+- Micro layer only
+- WIDE Micro exit: +6 sublevels
+- p=1
+- positive-profit reinvestment: 100%
+- permanent token runner: 0%
+- normalized to the same total starting capital of 2000 per symbol
+
+### MID_ONLY_WIDE
+
+- Mid layer only
+- WIDE Mid deep recovery: +18 sublevels
+- existing Mid percentage targets unchanged
+- p=1
+- positive-profit reinvestment: 100%
+- permanent token runner: 0%
+- normalized to the same total starting capital of 2000 per symbol
+
+The strategy engine still computes the existing independent Micro and Mid pools. For the two single-layer profiles, paper-live projects only the selected independent layer and scales that layer from 1000 to the common 2000-unit normalized comparison capital. This does not create a new trading mechanism and does not move cash between layers.
 
 All other engine assumptions remain equal.
 
@@ -155,11 +178,25 @@ The runtime must continue successfully when notification secrets are absent.
 
 To avoid daily spam, notification is sent when:
 
-- the latest closed candle generated at least one BUY or SELL event; or
+- the latest closed candle generated at least one BUY or SELL event in any observed profile; or
 - exactly 7 completed paper candles are available; or
 - exactly 30 completed paper candles are available.
 
+For event-driven notifications, Telegram/email text identifies the profile and symbol that generated the BUY/SELL event. Profiles without an event on that candle are omitted from the compact event message.
+
 Artifacts and GitHub job summaries are still produced every day.
+
+## Forward Micro / Mid decision boundary
+
+Historical evidence and forward evidence are kept separate.
+
+The new single-layer profiles do not retroactively change the historical result. They start from the already frozen paper boundary:
+
+```text
+2026-09-26T00:00:00Z
+```
+
+The purpose is to observe whether the historical Micro-vs-Mid relationship persists on genuinely new closed daily candles. No single day, week, or alert is treated as sufficient promotion evidence.
 
 ## Evidence level
 
