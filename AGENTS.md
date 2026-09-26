@@ -108,3 +108,10 @@ The bar-normalized timeframe log now includes stronger coverage: full five-asset
 ### Dual-timeframe research memory
 
 The timeframe evidence now also covers independent D1/H4 capital books (75/25, 50/50, 25/75) and D1 entries with entry-time-frozen H4-derived +6/+18 exit spacing. Neither improved the canonical D1 return profile; H4 exit assistance mainly reduced drawdown at the cost of higher turnover and lower return. Read the timeframe evidence before proposing the same variants.
+
+
+### Micro / Mid redundancy research memory
+
+Before proposing simplification of the two capital pools, read `docs/evidence/2026-09-26_GRID_MICRO_MID_REDUNDANCY_STRESS_TEST_V1.md`.
+
+Current evidence: Micro and Mid are independent engines with no nonlinear capital synergy. The canonical 20/80→80/20 scan shows a return/drawdown tradeoff rather than universal dominance; 50/50 is not a special optimum. Supplementary annual tests show the stronger layer can change by regime. Do not remove a layer without an exact canonical 100/0 vs 0/100 endpoint test or an explicitly different shared-wallet hypothesis.
