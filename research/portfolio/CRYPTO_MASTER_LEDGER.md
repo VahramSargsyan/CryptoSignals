@@ -465,3 +465,85 @@ Required before any real PEPE rotation:
 4. track post-ARM extreme;
 5. verify >=3% reversal from that extreme;
 6. only then mark ROTATION_CONFIRMED.
+
+
+---
+
+## 13. Multi-asset relative-rotation graph — first full stress test
+
+RUN_DATE: 2026-09-26  
+STATUS: PROMISING_RESEARCH / NOT_PRODUCTION_APPROVED  
+WORKFLOW_MODE: STRESS_TEST_ONLY + ECOSYSTEM_PLANNING
+
+Universe:
+- ATOM
+- TWT
+- PEPE
+- BNB
+- SOL
+- TRX
+- AAVE
+- LINK
+
+Graph size:
+- 8 assets
+- 28 unique pair relationships
+
+Reference engine:
+- 1D closed candles
+- 180d rolling median
+- ARM 15%
+- reversal 3%
+- next-open execution
+- 0.1% swap cost
+
+Primary OOS window:
+- 2025-03-29 -> 2026-03-28
+
+Baseline TOP-1 router result:
+- median return across starting assets: **+41.6%**
+- equal-weight 8-asset benchmark: **-29.5%**
+- best single HODL in period: TRX **+37.0%**
+- max drawdown: **~62.2%**
+- median rotations: ~8
+
+Observed example route from TWT:
+- TWT -> PEPE -> TRX -> LINK -> TWT -> ATOM -> PEPE -> ATOM -> TWT
+
+Important findings:
+1. A dynamically generated token cycle appeared without predefining the route.
+2. Router quality is critical. Strongest-extreme / confirmation / causal-percentile rules produced the same +41.6% median OOS in this sample; weak/naive conflict rules degraded sharply.
+3. Equal TOP-2 split remained profitable but weaker: **+31.7%** median OOS.
+4. Equal TOP-3 split fell to **+6.0%**.
+5. Simple split diversification did not improve drawdown.
+6. Strict permanent train-only pair filtering failed OOS, suggesting that a weak standalone edge can still be useful as a regime-specific transition.
+7. Parameter sensitivity remains material; do not optimize to the best visible row.
+
+Same-window GRID comparison (2025-03-29 -> 2026-03-28), reproduced from documented corrected grid mechanics:
+- Rotation TOP-1 median: **+41.6%**, max DD ~62.2%
+- LINK grid: **+20.9%**, max DD ~31.6%
+- ETH grid: **+12.5%**, max DD ~26.8%
+- SOL grid: **-4.1%**, max DD ~29.0%
+- BNB grid: **-4.3%**, max DD ~14.0%
+- BTC grid: **-3.0%**, max DD ~8.6%
+
+Interpretation:
+- On this exact one-year window, rotation produced the stronger return result than each reproduced grid case.
+- Grid remained materially better on drawdown.
+- This is not proof that rotation universally dominates grid.
+- A future hybrid should test: RELATIVE ROUTER chooses the asset; GRID/HOLD determines how capital works inside that asset; RISK_OFF remains a separate layer.
+
+Detailed evidence:
+- `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
+
+Next research:
+1. weighted TOP-1/TOP-2 conflict splits: 80/20, 70/30, 60/40, 50/50;
+2. walk-forward router validation;
+3. conflict-by-conflict attribution;
+4. CORE HODL + ROTATION;
+5. staking-aware ATOM treatment;
+6. separate RISK_OFF layer;
+7. GRID + ROTATION hybrid;
+8. extend live-consistent data through 2026-09-26 before current-signal use.
+
+Manual execution remains required for all real trades.
