@@ -631,3 +631,38 @@ Interpretation:
 - if BTC becomes a full ninth graph node later, the complete graph expands from 28 to 36 unique pairs.
 
 Status: RESEARCH_ONLY / DEFENSIVE_CRYPTO_CANDIDATE / MANUAL_EXECUTION_REQUIRED
+
+
+### BTC full-node test — 2026-09-26
+
+BTC was promoted experimentally from fallback-only status to a full ninth relative-rotation node.
+
+Graph:
+- 9 assets
+- 36 unique pairs
+- same 180d / 15% ARM / 3% reversal / next-open / 0.1% cost engine
+- no BTC-specific tuning
+
+Direct comparison versus the 8-node baseline:
+- 2023-10-31 -> 2024-04-27: 8-node +374.2% vs 9-node +352.6%
+- 2024-04-28 -> 2024-10-24: -29.2% vs -32.4%
+- 2024-10-25 -> 2025-04-22: +138.3% vs +139.5%
+- 2025-04-23 -> 2025-10-19: +20.1% vs +8.3%
+- 2025-10-20 -> 2026-03-28: -44.9% vs -47.8%
+
+Highlighted 1Y OOS window 2025-03-29 -> 2026-03-28:
+- 8-node: +41.6% median
+- 9-node + BTC: -24.0% median
+- positive starts: 8/8 vs 1/9
+
+Failure mechanism:
+- BTC introduced PEPE -> BTC -> ATOM transitions that displaced the productive 8-node PEPE -> TRX -> LINK -> TWT route.
+
+Current decision:
+- BTC_FULL_GRAPH_NODE = REJECTED_FOR_NOW under the common universal pair parameters
+- keep canonical graph baseline at 8 assets / 28 pairs
+- BTC may still be researched separately as DEFENSIVE_CRYPTO fallback or market-regime reference
+- BTC is not classified as useless; only the full-node role failed this first stress test
+
+Detailed evidence:
+- `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
