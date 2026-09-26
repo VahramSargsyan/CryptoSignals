@@ -30,18 +30,25 @@ Observed after state:
 - ATOM quantity: 64.91320282
 - Displayed ATOM value: approximately 118.40 USDT
 
-Derived from observed quantities:
+Execution structure clarified by user:
+- The rotation was executed as two separate direct TWT → ATOM swap orders.
+- No intermediate TWT → USDT → ATOM conversion was used.
+- The before/after screenshots show only the aggregate result of both direct swaps.
+
+Derived from observed aggregate quantities:
 - Direction: TWT → ATOM
-- Effective cross ratio: 1 ATOM ≈ 3.055791969 TWT
-- Effective reciprocal ratio: 1 TWT ≈ 0.327247408 ATOM
+- Effective aggregate cross ratio: 1 ATOM ≈ 3.055791969 TWT
+- Effective aggregate reciprocal ratio: 1 TWT ≈ 0.327247408 ATOM
 - Displayed-value difference: approximately -0.68 USDT (-0.57%)
 
 Unknown / not inferable from these screenshots:
-- exact execution timestamp
-- exact execution price in USDT
-- exact trading fee
-- exact slippage
-- transaction/order ID
+- exact execution timestamp of each order
+- TWT quantity in each of the two orders
+- ATOM received in each of the two orders
+- exact execution cross ratio for each order
+- exact trading fee for each order
+- exact slippage for each order
+- transaction/order IDs
 
 Important:
 The displayed-value difference must not be treated as the exact fee because the before and after screenshots were captured at different times and market prices may have moved.
