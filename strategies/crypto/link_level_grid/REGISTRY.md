@@ -544,3 +544,12 @@ Status: **TESTED / NOT PROMOTED**
 No canonical/paper-live change.
 
 Evidence: `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
+
+
+## Micro / Mid redundancy — 2026-09-26
+
+Status: **TESTED / NO SIMPLIFICATION PROMOTED**
+
+The current two pools provide a risk/return blend, not nonlinear capital synergy. 50/50 is not a special optimum. Canonical 20/80→80/20 tests show Mid-heavy favors return while Micro-heavy favors lower drawdown. Supplementary annual checks show no layer universally dominates.
+
+Evidence: `docs/evidence/2026-09-26_GRID_MICRO_MID_REDUNDANCY_STRESS_TEST_V1.md`.
