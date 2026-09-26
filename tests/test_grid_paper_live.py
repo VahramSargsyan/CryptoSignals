@@ -7,6 +7,7 @@ from scripts.run_grid_paper_live import (
     PROFILES,
     _config,
     _notification_text,
+    _profile_engine,
     _profile_metrics,
     _scale_single_layer_frame,
 )
@@ -32,6 +33,11 @@ class GridPaperLiveTests(unittest.TestCase):
         self.assertEqual(PROFILES["CANDIDATE_WIDE"]["layer"], "BOTH")
         self.assertEqual(PROFILES["MICRO_ONLY_WIDE"]["layer"], "MICRO")
         self.assertEqual(PROFILES["MID_ONLY_WIDE"]["layer"], "MID")
+        self.assertEqual(PROFILES["MID_OSS_ATR50_TRAIL7"]["layer"], "MID")
+        self.assertEqual(_profile_engine("MID_ONLY_WIDE"), "CANONICAL")
+        self.assertEqual(_profile_engine("MID_OSS_ATR50_TRAIL7"), "OSS_FORWARD_CANDIDATE")
+        self.assertEqual(PROFILES["MID_OSS_ATR50_TRAIL7"]["atr_regrid_threshold"], 0.50)
+        self.assertEqual(PROFILES["MID_OSS_ATR50_TRAIL7"]["exit_retracement"], 0.07)
 
         for cfg in (base, wide, micro_only, mid_only):
             self.assertEqual(cfg.profit_reinvest_fraction, 1.0)

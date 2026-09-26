@@ -12,6 +12,10 @@ import pandas as pd
 
 from integrations.binance.historical import download_historical_dataset
 from integrations.binance.rest_client import BinanceSpotRestClient
+from strategies.crypto.link_level_grid.oss_forward_candidate import (
+    OssMidCandidateConfig,
+    run_oss_mid_candidate,
+)
 from strategies.crypto.link_level_grid.strategy import (
     GridBacktestConfig,
     RollingRangePolicy,
@@ -27,21 +31,34 @@ PROFILES = {
         "micro_exit_sublevels": 1,
         "mid_recovery_sublevels": 10,
         "layer": "BOTH",
+        "engine": "CANONICAL",
     },
     "CANDIDATE_WIDE": {
         "micro_exit_sublevels": 6,
         "mid_recovery_sublevels": 18,
         "layer": "BOTH",
+        "engine": "CANONICAL",
     },
     "MICRO_ONLY_WIDE": {
         "micro_exit_sublevels": 6,
         "mid_recovery_sublevels": 18,
         "layer": "MICRO",
+        "engine": "CANONICAL",
     },
     "MID_ONLY_WIDE": {
         "micro_exit_sublevels": 6,
         "mid_recovery_sublevels": 18,
         "layer": "MID",
+        "engine": "CANONICAL",
+    },
+    "MID_OSS_ATR50_TRAIL7": {
+        "micro_exit_sublevels": 6,
+        "mid_recovery_sublevels": 18,
+        "layer": "MID",
+        "engine": "OSS_FORWARD_CANDIDATE",
+        "atr_regrid_threshold": 0.50,
+        "regrid_cooldown_candles": 60,
+        "exit_retracement": 0.07,
     },
 }
 
@@ -94,6 +111,10 @@ def _profile_layer(profile: str) -> str:
     return str(PROFILES[profile]["layer"])
 
 
+def _profile_engine(profile: str) -> str:
+    return str(PROFILES[profile].get("engine", "CANONICAL"))
+
+
 def _scale_single_layer_frame(profile: str, frame: pd.DataFrame) -> pd.DataFrame:
     """Project one independent layer to the same 2,000-unit normalized capital."""
     if frame.empty:
@@ -133,6 +154,18 @@ def _single_layer_max_drawdown(
         drawdown = 1.0 - (float(value) / peak)
         max_drawdown = max(max_drawdown, drawdown)
     return max_drawdown
+
+
+def _candidate_metrics(result) -> dict:
+    summary = result.summary
+    return {
+        "equity": float(summary["final_equity"]),
+        "return": float(summary["total_return"]),
+        "max_drawdown": float(summary["max_drawdown"]),
+        "open_micro_lots": 0,
+        "open_mid_lots": int(summary["open_mid_lots_end"]),
+        "closed_trade_count": int(summary["closed_trade_count"]),
+    }
 
 
 def _profile_metrics(profile: str, result) -> dict:
@@ -273,7 +306,9 @@ def _build_report_markdown(payload: dict) -> str:
             "",
             "- Daily Binance Spot candles only.",
             "- First H/L uses the preceding 1095 closed daily candles.",
-            "- H/L refresh remains the current 30-candle research assumption.",
+            "- Canonical profiles retain the 30-candle H/L refresh research assumption.",
+            "- MID_OSS_ATR50_TRAIL7 keeps a 1095-candle causal H/L but refreshes only after a 60-candle cooldown when ATR14 shifts >50% (or price escapes the active range).",
+            "- MID_OSS_ATR50_TRAIL7 arms a trailing exit after the normal MID target is reached and sells after a later 7% retracement from the post-target peak.",
             "- Fees: 10 bps; slippage: 5 bps.",
             "- 100% positive-profit reinvestment; no permanent runner.",
             "- No broker keys, no exchange orders, no real money.",
@@ -404,23 +439,50 @@ def main(argv: list[str] | None = None) -> int:
         result_cache: dict[tuple[int, int], object] = {}
         for profile in profiles:
             params = PROFILES[profile]
-            cache_key = (
-                int(params["micro_exit_sublevels"]),
-                int(params["mid_recovery_sublevels"]),
-            )
-            if cache_key not in result_cache:
-                result_cache[cache_key] = run_grid_backtest(
+            engine = _profile_engine(profile)
+
+            if engine == "OSS_FORWARD_CANDIDATE":
+                result = run_oss_mid_candidate(
                     candles,
                     dataset_id=download.dataset.dataset_id,
                     source_commit_sha=source_commit_sha,
-                    config=_config(profile),
                     evaluation_start=paper_start,
+                    config=OssMidCandidateConfig(
+                        initial_capital=2000.0,
+                        lookback_candles=1095,
+                        atr_period=14,
+                        atr_regrid_threshold=float(params["atr_regrid_threshold"]),
+                        regrid_cooldown_candles=int(params["regrid_cooldown_candles"]),
+                        exit_retracement=float(params["exit_retracement"]),
+                        mid_recovery_sublevels=int(params["mid_recovery_sublevels"]),
+                        ten_sublevel_from_main=7,
+                        fee_bps=10.0,
+                        slippage_bps=5.0,
+                    ),
                 )
-            result = result_cache[cache_key]
-            metrics = _profile_metrics(profile, result)
+                metrics = _candidate_metrics(result)
+                events = result.events.copy()
+                trades = result.trades.copy()
+            else:
+                cache_key = (
+                    int(params["micro_exit_sublevels"]),
+                    int(params["mid_recovery_sublevels"]),
+                )
+                if cache_key not in result_cache:
+                    result_cache[cache_key] = run_grid_backtest(
+                        candles,
+                        dataset_id=download.dataset.dataset_id,
+                        source_commit_sha=source_commit_sha,
+                        config=_config(profile),
+                        evaluation_start=paper_start,
+                    )
+                result = result_cache[cache_key]
+                metrics = _profile_metrics(profile, result)
+                events = _scale_single_layer_frame(profile, result.events)
+                trades = _scale_single_layer_frame(profile, result.trades)
+
             latest_eval = pd.Timestamp(result.equity_curve.iloc[-1]["timestamp"])
 
-            events = _scale_single_layer_frame(profile, result.events)
             if not events.empty:
                 events["timestamp"] = pd.to_datetime(events["timestamp"], utc=True)
                 events.insert(0, "profile", profile)
@@ -429,11 +491,10 @@ def main(argv: list[str] | None = None) -> int:
                 today = events[events["timestamp"] == latest_eval]
                 buys = int((today["event_type"] == "BUY").sum())
                 sells = int((today["event_type"] == "SELL").sum())
-                today_count = len(today)
+                today_count = buys + sells
             else:
                 buys = sells = today_count = 0
 
-            trades = _scale_single_layer_frame(profile, result.trades)
             if not trades.empty:
                 trades.insert(0, "profile", profile)
                 trades.insert(1, "symbol", symbol)
@@ -505,6 +566,14 @@ def main(argv: list[str] | None = None) -> int:
             "runner_fraction": 0.0,
             "single_layer_profiles_normalized_total_capital": 2000.0,
             "single_layer_projection_uses_independent_engine": True,
+            "oss_forward_candidate": {
+                "profile": "MID_OSS_ATR50_TRAIL7",
+                "atr_period": 14,
+                "atr_regrid_threshold": 0.50,
+                "regrid_cooldown_candles": 60,
+                "exit_retracement": 0.07,
+                "selection_status": "FROZEN_FORWARD_CANDIDATE",
+            },
             "real_orders": False,
         },
     }

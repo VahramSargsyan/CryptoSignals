@@ -45,7 +45,7 @@ No capital moves between symbols.
 
 ## Profiles
 
-Four profiles run in parallel. The original two-profile observation remains intact, while two single-layer WIDE profiles add the forward Micro-vs-Mid comparison without changing the strategy engine.
+Five profiles run in parallel. The original four profiles remain intact, and one additive OSS-derived MID candidate is observed as a separate shadow profile.
 
 ### CONTROL_BASE
 
@@ -88,13 +88,32 @@ Four profiles run in parallel. The original two-profile observation remains inta
 
 The strategy engine still computes the existing independent Micro and Mid pools. For the two single-layer profiles, paper-live projects only the selected independent layer and scales that layer from 1000 to the common 2000-unit normalized comparison capital. This does not create a new trading mechanism and does not move cash between layers.
 
-All other engine assumptions remain equal.
+### MID_OSS_ATR50_TRAIL7
+
+- separate research candidate engine; canonical `strategy.py` is unchanged
+- MID-only
+- normalized starting capital: 2000 per symbol
+- linear-depth allocation p=1
+- WIDE Mid recovery: +18 sublevels
+- existing Mid percentage targets unchanged
+- 1095-candle causal H/L
+- ATR14-gated H/L refresh
+- refresh eligibility begins after a 60-candle cooldown
+- refresh when ATR has shifted by more than 50% from the prior refresh anchor, or price escapes the active range
+- once the normal MID target is reached, the exit is armed rather than filled immediately
+- actual SELL occurs on a later candle after a 7% retracement from the observed post-target peak
+- fee 10 bps; slippage 5 bps
+- no real orders
+
+The 7% value is frozen for forward observation because the historical research showed a 6–8% plateau. The forward system deliberately runs one candidate, not three near-duplicate tuned profiles.
+
+All other engine assumptions remain equal where applicable.
 
 ## H/L and data rule
 
 At paper start, each symbol requires the preceding 1095 daily candles before the first trade.
 
-Range logic remains the current research assumption:
+Canonical profile range logic remains:
 
 ```text
 lookback = 1095 daily candles
@@ -102,7 +121,9 @@ refresh = every 30 daily candles
 current candle is excluded from H/L calculation
 ```
 
-The 30-candle refresh rule is not owner-frozen and is a residual research risk.
+The new `MID_OSS_ATR50_TRAIL7` profile keeps the same causal 1095-candle lookback but uses its frozen ATR14 / 50% / 60-candle refresh gate instead of the 30-candle refresh cadence.
+
+Both refresh policies remain research assumptions.
 
 ## Runtime model
 
@@ -190,13 +211,18 @@ Artifacts and GitHub job summaries are still produced every day.
 
 Historical evidence and forward evidence are kept separate.
 
-The new single-layer profiles do not retroactively change the historical result. They start from the already frozen paper boundary:
+The single-layer profiles and the new OSS candidate do not retroactively change historical results. They all start from the already frozen paper boundary:
 
 ```text
 2026-09-26T00:00:00Z
 ```
 
-The purpose is to observe whether the historical Micro-vs-Mid relationship persists on genuinely new closed daily candles. No single day, week, or alert is treated as sufficient promotion evidence.
+The purpose is now twofold:
+
+1. observe whether the historical Micro-vs-Mid relationship persists on genuinely new closed daily candles;
+2. compare the frozen `MID_OSS_ATR50_TRAIL7` candidate against `MID_ONLY_WIDE` without further parameter tuning.
+
+No single day, week, or alert is treated as sufficient promotion evidence.
 
 ## Evidence level
 
