@@ -361,3 +361,22 @@ Key finding:
 No simplification promoted yet.
 
 Evidence: `docs/evidence/2026-09-26_GRID_MICRO_MID_REDUNDANCY_STRESS_TEST_V1.md`.
+
+
+### Expanded Micro / Mid redundancy — 2026-09-26
+
+15-asset common-window test:
+
+- Micro-only: +170.91% geometric / 41.39% median DD / 2,303 exits
+- Mid-only: +147.17% / 42.77% / 721 exits
+- Current 50/50: +160.98% / 43.18% / 3,024 exits
+
+Tier A (LINK/SOL/ETH/ADA/XLM):
+
+- Micro: +244.93%, 884 exits
+- Mid: +245.61%, 278 exits
+- 50/50: +247.36%, 1,162 exits
+
+Mid-only is therefore a serious simplification candidate for a quality-filtered universe, but not a universal replacement across all tested tokens.
+
+Evidence: `docs/evidence/2026-09-26_GRID_MICRO_MID_REDUNDANCY_STRESS_TEST_V1.md`.
