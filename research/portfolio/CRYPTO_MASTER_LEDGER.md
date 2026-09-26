@@ -547,3 +547,49 @@ Next research:
 8. extend live-consistent data through 2026-09-26 before current-signal use.
 
 Manual execution remains required for all real trades.
+
+
+### Relative-rotation walk-forward + RISK_OFF update — 2026-09-26
+
+Follow-up evidence after the first 8-asset / 28-pair graph test:
+
+Sequential non-overlapping 180-day TOP-1 windows, unchanged router:
+- +374.2%
+- -29.2%
+- +138.3%
+- +20.1%
+- -44.9%
+
+Main failure mode:
+- network converges into one asset and then relative logic can remain silent while that asset falls sharply in absolute terms;
+- 2024 failure: long ATOM stale hold, roughly 150 days after final transition, ~44% post-transition decline;
+- late-2025/early-2026 failure: final TWT stale hold, 52 days, ~39% post-transition decline.
+
+First independent absolute-risk smoke test:
+- relative router continues to choose a shadow crypto target;
+- actual capital moves to USDT while that target is below its own causal SMA;
+- routing continues in the background while capital is in USDT;
+- USDT yield modeled at 0%;
+- 0.1% transition cost applied.
+
+Same 2025-03-29 -> 2026-03-28 OOS year:
+- no risk gate: +41.6% median, ~62.2% max DD
+- SMA100 gate: +63.5% median, ~27.0% max DD
+- SMA200 gate: +37.4% median, ~15.2% max DD
+- SMA300 gate: +42.7% median, ~15.2% max DD
+
+Sequential-window implication:
+- simple risk gates largely removed the two large negative stale-hold regimes;
+- SMA200 was the most balanced of the three tested candidates across the five sequential 180-day windows, but this is NOT a frozen rule;
+- high USDT occupancy is a material trade-off and requires further validation;
+- do not optimize to the best visible SMA result after the fact.
+
+Current conceptual stack:
+1. RELATIVE ROTATION GRAPH = WHERE inside crypto;
+2. ABSOLUTE RISK GATE = CRYPTO vs USDT;
+3. optional GRID/HOLD engine = HOW capital works while resident in the selected asset.
+
+Detailed evidence remains in:
+- `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
+
+Status: RESEARCH_ONLY / NOT_PRODUCTION_APPROVED / MANUAL_EXECUTION_REQUIRED
