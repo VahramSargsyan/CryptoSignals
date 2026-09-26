@@ -1,9 +1,7 @@
 name: Grid OSS Forward Candidate Smoke
 
 on:
-  push:
-    branches:
-      - smoke/grid-oss-forward-candidate-v1
+  workflow_dispatch:
 
 permissions:
   contents: read
