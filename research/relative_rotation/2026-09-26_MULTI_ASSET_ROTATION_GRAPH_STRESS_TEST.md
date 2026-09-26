@@ -391,8 +391,9 @@ Method:
 
 Interpretation:
 - the router is not regime-independent;
-- 3 of 5 sequential 180-day windows were positive;
-- 2 of 5 were strongly negative;
+- 2 of 5 sequential 180-day windows were strongly positive (+374.2% and +138.3%);
+- 1 of 5 was moderately positive (+20.1%);
+- 2 of 5 were strongly negative (-29.2% and -44.9%);
 - the network beat the equal-weight benchmark in 3 of 5 windows;
 - the strongest early window did not beat the best single HODL because PEPE itself rose about +532% over that window;
 - the strategy therefore must not be described as an always-positive bear-market engine.
@@ -475,7 +476,7 @@ Period: 2025-03-29 -> 2026-03-28
 
 | Variant | Median return | Median max DD | Median time in USDT |
 |---|---:|---:|---:|
-| No risk gate | +41.6% | -62.2% | 0% |
+| No risk gate | +41.6% | -62.2% | 0% (baseline remains continuously invested in crypto tokens) |
 | 100d SMA gate | +63.5% | -27.0% | 79.5% |
 | 200d SMA gate | +37.4% | -15.2% | 94.2% |
 | 300d SMA gate | +42.7% | -15.2% | 92.9% |
@@ -509,7 +510,7 @@ Interpretation:
 3. SMA200 was the most balanced of these three simple candidates across the five sequential 180-day windows: it avoided the large negative median windows while retaining substantial participation in the first bull window.
 4. SMA300 was too slow in the earliest strong regime and missed much of the upside there.
 5. None of these candidates is frozen. The test was performed after observing the stale-hold failure mode, so further independent validation is required.
-6. High USDT occupancy is a material behavioral change and must be evaluated against the owner's actual goal of keeping capital productively deployed.
+6. High USDT occupancy is a material behavioral change introduced only by the experimental RISK_OFF gate. The baseline relative-rotation strategy itself remains continuously invested in crypto tokens; it does not sit in USDT between relative transitions.
 7. No USDT lending/yield was credited, so cash periods were modeled conservatively at 0% yield.
 
 Current research implication:
