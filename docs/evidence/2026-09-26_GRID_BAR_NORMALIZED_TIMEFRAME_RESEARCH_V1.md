@@ -503,3 +503,45 @@ A more plausible future invariant is some combination of:
 - market path / recovery structure.
 
 Do **not** tune K, exits, level count or lookback after seeing this pass. Any cost-normalized or time-normalized variant must be preregistered as a new hypothesis.
+
+
+## Dual-timeframe capital / H4 exit-assist test — 2026-09-26
+
+Common period: 2024-09-20 through 2026-03-21. Assets: BTC, ETH, SOL, BNB, LINK. D1 and H4 both use frozen WIDE +6/+18, p=1, refresh=30 bars, 100% positive-profit reinvestment.
+
+### Independent capital books
+
+Each timeframe had its own H/L, 64 sublevels, positions, exits and reinvestment ledger. Tested total-capital splits:
+
+| D1 / H4 | Geometric return | Median DD |
+| --- | ---: | ---: |
+| 100 / 0 | **+19.67%** | **28.37%** |
+| 75 / 25 | +16.36% | 31.95% |
+| 50 / 50 | +12.97% | 35.43% |
+| 25 / 75 | +9.53% | 39.37% |
+| 0 / 100 | +6.01% | 40.58% |
+
+A fixed D1/H4 capital split did not beat pure D1 on this sample.
+
+### D1 entries + H4-derived exits
+
+D1 remained responsible for entries and position sizing. At entry, only the most recent completed H4 grid state was used. H4 sublevel spacing set the frozen exit distance: Micro = +6 H4 substeps; Mid recovery = +18 H4 substeps where recovery logic applies. Existing Mid percent targets remained.
+
+| Asset | D1 canonical | D1 + H4 exit | DD canonical | DD H4 exit |
+| --- | ---: | ---: | ---: | ---: |
+| BTC | +0.43% | **+0.81%** | 9.85% | **9.63%** |
+| ETH | **+25.30%** | +19.57% | 28.37% | **27.66%** |
+| SOL | **+6.67%** | +4.05% | 34.05% | **30.83%** |
+| BNB | -0.09% | **+0.28%** | 15.99% | **15.52%** |
+| LINK | **+83.03%** | +67.95% | 41.23% | **37.83%** |
+
+Aggregate:
+
+- D1 canonical: **+19.67%** geometric / **28.37%** median DD / 932 exits
+- D1 + H4 exit: **+16.13%** / **27.66%** / 2227 exits
+
+Interpretation: H4 exit assistance behaved as an earlier-profit / risk-reduction layer. It reduced drawdown on all five assets but increased turnover heavily and reduced aggregate return.
+
+Decision: no canonical or paper-live change. Preserve H4 exit-assist as a future risk-control candidate only.
+
+Duplicate-work guard: fixed 75/25, 50/50, 25/75 D1/H4 capital splits and entry-time-frozen H4 +6/+18 exit spacing are already tested.
