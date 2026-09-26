@@ -428,3 +428,40 @@ Next signal step:
 - identify whether PEPE is currently expensive/cheap relative to each target;
 - determine ARMED / EXTREME_TRACKING / REVERSAL_CONFIRMING / ROTATION_CONFIRMED;
 - notify only as research signal; manual execution remains required.
+
+
+---
+
+## 12. PEPE live-direction pre-screen — 2026-09-26
+
+STATUS: PREWATCH_RESEARCH_ONLY
+NOT_A_CONFIRMED_ROTATION_SIGNAL
+
+Purpose:
+Use the last common verified historical endpoint (2026-03-28) and recent public 2026-09-25 closes to identify which shortlist targets moved in the direction that could justify a full 180d signal reconstruction.
+
+Reference PEPE:
+- 2026-03-28 close: 0.00000335
+- recent 2026-09-25 close used for screen: ~0.000004421
+- PEPE change: ~+31.97%
+
+Target relative changes from 2026-03-28 to recent 2026-09-25:
+- PEPE/TRX ratio: **+23.20%** → TRX became materially cheaper relative to PEPE over this coarse six-month comparison.
+- PEPE/BNB ratio: **+4.68%** → BNB became only slightly cheaper relative to PEPE.
+- PEPE/SOL ratio: **-6.12%** → PEPE became cheaper relative to SOL.
+- PEPE/AAVE ratio: **-11.56%** → PEPE became cheaper relative to AAVE.
+- PEPE/LINK ratio: **-13.98%** → PEPE became cheaper relative to LINK.
+
+Interpretation:
+- **PEPE/TRX is the first live-signal reconstruction priority.**
+- This does NOT prove the 15% ARM condition because the production rule is measured against the rolling 180d median, not against the 2026-03-28 endpoint.
+- BNB remains a strong historical pair but is not close enough on this coarse directional screen to infer an ARM condition.
+- SOL/AAVE/LINK currently moved in the opposite relative direction for a PEPE→target rotation under this coarse screen.
+
+Required before any real PEPE rotation:
+1. reconstruct a consistent daily Apr–Sep 2026 PEPE/TRX series;
+2. calculate the exact 180d rolling median;
+3. find first >=15% PEPE-relative-rich ARM event, if any;
+4. track post-ARM extreme;
+5. verify >=3% reversal from that extreme;
+6. only then mark ROTATION_CONFIRMED.
