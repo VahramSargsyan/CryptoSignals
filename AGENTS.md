@@ -63,3 +63,10 @@ Already tested: p=0..3 depth powers, p=0.25/0.5/0.75 compromises, Micro/Mid spli
 For future comparisons of `VAHRAM_LINK_LEVEL_GRID_V1` against common external strategies, read `docs/evidence/2026-09-26_LINK_GRID_KNOWN_STRATEGY_BENCHMARK_V1.md` first.
 
 Already benchmarked on the corrected five-asset development sample: Buy & Hold, monthly DCA, SMA200 trend, SMA50/200 trend, 12-month momentum, Donchian 20/10, Bollinger 20,2 mean reversion, and RSI14 30/70 mean reversion. Do not claim clean superiority because WIDE was previously researched on the same sample.
+
+
+## LINK grid unseen top-10 XRP/TRX validation memory
+
+For claims about cross-asset generalization of `VAHRAM_LINK_LEVEL_GRID_V1`, read `docs/evidence/2026-09-26_GRID_UNSEEN_TOP10_XRP_TRX_VALIDATION_V1.md`.
+
+XRP and TRX were tested without parameter tuning. WIDE remained profitable and beat BASE on both, but Buy & Hold beat WIDE on both. Treat this as cross-asset sanity evidence, not proof of universal superiority or clean future OOS.
