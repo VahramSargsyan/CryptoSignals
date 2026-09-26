@@ -49,3 +49,10 @@ Already tested families include ATR/BBW/realized-volatility selectors, +3/+12 vs
 For new proposals involving funding, Fear & Greed, market breadth, stablecoin liquidity, open interest, or liquidations for `VAHRAM_LINK_LEVEL_GRID_V1`, read `docs/evidence/2026-09-26_LINK_GRID_EXTERNAL_CROWD_CONTEXT_RESEARCH_V1.md` first.
 
 Funding, Fear & Greed, and a breadth/stablecoin context have already been backtested as +3/+12 / +6/+18 / +9/+24 exit selectors. Open interest and liquidations were **not** given performance results because equal trustworthy history was not materialized in that pass. Do not silently substitute proxies or repeat thresholds without a materially new hypothesis/data boundary.
+
+
+## LINK grid capital / H-L range research memory
+
+For new proposals involving capital-depth allocation, Micro/Mid capital split, or changing the H/L lookback for `VAHRAM_LINK_LEVEL_GRID_V1`, read `docs/evidence/2026-09-26_LINK_GRID_CAPITAL_RANGE_LOOKBACK_RESEARCH_V1.md` first.
+
+Already tested: p=0..3 depth powers, p=0.25/0.5/0.75 compromises, Micro/Mid splits, H/L windows from 0.5y through 3y on the full 3-year evaluation, refined 2.25–2.9y windows, plus diagnostic 4y/5y shorter-window comparisons. Do not promote a full-period maximum without checking recent-window drawdown and stability.
