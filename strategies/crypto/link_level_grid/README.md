@@ -247,3 +247,15 @@ On the development sample, WIDE (+6/+18) produced +253.03% five-asset geometric 
 Important: this is **development-sample benchmarking**, not clean OOS proof; WIDE and other grid parameters were already studied on these same assets/history.
 
 Evidence: `docs/evidence/2026-09-26_LINK_GRID_KNOWN_STRATEGY_BENCHMARK_V1.md`.
+
+
+## Unseen top-10 cross-asset check — XRP / TRX — 2026-09-26
+
+Two additional large-cap assets, XRP and TRX, were tested with frozen WIDE parameters and no symbol-specific tuning. On the common 2023-09-25 through 2026-01-05 window:
+
+- XRP WIDE: +196.29%, DD 32.45%; BASE +171.45%; Buy & Hold +366.52%;
+- TRX WIDE: +43.82%, DD 8.79%; BASE +35.99%; Buy & Hold +248.69%.
+
+WIDE beat BASE on both new assets, reducing concern that the +6/+18 improvement exists only in the original five-asset set. However, Buy & Hold remained much stronger on both, so this is **generalization evidence for the grid mechanism**, not universal return superiority.
+
+Evidence: `docs/evidence/2026-09-26_GRID_UNSEEN_TOP10_XRP_TRX_VALIDATION_V1.md`.
