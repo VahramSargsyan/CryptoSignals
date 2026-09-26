@@ -56,3 +56,10 @@ Funding, Fear & Greed, and a breadth/stablecoin context have already been backte
 For new proposals involving capital-depth allocation, Micro/Mid capital split, or changing the H/L lookback for `VAHRAM_LINK_LEVEL_GRID_V1`, read `docs/evidence/2026-09-26_LINK_GRID_CAPITAL_RANGE_LOOKBACK_RESEARCH_V1.md` first.
 
 Already tested: p=0..3 depth powers, p=0.25/0.5/0.75 compromises, Micro/Mid splits, H/L windows from 0.5y through 3y on the full 3-year evaluation, refined 2.25–2.9y windows, plus diagnostic 4y/5y shorter-window comparisons. Do not promote a full-period maximum without checking recent-window drawdown and stability.
+
+
+## LINK grid known-strategy benchmark memory
+
+For future comparisons of `VAHRAM_LINK_LEVEL_GRID_V1` against common external strategies, read `docs/evidence/2026-09-26_LINK_GRID_KNOWN_STRATEGY_BENCHMARK_V1.md` first.
+
+Already benchmarked on the corrected five-asset development sample: Buy & Hold, monthly DCA, SMA200 trend, SMA50/200 trend, 12-month momentum, Donchian 20/10, Bollinger 20,2 mean reversion, and RSI14 30/70 mean reversion. Do not claim clean superiority because WIDE was previously researched on the same sample.
