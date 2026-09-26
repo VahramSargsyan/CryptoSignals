@@ -335,3 +335,29 @@ STATUS: PROMISING_RESEARCH / NOT_PRODUCTION_APPROVED
 The multi-asset graph passed an important first OOS stress test and showed a real dynamically generated token cycle. It also showed severe router sensitivity, parameter sensitivity and a large drawdown.
 
 TEST_LEVEL: HISTORICAL_GRAPH_STRESS_TEST + 1Y_OOS + SAME_WINDOW_GRID_REPRODUCTION
+
+
+## 17. Weighted TOP-1 / TOP-2 conflict split
+
+Follow-up stress test completed after the first graph report.
+
+Rule:
+- if only one outbound transition is confirmed, rotate 100% to it;
+- only at a true multi-signal conflict, split between the best two candidates ranked by the causal pair-specific percentile / relative extreme ordering.
+
+Same OOS period: 2025-03-29 -> 2026-03-28.
+
+| TOP-1 / TOP-2 conflict weight | Median OOS return | Worst start return | Approx median max DD |
+|---|---:|---:|---:|
+| 100 / 0 | +41.6% | +3.4% | -62.2% |
+| 80 / 20 | +37.9% | +0.3% | -63.3% |
+| 70 / 30 | +35.9% | -1.3% | -63.9% |
+| 60 / 40 | +33.8% | -2.9% | -64.5% |
+| 50 / 50 | +31.7% | -4.6% | -65.2% |
+
+Interpretation:
+- every additional allocation to TOP-2 reduced the median return in this OOS year;
+- diversification toward TOP-2 did not improve drawdown and instead made it slightly worse;
+- 80/20 preserved much of the return but still failed to provide a risk benefit in this sample;
+- therefore TOP-2 splitting is not justified as a drawdown-control mechanism by this test alone;
+- keep weighted splits as robustness evidence, not as a production rule.
