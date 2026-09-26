@@ -358,3 +358,73 @@ PEPE relative-rotation search:
 4. select robust candidate pairs;
 5. only then calculate current live signal using a consistent daily data source through 2026-09-26;
 6. no real conversion without manual approval.
+
+
+---
+
+## 11. PEPE pair scan — preliminary historical screen
+
+RUN_DATE: 2026-09-26
+STATUS: PRELIMINARY_CANDIDATE_SCREEN
+TEST_LEVEL: HISTORICAL_ROLLING_1Y_WINDOWS
+DATA_COVERAGE: PEPE common history begins 2023-05-05 and current dataset ends 2026-03-28
+
+Reference engine:
+- 180d rolling median
+- ARM 15%
+- reversal confirmation 3%
+- next-open execution
+- 0.1% swap cost
+- tested from both starting assets
+- 1-year rolling windows shifted by ~60 days
+
+Important limitation:
+PEPE has a much shorter history than ATOM/TWT. The windows overlap and are not independent. These results are candidate-screening evidence only, not production approval.
+
+### Strongest historical candidates from the tested liquid universe
+
+| Pair | Median excess vs 50/50 | Windows beating 50/50 | Median excess vs best HODL | Median switches/year |
+|---|---:|---:|---:|---:|
+| PEPE/BNB | +81.2% | 83.3% | +34.7% | 5 |
+| PEPE/SOL | +77.0% | 77.8% | +63.3% | 4 |
+| PEPE/TRX | +76.8% | 72.2% | +37.6% | 6 |
+| PEPE/AAVE | +61.4% | 66.7% | +34.1% | 4 |
+| PEPE/LINK | +55.9% | 66.7% | +23.4% | 2.5 |
+
+Secondary / weaker:
+- PEPE/TWT
+- PEPE/AVAX
+- PEPE/FIL
+- PEPE/ATOM
+- PEPE/ETH
+
+Rejected in this first screen due weak/negative stability:
+- PEPE/ALGO
+- PEPE/ADA
+- PEPE/XRP
+- PEPE/HBAR
+
+### Current research shortlist
+CANDIDATE_ONLY:
+1. PEPE/BNB
+2. PEPE/SOL
+3. PEPE/TRX
+4. PEPE/AAVE
+5. PEPE/LINK
+
+No pair is yet marked ELIGIBLE_FOR_REAL_ROTATION.
+
+### Live signal status
+CURRENT_LIVE_SIGNAL: NOT_YET_VERIFIED
+
+Reason:
+- the consistent GitHub daily dataset ends 2026-03-28;
+- an exact 180d median + post-ARM extreme + 3% retrace signal for 2026-09-26 requires a consistent daily series through today;
+- partial public web history is not sufficient to reconstruct the full signal without mixing incompatible data sources.
+
+Next signal step:
+- source Apr–Sep 2026 daily prices for PEPE and the shortlist from one consistent provider;
+- recompute pair-specific 180d median;
+- identify whether PEPE is currently expensive/cheap relative to each target;
+- determine ARMED / EXTREME_TRACKING / REVERSAL_CONFIRMING / ROTATION_CONFIRMED;
+- notify only as research signal; manual execution remains required.
