@@ -103,3 +103,8 @@ Already tested preliminarily: H1 on BTC/ETH/BNB; BTC 15m/5m/1m mechanics/cost sm
 ### Expanded timeframe evidence — 2026-09-26
 
 The bar-normalized timeframe log now includes stronger coverage: full five-asset 4H, full five-asset 15m, and longer BTC 5m/1m boundary probes. The strongest conclusion remains that 1095 bars are **not** scale-invariant. D1 materially beat 4H on the same calendar period; 5m is cost-sensitive; 1m WIDE Micro spacing falls below modeled round-trip friction. Read the evidence log before proposing lower-timeframe tuning.
+
+
+### Dual-timeframe research memory
+
+The timeframe evidence now also covers independent D1/H4 capital books (75/25, 50/50, 25/75) and D1 entries with entry-time-frozen H4-derived +6/+18 exit spacing. Neither improved the canonical D1 return profile; H4 exit assistance mainly reduced drawdown at the cost of higher turnover and lower return. Read the timeframe evidence before proposing the same variants.
