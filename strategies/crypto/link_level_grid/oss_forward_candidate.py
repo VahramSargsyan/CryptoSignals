@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from hashlib import sha256
 from dataclasses import dataclass
 from typing import Optional
 
@@ -117,6 +118,25 @@ def _weights() -> tuple[float, ...]:
     return tuple(level / denominator for level in range(1, MAIN_LEVELS + 1))
 
 
+def _make_run_id(
+    *,
+    dataset_id: str,
+    source_commit_sha: str,
+    evaluation_start: pd.Timestamp,
+    config: OssMidCandidateConfig,
+) -> str:
+    payload = repr(
+        (
+            "VAHRAM_LINK_LEVEL_GRID_OSS_FORWARD_CANDIDATE_V1",
+            dataset_id,
+            source_commit_sha,
+            evaluation_start.isoformat(),
+            config,
+        )
+    ).encode("utf-8")
+    return "RUN-OSS-" + sha256(payload).hexdigest()[:20]
+
+
 def build_atr_gated_hl_schedule(
     candles: pd.DataFrame,
     *,
@@ -216,6 +236,13 @@ def run_oss_mid_candidate(
     if schedule[first] is None:
         raise ValueError("No initial H/L range at evaluation_start")
 
+    run_id = _make_run_id(
+        dataset_id=dataset_id,
+        source_commit_sha=source_commit_sha,
+        evaluation_start=start,
+        config=cfg,
+    )
+
     fee_rate = cfg.fee_bps / 10_000.0
     slippage_rate = cfg.slippage_bps / 10_000.0
     weights = _weights()
@@ -255,6 +282,7 @@ def run_oss_mid_candidate(
                     cash[level] = proceeds
                     events.append(
                         {
+                            "run_id": run_id,
                             "timestamp": timestamp,
                             "event_type": "SELL",
                             "layer": "MID",
@@ -271,6 +299,7 @@ def run_oss_mid_candidate(
                     )
                     trades.append(
                         {
+                            "run_id": run_id,
                             "layer": "MID",
                             "slot_id": level,
                             "main_level": level,
@@ -301,6 +330,7 @@ def run_oss_mid_candidate(
                 lot["peak"] = float(candle["high"])
                 events.append(
                     {
+                        "run_id": run_id,
                         "timestamp": timestamp,
                         "event_type": "ARM_EXIT",
                         "layer": "MID",
@@ -352,6 +382,7 @@ def run_oss_mid_candidate(
                 cash[level] = 0.0
                 events.append(
                     {
+                        "run_id": run_id,
                         "timestamp": timestamp,
                         "event_type": "BUY",
                         "layer": "MID",
@@ -393,6 +424,7 @@ def run_oss_mid_candidate(
     final_equity = float(equity_df.iloc[-1]["mid_equity"])
 
     summary = {
+        "run_id": run_id,
         "strategy_id": "VAHRAM_LINK_LEVEL_GRID_OSS_FORWARD_CANDIDATE_V1",
         "dataset_id": dataset_id,
         "source_commit_sha": source_commit_sha,
