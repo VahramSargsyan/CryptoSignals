@@ -219,3 +219,20 @@ Open interest and liquidation effects remain untested; no proxy result is report
 Decision: **INTERESTING EXTERNAL INFORMATION / NO PROMOTION**.
 
 Evidence: `docs/evidence/2026-09-26_LINK_GRID_EXTERNAL_CROWD_CONTEXT_RESEARCH_V1.md`.
+
+
+## Capital distribution / H-L lookback research — 2026-09-26
+
+A structural research pass varied grid-depth capital allocation and the trailing H/L window while keeping WIDE exits (+6/+18) fixed.
+
+Key findings:
+
+- equal capital by level (p=0) raised full-period five-asset geometric return to +281.59% versus +253.03% for p=1, but median drawdown increased to 46.31% versus 38.67% and the final annual reset window turned slightly negative;
+- p=1 with H/L around 2.25–2.9 years was consistently competitive with the 3-year baseline;
+- p=1 / 2.75y produced the best full-period p=1 result at +265.94% geometric return with 38.58% median DD, but did not show a year-by-year robustness edge;
+- 2.25–2.4y showed better annual-window stability;
+- 4y/5y H/L require longer raw history for a fair 3-year comparison and are not promoted from the shorter diagnostic windows.
+
+Decision: **TESTED / NOT PROMOTED**. Paper-live remains p=1 with 1095-candle H/L.
+
+Evidence: `docs/evidence/2026-09-26_LINK_GRID_CAPITAL_RANGE_LOOKBACK_RESEARCH_V1.md`.
