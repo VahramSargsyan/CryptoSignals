@@ -338,3 +338,10 @@ On the same 2024-09 to 2026-03 calendar period, D1 WIDE produced +19.32% five-as
 Decision remains: **do not change canonical D1 or paper-live**.
 
 Evidence: `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
+
+
+### D1/H4 capital and exit-assist test — 2026-09-26
+
+Fixed D1/H4 capital splits did not beat pure D1 on the common 2024-09-20 through 2026-03-21 period. D1 entries with H4-derived exit spacing reduced drawdown on all five assets but lowered aggregate geometric return from +19.67% to +16.13% and increased closed exits from 932 to 2227.
+
+Evidence: `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
