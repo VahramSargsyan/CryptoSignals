@@ -322,3 +322,19 @@ Key findings:
 Decision: Grid mechanics are not D1-only, but **1095 candles is not yet a universal scale-free invariant**. Calendar memory appears to matter.
 
 Evidence: `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
+
+
+### Expanded bar-normalized timeframe pass — 2026-09-26
+
+The timeframe evidence now includes:
+
+- 4H: all five canonical assets, 3285 post-warmup bars each;
+- 15m: all five canonical assets, 1785 post-warmup bars each;
+- 5m: longer BTC boundary probe;
+- 1m: longer BTC boundary probe.
+
+On the same 2024-09 to 2026-03 calendar period, D1 WIDE produced +19.32% five-asset geometric return with 28.25% median DD, versus +5.93% / 40.57% for BAR-NORMALIZED 4H. At 1m, average +6 Micro distance was ~0.246%, below the ~0.30% modeled round-trip friction.
+
+Decision remains: **do not change canonical D1 or paper-live**.
+
+Evidence: `docs/evidence/2026-09-26_GRID_BAR_NORMALIZED_TIMEFRAME_RESEARCH_V1.md`.
