@@ -115,3 +115,8 @@ The timeframe evidence now also covers independent D1/H4 capital books (75/25, 5
 Before proposing simplification of the two capital pools, read `docs/evidence/2026-09-26_GRID_MICRO_MID_REDUNDANCY_STRESS_TEST_V1.md`.
 
 Current evidence: Micro and Mid are independent engines with no nonlinear capital synergy. The canonical 20/80→80/20 scan shows a return/drawdown tradeoff rather than universal dominance; 50/50 is not a special optimum. Supplementary annual tests show the stronger layer can change by regime. Do not remove a layer without an exact canonical 100/0 vs 0/100 endpoint test or an explicitly different shared-wallet hypothesis.
+
+
+### Expanded Micro / Mid universe evidence
+
+The Micro/Mid redundancy log now includes a 15-asset common-window test. Across all 15, Micro-only had higher aggregate return (+170.91% vs +147.17%) but Mid used far fewer exits. On the Tier A quality/Grid subset (LINK/SOL/ETH/ADA/XLM), Micro and Mid were effectively tied (+244.93% vs +245.61%), Mid had slightly lower median DD, and Mid used 68.6% fewer exits. Read the evidence before proposing layer deletion.
