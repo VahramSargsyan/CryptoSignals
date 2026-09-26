@@ -70,3 +70,10 @@ Already benchmarked on the corrected five-asset development sample: Buy & Hold, 
 For claims about cross-asset generalization of `VAHRAM_LINK_LEVEL_GRID_V1`, read `docs/evidence/2026-09-26_GRID_UNSEEN_TOP10_XRP_TRX_VALIDATION_V1.md`.
 
 XRP and TRX were tested without parameter tuning. WIDE remained profitable and beat BASE on both, but Buy & Hold beat WIDE on both. Treat this as cross-asset sanity evidence, not proof of universal superiority or clean future OOS.
+
+
+## Volatile-asset stress-test memory
+
+Before asserting that `VAHRAM_LINK_LEVEL_GRID_V1` simply improves with higher volatility, read `docs/evidence/2026-09-26_GRID_VOLATILE_ASSET_STRESS_TEST_V1.md`.
+
+TWT, DOGE, AVAX and SHIB were tested on a common 2024-05-10 through 2026-03-28 window with canonical 1095-day H/L mechanics. The result refines the hypothesis: raw volatility alone is insufficient; repeated recovery / mean-reverting path structure appears more important. PEPE remains canonically untested because the pinned snapshot in that pass had only 1059 daily rows.
