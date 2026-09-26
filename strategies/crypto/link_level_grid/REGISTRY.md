@@ -572,3 +572,30 @@ Tier A quality/Grid candidates:
 No paper-live change.
 
 Evidence: `docs/evidence/2026-09-26_GRID_MICRO_MID_REDUNDANCY_STRESS_TEST_V1.md`.
+
+
+## OSS-derived forward candidate — 2026-09-26
+
+Status: **FROZEN FOR FORWARD PAPER / NOT PROMOTED**
+
+Profile:
+
+`MID_OSS_ATR50_TRAIL7`
+
+Historical development-sample origin:
+
+- source research: `docs/evidence/2026-09-26_GRID_OSS_MECHANISM_HARVEST_V1.md`;
+- MID baseline: +260.01% geometric / 40.60% median DD;
+- frozen candidate: ATR14 H/L regrid gate 50%, 60-candle cooldown, trailing exit 7%;
+- development-sample candidate: +278.03% geometric / 38.45% median DD;
+- historical candidate improved BTC, ETH, BNB and SOL, but reduced LINK return.
+
+Forward rule:
+
+- no further tuning of the 50% ATR gate or 7% exit retracement during this observation line;
+- paper start remains `2026-09-26T00:00:00Z`;
+- universe remains LINK/ETH/SOL/BNB/BTC;
+- normalized capital remains 2000 per symbol;
+- candidate runs beside `MID_ONLY_WIDE`, not instead of it.
+
+Canonical `VAHRAM_LINK_LEVEL_GRID_V1` status remains `BACKTESTED`. No real-money authorization is created by this candidate.
