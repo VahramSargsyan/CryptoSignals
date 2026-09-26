@@ -26,10 +26,22 @@ PROFILES = {
     "CONTROL_BASE": {
         "micro_exit_sublevels": 1,
         "mid_recovery_sublevels": 10,
+        "layer": "BOTH",
     },
     "CANDIDATE_WIDE": {
         "micro_exit_sublevels": 6,
         "mid_recovery_sublevels": 18,
+        "layer": "BOTH",
+    },
+    "MICRO_ONLY_WIDE": {
+        "micro_exit_sublevels": 6,
+        "mid_recovery_sublevels": 18,
+        "layer": "MICRO",
+    },
+    "MID_ONLY_WIDE": {
+        "micro_exit_sublevels": 6,
+        "mid_recovery_sublevels": 18,
+        "layer": "MID",
     },
 }
 
@@ -76,6 +88,85 @@ def _money(value: float) -> str:
 def _safe_concat(frames: Iterable[pd.DataFrame]) -> pd.DataFrame:
     usable = [frame for frame in frames if frame is not None and not frame.empty]
     return pd.concat(usable, ignore_index=True) if usable else pd.DataFrame()
+
+
+def _profile_layer(profile: str) -> str:
+    return str(PROFILES[profile]["layer"])
+
+
+def _scale_single_layer_frame(profile: str, frame: pd.DataFrame) -> pd.DataFrame:
+    """Project one independent layer to the same 2,000-unit normalized capital."""
+    if frame.empty:
+        return frame.copy()
+
+    layer = _profile_layer(profile)
+    if layer == "BOTH":
+        return frame.copy()
+
+    scoped = frame[frame["layer"] == layer].copy()
+    for column in (
+        "units",
+        "cash_value",
+        "invested_cash",
+        "proceeds",
+        "runner_units",
+        "realized_profit",
+        "reinvested_profit",
+        "reserved_profit",
+        "next_slot_cash",
+    ):
+        if column in scoped.columns:
+            scoped[column] = scoped[column].astype(float) * 2.0
+    return scoped
+
+
+def _single_layer_max_drawdown(
+    equity_curve: pd.DataFrame,
+    *,
+    column: str,
+    initial_capital: float,
+) -> float:
+    peak = float(initial_capital)
+    max_drawdown = 0.0
+    for value in equity_curve[column].astype(float):
+        peak = max(peak, float(value))
+        drawdown = 1.0 - (float(value) / peak)
+        max_drawdown = max(max_drawdown, drawdown)
+    return max_drawdown
+
+
+def _profile_metrics(profile: str, result) -> dict:
+    layer = _profile_layer(profile)
+    summary = result.summary
+    if layer == "BOTH":
+        return {
+            "equity": float(summary["total_final_equity"]),
+            "return": float(summary["total_return"]),
+            "max_drawdown": float(summary["max_drawdown"]),
+            "open_micro_lots": int(summary["open_micro_lots_end"]),
+            "open_mid_lots": int(summary["open_mid_lots_end"]),
+            "closed_trade_count": int(summary["closed_trade_count"]),
+        }
+
+    prefix = layer.lower()
+    layer_initial = float(summary[f"{prefix}_initial_capital"])
+    layer_equity = float(summary[f"{prefix}_final_equity"])
+    layer_trades = result.trades
+    if not layer_trades.empty:
+        layer_trades = layer_trades[layer_trades["layer"] == layer]
+
+    return {
+        "equity": layer_equity * 2.0,
+        "return": float(summary[f"{prefix}_total_return"]),
+        "max_drawdown": _single_layer_max_drawdown(
+            result.equity_curve,
+            column=f"{prefix}_equity",
+            initial_capital=layer_initial,
+        ),
+        "open_micro_lots": int(summary["open_micro_lots_end"]) if layer == "MICRO" else 0,
+        "open_mid_lots": int(summary["open_mid_lots_end"]) if layer == "MID" else 0,
+        "closed_trade_count": len(layer_trades),
+    }
 
 
 def _config(profile: str) -> GridBacktestConfig:
@@ -199,11 +290,29 @@ def _notification_text(payload: dict) -> str:
         f"Closed candle: {latest}",
         f"Paper days: {payload['completed_paper_candles']}",
     ]
-    for row in payload.get("portfolio", []):
-        lines.append(
-            f"{row['profile']}: {_pct(row['return'])}, "
-            f"BUY {row['today_buys']}, SELL {row['today_sells']}"
-        )
+
+    active_rows = [
+        row for row in payload.get("rows", [])
+        if int(row.get("today_events", 0)) > 0
+    ]
+    if active_rows:
+        lines.append("Signals:")
+        for row in active_rows:
+            lines.append(
+                f"{row['profile']} {row['symbol']}: "
+                f"BUY {row['today_buys']}, SELL {row['today_sells']}"
+            )
+
+    active_profiles = {row["profile"] for row in active_rows}
+    if active_profiles or payload.get("milestone"):
+        lines.append("Profile snapshot:")
+        for row in payload.get("portfolio", []):
+            if payload.get("milestone") or row["profile"] in active_profiles:
+                lines.append(
+                    f"{row['profile']}: {_pct(row['return'])}, "
+                    f"BUY {row['today_buys']}, SELL {row['today_sells']}"
+                )
+
     if payload.get("milestone"):
         lines.append(f"Milestone: {payload['milestone']}")
     lines.append("PAPER ONLY — no real orders.")
@@ -214,7 +323,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Forward paper replay for the level-grid strategy.")
     parser.add_argument("--symbols", default=",".join(DEFAULT_SYMBOLS))
     parser.add_argument("--paper-start", default=DEFAULT_PAPER_START)
-    parser.add_argument("--profiles", default="CONTROL_BASE,CANDIDATE_WIDE")
+    parser.add_argument("--profiles", default=",".join(PROFILES))
     parser.add_argument("--cutoff")
     parser.add_argument(
         "--output-root",
@@ -292,16 +401,26 @@ def main(argv: list[str] | None = None) -> int:
                 )
             continue
 
+        result_cache: dict[tuple[int, int], object] = {}
         for profile in profiles:
-            result = run_grid_backtest(
-                candles,
-                dataset_id=download.dataset.dataset_id,
-                source_commit_sha=source_commit_sha,
-                config=_config(profile),
-                evaluation_start=paper_start,
+            params = PROFILES[profile]
+            cache_key = (
+                int(params["micro_exit_sublevels"]),
+                int(params["mid_recovery_sublevels"]),
             )
+            if cache_key not in result_cache:
+                result_cache[cache_key] = run_grid_backtest(
+                    candles,
+                    dataset_id=download.dataset.dataset_id,
+                    source_commit_sha=source_commit_sha,
+                    config=_config(profile),
+                    evaluation_start=paper_start,
+                )
+            result = result_cache[cache_key]
+            metrics = _profile_metrics(profile, result)
             latest_eval = pd.Timestamp(result.equity_curve.iloc[-1]["timestamp"])
-            events = result.events.copy()
+
+            events = _scale_single_layer_frame(profile, result.events)
             if not events.empty:
                 events["timestamp"] = pd.to_datetime(events["timestamp"], utc=True)
                 events.insert(0, "profile", profile)
@@ -314,26 +433,20 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 buys = sells = today_count = 0
 
-            trades = result.trades.copy()
+            trades = _scale_single_layer_frame(profile, result.trades)
             if not trades.empty:
                 trades.insert(0, "profile", profile)
                 trades.insert(1, "symbol", symbol)
                 trade_frames.append(trades)
 
-            summary = result.summary
             rows.append(
                 {
                     "profile": profile,
                     "symbol": symbol,
-                    "equity": float(summary["total_final_equity"]),
-                    "return": float(summary["total_return"]),
-                    "max_drawdown": float(summary["max_drawdown"]),
-                    "open_micro_lots": int(summary["open_micro_lots_end"]),
-                    "open_mid_lots": int(summary["open_mid_lots_end"]),
+                    **metrics,
                     "today_events": today_count,
                     "today_buys": buys,
                     "today_sells": sells,
-                    "closed_trade_count": int(summary["closed_trade_count"]),
                 }
             )
 
@@ -390,6 +503,8 @@ def main(argv: list[str] | None = None) -> int:
             "slippage_bps": 5.0,
             "profit_reinvest_fraction": 1.0,
             "runner_fraction": 0.0,
+            "single_layer_profiles_normalized_total_capital": 2000.0,
+            "single_layer_projection_uses_independent_engine": True,
             "real_orders": False,
         },
     }
