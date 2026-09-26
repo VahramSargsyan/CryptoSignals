@@ -412,3 +412,29 @@ Recorded observations:
 No canonical strategy or paper-live profile changed.
 
 Evidence: `docs/evidence/2026-09-26_LINK_GRID_CAPITAL_RANGE_LOOKBACK_RESEARCH_V1.md`.
+
+
+## Known-strategy benchmark — 2026-09-26
+
+Status: **BENCHMARKED / DEVELOPMENT SAMPLE / NOT PROMOTED**
+
+Standing external benchmark set:
+
+- Buy & Hold
+- monthly DCA
+- SMA200 trend
+- SMA50/200 trend
+- 12-month momentum
+- Donchian 20/10
+- Bollinger 20,2 mean reversion
+- RSI14 30/70 mean reversion
+
+Key aggregate development-sample result:
+
+- WIDE +6/+18: +253.03% geometric, 38.67% median DD
+- Buy & Hold: +196.94%, 67.55%
+- SMA200 trend: +147.05%, 53.60%
+
+WIDE beat Buy & Hold on LINK, ETH and SOL, while Buy & Hold remained stronger on BNB and BTC. No clean OOS superiority claim is made.
+
+Evidence: `docs/evidence/2026-09-26_LINK_GRID_KNOWN_STRATEGY_BENCHMARK_V1.md`.
