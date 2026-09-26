@@ -288,3 +288,218 @@ Still frozen:
 - 1095 **daily** H/L bars
 
 No result here authorizes live-money execution.
+
+
+---
+
+# Expanded Pass 2 — five-asset 4H / 15m and stronger cost-boundary probes
+
+This section was added after the first partial pass. It **does not erase** the earlier smoke tests; it strengthens the evidence where better source coverage became available.
+
+Where an earlier single-asset or two-asset smoke test overlaps this section, use **Expanded Pass 2** for the stronger conclusion because it has either broader asset coverage or more post-warmup bars.
+
+## Expanded 4H — all five canonical assets
+
+Source:
+
+- public Binance-labelled OHLCV snapshot from `SandPearlStone/trading-bot`
+- 4380 continuous 4H candles per asset
+- BTC / ETH / SOL / BNB / LINK
+- source start: 2024-03-21
+- 1095-bar warmup
+- evaluation start: **2024-09-19 20:00 UTC**
+- evaluation end: **2026-03-21 04:00 UTC**
+- evaluation bars: **3285 per asset**
+
+Frozen Grid rules were unchanged.
+
+| Asset | WIDE | BASE | Buy & Hold | WIDE DD | Closed exits |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| BTC | -18.72% | -20.63% | +11.56% | 40.57% | 466 |
+| ETH | **+12.42%** | +6.73% | -12.61% | 45.86% | 411 |
+| SOL | -12.47% | -11.91% | -37.09% | 51.42% | 428 |
+| BNB | **+5.70%** | +2.01% | +13.36% | 35.99% | 622 |
+| LINK | **+57.77%** | +48.46% | -18.92% | 39.35% | 424 |
+
+Aggregate:
+
+- WIDE geometric return: **+5.93%**
+- BASE: **+2.48%**
+- Buy & Hold: **-10.83%**
+- WIDE median DD: **40.57%**
+- BASE median DD: **40.18%**
+- Buy & Hold median DD: **65.12%**
+- WIDE beat BASE: **4/5**
+- WIDE beat Buy & Hold: **3/5**
+
+This confirms that the Grid mechanism survives 4H across a full five-asset set, but does not remain universally profitable per asset.
+
+## Same-calendar D1 control for the expanded 4H window
+
+The canonical corrected D1 datasets were restarted with fresh normalized capital on:
+
+- **2024-09-20 through 2026-03-21**
+- D1 H/L memory remained 1095 daily bars (~3 years)
+
+D1 WIDE:
+
+| Asset | D1 WIDE | D1 BASE | Buy & Hold |
+| --- | ---: | ---: | ---: |
+| LINK | +87.57% | +77.86% | -21.52% |
+| ETH | +24.85% | +21.26% | -15.64% |
+| SOL | +4.54% | +1.89% | -38.87% |
+| BNB | -0.66% | -0.43% | +10.98% |
+| BTC | -0.54% | -0.45% | +9.21% |
+
+Aggregate:
+
+- D1 WIDE geometric return: **+19.32%**
+- D1 BASE: **+16.85%**
+- Buy & Hold: **-13.28%**
+- D1 WIDE median DD: **28.25%**
+- 4H WIDE median DD: **40.57%**
+
+This is the strongest direct evidence in the pass:
+
+> On the same market period, **D1 materially outperformed BAR-NORMALIZED 4H and did so with lower drawdown.**
+
+Therefore the canonical long calendar memory appears to be part of the edge.
+
+## Expanded 15m — all five canonical assets
+
+Source:
+
+- public historical OHLCV snapshot from `lauriszapata/PERRIS`
+- 2880 15m candles per asset
+- warmup: 1095 bars
+- evaluation: **2025-11-05 21:15 through 2025-11-24 11:15**
+- evaluation bars: **1785 per asset**
+
+This was a strongly falling short sample.
+
+| Asset | WIDE | BASE | Buy & Hold | WIDE DD |
+| --- | ---: | ---: | ---: | ---: |
+| BTC | -14.31% | -14.52% | -17.05% | 21.63% |
+| ETH | -11.46% | **-9.10%** | -18.72% | 20.16% |
+| SOL | -16.07% | **-15.57%** | -20.30% | 24.26% |
+| BNB | -6.41% | **-5.81%** | -11.89% | 15.19% |
+| LINK | -10.14% | **-7.90%** | -18.11% | 21.22% |
+
+Aggregate:
+
+- WIDE geometric return: **-11.74%**
+- BASE: **-10.66%**
+- Buy & Hold: **-17.26%**
+- WIDE median DD: **21.22%**
+- BASE median DD: **18.57%**
+- Buy & Hold median DD: **27.56%**
+- WIDE beat Buy & Hold: **5/5**
+- WIDE beat BASE: **1/5**
+
+Interpretation:
+
+- Grid materially reduced the loss versus passive holding on every asset;
+- fixed WIDE +6/+18 was generally too slow for this short-memory falling regime;
+- BAR-normalized lower timeframe does not preserve the D1 WIDE advantage.
+
+## Stronger 5m BTC boundary probe
+
+Source:
+
+- public BTC 5m OHLCV snapshot from `Cilipep/AI-agent-with-TsLab`
+- 5184 bars
+- 1095-bar warmup
+- evaluation: **2026-06-27 09:15 through 2026-07-11 13:55**
+- 4089 evaluation bars (~14.2 days)
+
+Results:
+
+- WIDE: **+3.54%**
+- BASE: **+0.68%**
+- Buy & Hold: **+6.14%**
+- WIDE DD: **2.67%**
+- BASE DD: 2.82%
+- Buy & Hold DD: 4.53%
+
+Average sublevel:
+
+- ~0.0933%
+
+Approx target distances:
+
+- WIDE Micro +6: **~0.560%**
+- WIDE Mid +18: **~1.679%**
+- BASE Micro +1: ~0.093%
+
+Target / rough 0.30% round-trip friction:
+
+- WIDE Micro: **1.87x**
+- WIDE Mid: 5.60x
+- BASE Micro: **0.31x**
+
+This strengthens the prior conclusion that **5m is cost-sensitive but not yet structurally dead** for WIDE.
+
+## Stronger 1m BTC boundary probe
+
+Source:
+
+- public BTC 1m OHLCV snapshot from `FLOX-Foundation/flox`
+- 3000 bars
+- 1095-bar warmup
+- evaluation: **2026-04-20 08:11 through 2026-04-21 15:55**
+- 1905 evaluation bars (~31.8 hours)
+
+Results:
+
+- WIDE: **+0.0008%** (effectively flat)
+- BASE: **-1.11%**
+- Buy & Hold: **+0.89%**
+- WIDE DD: 0.67%
+- BASE DD: 1.25%
+- Buy & Hold DD: 1.67%
+- WIDE closed exits: 337
+- BASE closed exits: 1010
+
+Average sublevel:
+
+- ~0.0409%
+
+Approx target distances:
+
+- WIDE Micro +6: **~0.246%**
+- WIDE Mid +18: ~0.737%
+- BASE Micro +1: ~0.041%
+
+Target / rough 0.30% round-trip friction:
+
+- WIDE Micro: **0.82x**
+- WIDE Mid: 2.46x
+- BASE Micro: **0.14x**
+
+This is stronger than the original 346-bar smoke test and confirms the structural conclusion:
+
+> With the current fee/slippage model, a 1095-bar / 64-level / +6 Micro Grid on 1m compresses the average Micro target **below modeled round-trip friction**.
+
+The strategy may still mark-to-market near flat because not all capital is continuously cycling, but this is not a credible fixed-parameter production architecture.
+
+## Expanded-pass conclusion
+
+The stronger evidence supports this hierarchy:
+
+- **D1: confirmed canonical leader**
+- **4H: meaningful research candidate; Grid mechanism survives but is weaker than D1 on the same period**
+- **1H: mechanically promising from partial 3-asset evidence**
+- **15m: regime-sensitive; Grid can reduce losses, but WIDE no longer dominates BASE**
+- **5m: cost-sensitive boundary**
+- **1m: fixed +6 Micro geometry is structurally below modeled round-trip cost**
+
+The important invariant is therefore **not timeframe name and not bar count alone**.
+
+A more plausible future invariant is some combination of:
+
+- calendar memory;
+- range / sublevel percentage;
+- target distance relative to transaction cost;
+- market path / recovery structure.
+
+Do **not** tune K, exits, level count or lookback after seeing this pass. Any cost-normalized or time-normalized variant must be preregistered as a new hypothesis.
