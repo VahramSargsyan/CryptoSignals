@@ -236,3 +236,14 @@ Key findings:
 Decision: **TESTED / NOT PROMOTED**. Paper-live remains p=1 with 1095-candle H/L.
 
 Evidence: `docs/evidence/2026-09-26_LINK_GRID_CAPITAL_RANGE_LOOKBACK_RESEARCH_V1.md`.
+
+
+## Known-strategy benchmark — 2026-09-26
+
+A standing benchmark now compares the grid with common external approaches on the same corrected five-asset daily datasets and the same fee/slippage assumptions.
+
+On the development sample, WIDE (+6/+18) produced +253.03% five-asset geometric return with 38.67% median max drawdown, versus +196.94% / 67.55% for Buy & Hold and lower aggregate returns for SMA200 trend, 12-month momentum, SMA50/200, Donchian 20/10, monthly DCA, RSI mean reversion, and Bollinger mean reversion.
+
+Important: this is **development-sample benchmarking**, not clean OOS proof; WIDE and other grid parameters were already studied on these same assets/history.
+
+Evidence: `docs/evidence/2026-09-26_LINK_GRID_KNOWN_STRATEGY_BENCHMARK_V1.md`.
