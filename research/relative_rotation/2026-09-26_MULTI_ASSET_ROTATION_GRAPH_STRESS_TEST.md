@@ -361,3 +361,87 @@ Interpretation:
 - 80/20 preserved much of the return but still failed to provide a risk benefit in this sample;
 - therefore TOP-2 splitting is not justified as a drawdown-control mechanism by this test alone;
 - keep weighted splits as robustness evidence, not as a production rule.
+
+
+## 18. Walk-forward / sequential-window stability test
+
+Follow-up test completed on 2026-09-26.
+
+Goal:
+Check whether the TOP-1 router remains useful across sequential, non-overlapping market regimes rather than only in the previously highlighted 2025-03-29 -> 2026-03-28 OOS year.
+
+Method:
+- same 8 assets / 28 pairs
+- same 180d rolling median / 15% ARM / 3% reversal
+- no retuning between windows
+- causal pair-specific percentile used only as the conflict tie/ranking layer
+- next-open execution
+- 0.1% cost
+- each window starts from each of the eight possible starting assets
+
+### 180-day sequential windows
+
+| Window | Median network return | Equal-weight benchmark | Best HODL | Positive starts | Median trades |
+|---|---:|---:|---:|---:|---:|
+| 2023-10-31 -> 2024-04-27 | +374.2% | +128.8% | +532.5% | 8/8 | 7 |
+| 2024-04-28 -> 2024-10-24 | -29.2% | +13.2% | +63.3% | 0/8 | 1.5 |
+| 2024-10-25 -> 2025-04-22 | +138.3% | +9.3% | +52.7% | 8/8 | 6.5 |
+| 2025-04-23 -> 2025-10-19 | +20.1% | +25.1% | +83.2% | 5/8 | 1.5 |
+| 2025-10-20 -> 2026-03-28 | -44.9% | -47.7% | -1.5% | 0/8 | 3.5 |
+
+Interpretation:
+- the router is not regime-independent;
+- 3 of 5 sequential 180-day windows were positive;
+- 2 of 5 were strongly negative;
+- the network beat the equal-weight benchmark in 3 of 5 windows;
+- the strongest early window did not beat the best single HODL because PEPE itself rose about +532% over that window;
+- the strategy therefore must not be described as an always-positive bear-market engine.
+
+### 120-day sequential windows
+
+Median network returns by non-overlapping 120-day window:
+
+- 2023-10-31 -> 2024-02-27: +405.9%
+- 2024-02-28 -> 2024-06-26: -32.1%
+- 2024-06-27 -> 2024-10-24: -30.4%
+- 2024-10-25 -> 2025-02-21: +132.7%
+- 2025-02-22 -> 2025-06-21: +9.5%
+- 2025-06-22 -> 2025-10-19: +54.1%
+- 2025-10-20 -> 2026-02-16: -30.8%
+
+Summary:
+- 4 of 7 windows were positive;
+- 5 of 7 beat the equal-weight benchmark;
+- two consecutive weak windows in 2024 show a sustained regime problem, not one isolated bad month.
+
+### Failure-mode attribution
+
+Bad window 1: 2024-04-28 -> 2024-10-24
+
+Common behavior:
+- most starting assets eventually converged into ATOM;
+- after the final transition into ATOM, the strategy often remained there for about 150 days;
+- ATOM then lost approximately 44% from the final transition date to the end of the window;
+- example: TWT -> ATOM executed 2024-06-03, then no further confirmed outbound transition occurred before 2024-10-24.
+
+Bad window 2: 2025-10-20 -> 2026-03-28
+
+Common behavior:
+- routes eventually converged into TWT;
+- the final ATOM -> TWT transition executed 2026-02-05;
+- the network then remained in TWT for 52 days;
+- TWT lost approximately 39% from that execution date to the end of the window.
+
+Key finding:
+
+The dominant failure mode is not only a wrong branch choice at a conflict. It is **post-transition stale holding**: once the network converges into an asset, relative pair logic may remain silent while the held asset falls sharply in absolute terms.
+
+Research implication:
+
+A separate absolute-risk / stale-hold layer is justified for testing. It must be independent from pair routing and must not be fitted to these two failures after the fact.
+
+Suggested next stress-test layer:
+- baseline market-wide RISK_OFF candidate, defined before testing;
+- compare no-risk-off vs simple causal absolute-trend filters;
+- do not optimize the threshold/window to the best historical row;
+- preserve manual approval for all real execution.
