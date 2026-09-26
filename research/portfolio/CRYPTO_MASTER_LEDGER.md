@@ -666,3 +666,46 @@ Current decision:
 
 Detailed evidence:
 - `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
+
+
+### New-node probation candidate — 2026-09-27
+
+Follow-up to BTC full-node failure:
+
+Edge attribution showed that the damaging topology was mainly:
+- PEPE -> BTC -> ATOM
+
+Single-edge ablation on 2025-03-29 -> 2026-03-28:
+- full unrestricted 9-node graph: ~-24.3% median
+- remove only PEPE/BTC: +41.6% median
+- remove only ATOM/BTC: +51.4% median
+
+Important causal check using only pre-OOS data through 2025-03-28:
+- ATOM/BTC standalone excess vs 50/50: ~-72.7 pp -> could have been rejected before OOS
+- PEPE/BTC: ~+12.9 pp -> could not be rejected by a simple one-period positive screen
+
+One-period edge admission was not robust enough.
+
+Research candidate: NEW_NODE_PROBATION
+- a new edge remains observable but cannot affect routing until it has positive standalone excess vs its 50/50 pair benchmark in two consecutive completed 180-day periods;
+- this is topology protection, not RISK_OFF;
+- do not permanently delete weak edges solely from one bad regime.
+
+Causal walk-forward results where enough prior windows existed:
+- 2024-10-25 -> 2025-04-22: baseline +138.3%, full-9 +135.8%, probation +138.3%
+- 2025-04-23 -> 2025-10-19: baseline +20.1%, full-9 +6.6%, probation +20.1%
+- 2025-10-20 -> 2026-03-28: baseline -44.9%, full-9 -44.9%, probation -44.9%
+
+Interpretation:
+- probation prevented BTC from degrading the established graph in all three available validation folds;
+- it did not solve broad-market stale-hold losses;
+- validation sample is still small, so this is not production-approved.
+
+Current lifecycle concept for future nodes/edges:
+DISCOVERED -> OBSERVE_ONLY -> PROBATION -> ELIGIBLE -> ACTIVE
+with possible demotion ACTIVE -> WATCH -> PROBATION.
+
+Canonical active graph remains 8 assets / 28 pairs.
+
+Detailed evidence:
+- `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
