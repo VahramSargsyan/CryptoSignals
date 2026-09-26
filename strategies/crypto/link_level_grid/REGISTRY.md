@@ -438,3 +438,17 @@ Key aggregate development-sample result:
 WIDE beat Buy & Hold on LINK, ETH and SOL, while Buy & Hold remained stronger on BNB and BTC. No clean OOS superiority claim is made.
 
 Evidence: `docs/evidence/2026-09-26_LINK_GRID_KNOWN_STRATEGY_BENCHMARK_V1.md`.
+
+
+## Unseen top-10 validation — XRP / TRX — 2026-09-26
+
+Status: **CROSS-ASSET SANITY CHECK PASSED / NOT PROMOTED**
+
+Frozen WIDE parameters were applied without tuning:
+
+- XRP: +196.29%, max DD 32.45%, versus BASE +171.45% and Buy & Hold +366.52%;
+- TRX: +43.82%, max DD 8.79%, versus BASE +35.99% and Buy & Hold +248.69%.
+
+WIDE remained profitable and beat BASE on both unseen assets. Buy & Hold beat WIDE on both. The result supports cross-asset robustness of the grid mechanics while rejecting any simple claim of universal Buy & Hold outperformance.
+
+Evidence: `docs/evidence/2026-09-26_GRID_UNSEEN_TOP10_XRP_TRX_VALIDATION_V1.md`.
