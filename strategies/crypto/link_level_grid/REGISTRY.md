@@ -395,3 +395,20 @@ Open interest and liquidation history were not assigned strategy metrics because
 No canonical strategy or paper-live profile changed.
 
 Evidence: `docs/evidence/2026-09-26_LINK_GRID_EXTERNAL_CROWD_CONTEXT_RESEARCH_V1.md`.
+
+
+## Capital distribution / H-L lookback research — 2026-09-26
+
+Status: **TESTED / NOT PROMOTED / DUPLICATE-WORK GUARD ACTIVE**
+
+Recorded observations:
+
+- WIDE p=1 / 3y H-L control: +253.03% geometric, 38.67% median DD;
+- equal capital p=0 / 3y H-L: +281.59%, 46.31% median DD, with substantially worse final-year resilience;
+- p=1 / 2.75y H-L: +265.94%, 38.58% median DD, improving 4/5 full-period assets but only 7/15 annual asset-window comparisons versus current;
+- p=1 / 2.25y and 2.4y each won 9/15 annual asset-window comparisons and remain stability-oriented research candidates;
+- 4y and 5y H-L were only tested on shorter common windows because the frozen datasets contain six years total.
+
+No canonical strategy or paper-live profile changed.
+
+Evidence: `docs/evidence/2026-09-26_LINK_GRID_CAPITAL_RANGE_LOOKBACK_RESEARCH_V1.md`.
