@@ -599,3 +599,35 @@ Detailed evidence remains in:
 - `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
 
 Status: RESEARCH_ONLY / NOT_PRODUCTION_APPROVED / MANUAL_EXECUTION_REQUIRED
+
+
+### BTC defensive fallback experiment — 2026-09-26
+
+User hypothesis:
+- keep the baseline relative-rotation concept continuously invested in crypto;
+- when an absolute RISK_OFF gate would otherwise move to USDT, use BTC as the fallback token instead.
+
+Scope:
+- BTC is not yet a ninth full graph node;
+- main graph remains 8 assets / 28 relative pairs;
+- BTC is fallback only while the shadow target fails its own causal SMA gate.
+
+Same 2025-03-29 -> 2026-03-28 OOS year:
+- baseline no gate: +41.6% median, ~62.2% max DD
+- SMA100 -> BTC fallback: +32.1% median, ~48.2% max DD
+- SMA200 -> BTC fallback: +10.4% median, ~53.7% max DD
+- SMA300 -> BTC fallback: +15.0% median, ~53.7% max DD
+
+Sequential 180-day median returns:
+- baseline: +374.2%, -29.2%, +138.3%, +20.1%, -44.9%
+- SMA100 -> BTC: +286.9%, +6.9%, +120.2%, +48.0%, -32.9%
+- SMA200 -> BTC: +360.4%, +7.6%, +74.7%, +46.7%, -40.0%
+- SMA300 -> BTC: +56.4%, +21.5%, +75.4%, +52.2%, -40.0%
+
+Interpretation:
+- BTC can act as a defensive crypto fallback in some regimes;
+- it is not equivalent to cash and does not eliminate broad crypto drawdowns;
+- the late-2025/early-2026 regime remained materially negative because BTC itself fell;
+- if BTC becomes a full ninth graph node later, the complete graph expands from 28 to 36 unique pairs.
+
+Status: RESEARCH_ONLY / DEFENSIVE_CRYPTO_CANDIDATE / MANUAL_EXECUTION_REQUIRED
