@@ -34,7 +34,7 @@ jobs:
           python -m scripts.run_grid_paper_live \
             --symbols LINKUSDT,ETHUSDT,SOLUSDT,BNBUSDT,BTCUSDT \
             --paper-start 2026-09-26T00:00:00Z \
-            --profiles CONTROL_BASE,CANDIDATE_WIDE
+            --profiles CONTROL_BASE,CANDIDATE_WIDE,MICRO_ONLY_WIDE,MID_ONLY_WIDE
 
       - name: Publish report to job summary
         run: |
