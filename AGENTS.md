@@ -77,3 +77,10 @@ XRP and TRX were tested without parameter tuning. WIDE remained profitable and b
 Before asserting that `VAHRAM_LINK_LEVEL_GRID_V1` simply improves with higher volatility, read `docs/evidence/2026-09-26_GRID_VOLATILE_ASSET_STRESS_TEST_V1.md`.
 
 TWT, DOGE, AVAX and SHIB were tested on a common 2024-05-10 through 2026-03-28 window with canonical 1095-day H/L mechanics. The result refines the hypothesis: raw volatility alone is insufficient; repeated recovery / mean-reverting path structure appears more important. PEPE remains canonically untested because the pinned snapshot in that pass had only 1059 daily rows.
+
+
+## Grid universe quality / suitability research memory
+
+Before proposing new large-cap Grid candidates, read `docs/evidence/2026-09-26_GRID_UNIVERSE_QUALITY_SUITABILITY_SCREEN_V1.md`.
+
+A 15-asset old/large-cap research universe was screened with a separate QUALITY/SURVIVAL gate and canonical Grid test. Primary research candidates: LINK, SOL, ETH, ADA, XLM. Secondary/caveated: HBAR, UNI, DOGE, AVAX, LTC. BTC, BNB, XRP, TRX, BCH remain important survival/benchmark assets but were not first-choice WIDE candidates on the common window. Do not confuse this survivor-conditioned screen with live eligibility.
