@@ -659,3 +659,120 @@ Current canonical research baseline remains:
 - 28 unique pairs
 
 Status: FULL_NODE_FAILED_FIRST_STRESS_TEST / KEEP_8_NODE_BASELINE
+
+
+## 22. BTC edge attribution and causal admission research
+
+Follow-up after the full 9-node BTC test.
+
+### Edge ablation
+
+Each BTC edge was removed one at a time while all other BTC edges remained active.
+
+Highlighted OOS period: 2025-03-29 -> 2026-03-28.
+
+Full 9-node graph:
+- median return: **-24.3%**
+
+Key ablations:
+- remove only `PEPE/BTC` -> **+41.6%** median, effectively restoring the 8-node baseline route;
+- remove only `ATOM/BTC` -> **+51.4%** median;
+- removing TWT/BTC, BNB/BTC, SOL/BTC, TRX/BTC, AAVE/BTC or LINK/BTC individually did not repair the OOS failure.
+
+Interpretation:
+The main damaging topology was not BTC as a whole. It was the route corridor:
+
+`PEPE -> BTC -> ATOM`
+
+The `PEPE/BTC` edge allowed BTC to displace the productive PEPE -> TRX transition, and `ATOM/BTC` provided the immediate BTC -> ATOM exit that locked the route away from TRX/LINK/TWT.
+
+### Can the damaging edge be rejected causally?
+
+Training-only period used:
+- 2023-10-31 -> 2025-03-28
+
+For each new BTC edge, standalone pair rotation was compared with the 50/50 pair benchmark using only data available before the OOS start.
+
+Training excess vs 50/50:
+
+| New BTC edge | Pre-OOS standalone excess vs 50/50 | Initial admission result |
+|---|---:|---|
+| ATOM/BTC | -72.7 pp | REJECT |
+| TWT/BTC | -54.1 pp | REJECT |
+| PEPE/BTC | +12.9 pp | PASS |
+| BNB/BTC | +77.0 pp | PASS |
+| SOL/BTC | -88.4 pp | REJECT |
+| TRX/BTC | +89.9 pp | PASS |
+| AAVE/BTC | -1.8 pp | REJECT |
+| LINK/BTC | +8.7 pp | PASS |
+
+Important finding:
+- `ATOM/BTC`, one half of the damaging corridor, could have been rejected before the OOS year without using future information.
+- `PEPE/BTC` could NOT be rejected by this simple one-period training screen because it had positive pre-OOS standalone value.
+
+### One-period admission rule — not robust enough
+
+Rule tested:
+- allow a new BTC edge if it had positive standalone excess vs 50/50 in the immediately preceding 180-day window.
+
+Result:
+- this was insufficient;
+- in the 2025-04-23 -> 2025-10-19 test period it admitted PEPE/BTC and reproduced the full-9 degradation:
+  - 8-node baseline: **+20.1%** median
+  - one-period admission: **+6.6%** median
+
+Conclusion:
+One good historical window is not enough to graduate a new edge.
+
+## 23. NEW_NODE_PROBATION — two-regime admission candidate
+
+Proposed research rule:
+
+A new edge is not deleted when first added. It enters `PROBATION`.
+
+It may influence real routing only after its standalone relative-rotation strategy has shown positive excess vs the 50/50 pair benchmark in **two consecutive completed 180-day periods**.
+
+Until then:
+- signals are still calculated;
+- results are logged;
+- the edge cannot steal routing priority from established graph edges.
+
+This is an admission-safety concept, not a tuned BTC-specific blacklist.
+
+### Walk-forward test
+
+The rule was applied causally. Each test window could use only the two completed 180-day periods immediately before it.
+
+| Test window | Eligible BTC edges under 2-period probation | 8-node baseline | Full 9-node | Probation graph |
+|---|---|---:|---:|---:|
+| 2024-10-25 -> 2025-04-22 | BNB/BTC | +138.3% | +135.8% | **+138.3%** |
+| 2025-04-23 -> 2025-10-19 | TRX/BTC | +20.1% | +6.6% | **+20.1%** |
+| 2025-10-20 -> 2026-03-28 | PEPE/BTC, TRX/BTC, LINK/BTC | -44.9% | -44.9% | **-44.9%** |
+
+A looser 2-of-last-3-positive rule was also tested where enough history existed. On the available folds it produced the same network result as the stricter two-consecutive rule.
+
+Interpretation:
+1. The probation rule prevented the new BTC node from degrading the established 8-node graph in the available walk-forward tests.
+2. It did not improve the two broad-market stale-hold regimes. That is expected: NEW_NODE_PROBATION protects topology; it is not a RISK_OFF mechanism.
+3. The available validation sample is small: only three test folds have enough preceding completed periods for the strict two-regime rule.
+4. Therefore this remains a promising architecture rule, not a production acceptance gate yet.
+
+### Current node lifecycle concept
+
+`DISCOVERED -> OBSERVE_ONLY -> PROBATION -> ELIGIBLE -> ACTIVE`
+
+Possible demotion states:
+
+`ACTIVE -> WATCH -> PROBATION`
+
+Avoid permanent deletion solely because one period was weak. Rare edges may still become useful later.
+
+### Current BTC decision
+
+- BTC as unrestricted full node: **FAILED**
+- BTC edge signals: continue to observe
+- BTC edges with insufficient multi-regime evidence: **PROBATION**
+- canonical active graph remains: **8 assets / 28 pairs**
+- NEW_NODE_PROBATION becomes a research candidate for any future ninth/tenth asset, not just BTC.
+
+Status: PROMISING_TOPOLOGY_SAFETY_RULE / NOT_PRODUCTION_APPROVED
