@@ -270,3 +270,23 @@ Current interpretation: the grid appears to prefer **volatility with repeated re
 PEPE was not forced into a shortened-lookback test; the pinned snapshot had only 1059 daily bars, below the canonical 1095-day H/L warmup.
 
 Evidence: `docs/evidence/2026-09-26_GRID_VOLATILE_ASSET_STRESS_TEST_V1.md`.
+
+
+## Quality + Grid universe screen — 2026-09-26
+
+A 15-asset old/large-cap universe was tested on a common 2023-09-25 through 2026-03-28 window with frozen WIDE mechanics.
+
+Aggregate:
+
+- WIDE geometric return: +160.98%
+- BASE: +159.01%
+- Buy & Hold: +72.67%
+- WIDE positive: 15/15
+- WIDE beat Buy & Hold: 10/15
+- WIDE median DD: 43.18% versus Buy & Hold 70.26%
+
+Primary deep-research candidates are LINK, SOL, ETH, ADA and XLM. HBAR, UNI, DOGE, AVAX and LTC remain valuable but have specific quality/risk or parameter-fit caveats. BTC, BNB, XRP, TRX and BCH remain controls / possible Hold-trend assets rather than being forced into Grid.
+
+Important: the universe intentionally contains surviving old large-cap assets, so survivorship bias is material.
+
+Evidence: `docs/evidence/2026-09-26_GRID_UNIVERSE_QUALITY_SUITABILITY_SCREEN_V1.md`.
