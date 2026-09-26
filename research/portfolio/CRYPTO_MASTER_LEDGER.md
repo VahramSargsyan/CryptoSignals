@@ -554,11 +554,16 @@ Manual execution remains required for all real trades.
 Follow-up evidence after the first 8-asset / 28-pair graph test:
 
 Sequential non-overlapping 180-day TOP-1 windows, unchanged router:
-- +374.2%
-- -29.2%
-- +138.3%
-- +20.1%
-- -44.9%
+- +374.2% — strongly positive
+- -29.2% — strongly negative
+- +138.3% — strongly positive
+- +20.1% — moderately positive
+- -44.9% — strongly negative
+
+Summary:
+- 2 strongly positive windows
+- 1 moderately positive window
+- 2 strongly negative windows
 
 Main failure mode:
 - network converges into one asset and then relative logic can remain silent while that asset falls sharply in absolute terms;
@@ -581,7 +586,8 @@ Same 2025-03-29 -> 2026-03-28 OOS year:
 Sequential-window implication:
 - simple risk gates largely removed the two large negative stale-hold regimes;
 - SMA200 was the most balanced of the three tested candidates across the five sequential 180-day windows, but this is NOT a frozen rule;
-- high USDT occupancy is a material trade-off and requires further validation;
+- high USDT occupancy is a material trade-off introduced only by the experimental RISK_OFF gate and requires further validation;
+- the baseline relative-rotation strategy itself remains continuously invested in crypto tokens between rotations and does not hold USDT as a default state;
 - do not optimize to the best visible SMA result after the fact.
 
 Current conceptual stack:
