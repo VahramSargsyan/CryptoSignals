@@ -290,3 +290,19 @@ Primary deep-research candidates are LINK, SOL, ETH, ADA and XLM. HBAR, UNI, DOG
 Important: the universe intentionally contains surviving old large-cap assets, so survivorship bias is material.
 
 Evidence: `docs/evidence/2026-09-26_GRID_UNIVERSE_QUALITY_SUITABILITY_SCREEN_V1.md`.
+
+
+## Published OSS strategy benchmark — 2026-09-26
+
+MIT-licensed external strategy logic was benchmarked against the Grid on the same corrected five-asset D1 datasets and normalized execution semantics.
+
+Strongest external result:
+
+- Gekko Fibonacci 8/21/55: +225.57% geometric, 39.93% median DD;
+- Grid BASE: +226.41%, 35.98%;
+- Grid WIDE: +253.03%, 38.67%;
+- Buy & Hold: +196.94%, 67.55%.
+
+Fibonacci beat WIDE on ETH, BNB and BTC; Grid dominated on LINK and SOL. Zenbot MACD/SRSI_MACD/Bollinger defaults were also tested, but their original defaults are intraday-oriented and the D1 results are portability evidence only.
+
+Evidence: `docs/evidence/2026-09-26_GRID_VS_OSS_STRATEGIES_BENCHMARK_V1.md`.
