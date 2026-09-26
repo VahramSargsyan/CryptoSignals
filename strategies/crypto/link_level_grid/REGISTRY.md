@@ -553,3 +553,22 @@ Status: **TESTED / NO SIMPLIFICATION PROMOTED**
 The current two pools provide a risk/return blend, not nonlinear capital synergy. 50/50 is not a special optimum. Canonical 20/80→80/20 tests show Mid-heavy favors return while Micro-heavy favors lower drawdown. Supplementary annual checks show no layer universally dominates.
 
 Evidence: `docs/evidence/2026-09-26_GRID_MICRO_MID_REDUNDANCY_STRESS_TEST_V1.md`.
+
+
+## Expanded Micro / Mid universe test — 2026-09-26
+
+Status: **TESTED / MID-ONLY TIER-A SIMPLIFICATION CANDIDATE / NOT PROMOTED**
+
+All 15:
+- Micro +170.91%, 41.39% DD, 2,303 exits
+- Mid +147.17%, 42.77% DD, 721 exits
+- 50/50 +160.98%, 43.18% DD, 3,024 exits
+
+Tier A quality/Grid candidates:
+- Micro +244.93%, 884 exits
+- Mid +245.61%, 278 exits
+- 50/50 +247.36%, 1,162 exits
+
+No paper-live change.
+
+Evidence: `docs/evidence/2026-09-26_GRID_MICRO_MID_REDUNDANCY_STRESS_TEST_V1.md`.
