@@ -61,6 +61,18 @@ jobs:
             --report-json "$PAPER_RUN_DIR/report.json" \
             --notification-text "$PAPER_RUN_DIR/notification.txt"
 
+      - name: Telegram transport smoke test
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          mkdir -p /tmp/grid-paper-smoke
+          printf '%s\n' '{"should_notify":true,"latest_closed_candle":"SMOKE","milestone":null}' > /tmp/grid-paper-smoke/report.json
+          printf '%s\n' 'Grid Paper Live TEST — MICRO_ONLY_WIDE / MID_ONLY_WIDE transport is working. PAPER ONLY.' > /tmp/grid-paper-smoke/notification.txt
+          python -m scripts.send_grid_paper_report \
+            --report-json /tmp/grid-paper-smoke/report.json \
+            --notification-text /tmp/grid-paper-smoke/notification.txt
+
       - name: Upload paper evidence
         uses: actions/upload-artifact@v4
         with:
