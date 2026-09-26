@@ -489,3 +489,26 @@ Tier A deep-research candidates: LINK, SOL, ETH, ADA, XLM.
 Survivorship bias remains an explicit limitation. No paper-live universe change.
 
 Evidence: `docs/evidence/2026-09-26_GRID_UNIVERSE_QUALITY_SUITABILITY_SCREEN_V1.md`.
+
+
+## Published OSS strategy benchmark — 2026-09-26
+
+Status: **BENCHMARKED / NOT PROMOTED**
+
+External MIT sources:
+
+- crypto49er/Gekko-Strategies Fibonacci 8/21/55;
+- DeviaVir/zenbot MACD;
+- DeviaVir/zenbot SRSI_MACD;
+- DeviaVir/zenbot Bollinger.
+
+Key result:
+
+- WIDE +253.03% geometric / 38.67% median DD;
+- BASE +226.41% / 35.98%;
+- Gekko Fibonacci +225.57% / 39.93%;
+- Buy & Hold +196.94% / 67.55%.
+
+No paper-live change.
+
+Evidence: `docs/evidence/2026-09-26_GRID_VS_OSS_STRATEGIES_BENCHMARK_V1.md`.
