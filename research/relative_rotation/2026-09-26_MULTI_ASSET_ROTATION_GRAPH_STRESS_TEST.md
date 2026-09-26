@@ -522,3 +522,57 @@ The system is now better represented as three independent layers:
 3. optional GRID/HOLD engine — decides how capital works inside the selected asset.
 
 Status: PROMISING_RISK_LAYER_CANDIDATE / NOT_PRODUCTION_APPROVED
+
+
+## 20. BTC fallback instead of USDT — defensive-token experiment
+
+User hypothesis:
+Keep capital continuously in crypto. When the absolute RISK_OFF gate would otherwise move capital to USDT, move it to BTC instead.
+
+Important scope:
+- BTC is NOT yet added as a ninth full relative-rotation node;
+- the original graph remains 8 assets / 28 relative pairs;
+- BTC is used only as the defensive fallback asset when the selected shadow target fails the absolute SMA gate;
+- relative routing continues in the background while actual capital is held in BTC;
+- 0.1% transition cost applied;
+- BTC is marked to market continuously; no cash yield exists.
+
+### Same one-year OOS window
+
+Period: 2025-03-29 -> 2026-03-28
+
+| Variant | Median return | Median max DD | Median time in BTC fallback |
+|---|---:|---:|---:|
+| No absolute gate / always in 8-token universe | +41.6% | -62.2% | 0% |
+| SMA100 -> BTC fallback | +32.1% | -48.2% | 79.2% |
+| SMA200 -> BTC fallback | +10.4% | -53.7% | 94.0% |
+| SMA300 -> BTC fallback | +15.0% | -53.7% | 92.6% |
+
+For reference, the corresponding USDT-fallback smoke test produced:
+- SMA100: +63.5%, max DD ~27.0%
+- SMA200: +37.4%, max DD ~15.2%
+- SMA300: +42.7%, max DD ~15.2%
+
+Interpretation:
+BTC fallback preserves the owner's preference to remain in a token, but it is not equivalent to cash protection. BTC can decline sharply in the same broad crypto risk-off regime.
+
+### Sequential 180-day windows — median return
+
+| Window | Baseline no gate | SMA100 -> BTC | SMA200 -> BTC | SMA300 -> BTC |
+|---|---:|---:|---:|---:|
+| 2023-10-31 -> 2024-04-27 | +374.2% | +286.9% | +360.4% | +56.4% |
+| 2024-04-28 -> 2024-10-24 | -29.2% | +6.9% | +7.6% | +21.5% |
+| 2024-10-25 -> 2025-04-22 | +138.3% | +120.2% | +74.7% | +75.4% |
+| 2025-04-23 -> 2025-10-19 | +20.1% | +48.0% | +46.7% | +52.2% |
+| 2025-10-20 -> 2026-03-28 | -44.9% | -32.9% | -40.0% | -40.0% |
+
+Key finding:
+BTC fallback improved the 2024 weak regime and also reduced the late-2025/early-2026 loss versus the always-in-alt baseline, but it did NOT eliminate the second broad-market drawdown because BTC itself fell materially.
+
+Research implication:
+- BTC is a plausible DEFENSIVE_CRYPTO candidate, not a guaranteed RISK_OFF asset;
+- BTC fallback is conceptually different from USDT fallback;
+- if the owner wants a continuously-tokenized strategy, the next test should compare BTC against other defensive-crypto selection rules rather than pretending BTC is cash;
+- adding BTC as a ninth full graph node is a separate experiment. A 9-node complete graph would contain 36 unique pair relationships instead of 28.
+
+Status: DEFENSIVE_CRYPTO_CANDIDATE / NOT_PRODUCTION_APPROVED
