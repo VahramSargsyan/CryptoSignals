@@ -1,0 +1,9 @@
+run: CASH_SHADOW_SMA25_50_REENTRY_V1
+requested_at: 2026-09-27
+mode: STRESS_TEST_ONLY
+attempt: 1
+fast_sma: 25
+slow_sma: 50
+cross: bullish_up
+target: prospective_next_open_shadow
+one_cash_reaction_per_crisis: true
