@@ -266,7 +266,7 @@ def main():
                 "dd_improvement_pp":(out["max_drawdown"]-baseline["max_drawdown"])*100,
                 "cashouts":out["cashouts"],
                 "reentries":reentries,
-                "unfinished_cycles":out["unfinished_cycles"],
+                "unfinished_cycles":int(out.get("unfinished_cycles", 1 if out.get("terminal_cash_usdt", 0.0) > 0 else 0)),
                 "days_in_cash":out["days_in_cash"],
                 "terminal_cash_usdt":out["terminal_cash_usdt"],
             })
