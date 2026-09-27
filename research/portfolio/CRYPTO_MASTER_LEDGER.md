@@ -835,7 +835,7 @@ Current verdict:
 
 ## 15. Cash-defense destination hypothesis — 2026-09-27
 
-STATUS: RESEARCH_CANDIDATE / NOT_PRODUCTION_APPROVED  
+STATUS: EXECUTED / LOW_VOL_DOMINANT_UNDER_FROZEN_TIMING / NOT_PRODUCTION_APPROVED  
 CANDIDATE: `CASH_DEFENSE_DESTINATION_ABLATION_V1`
 
 Question:
@@ -915,3 +915,73 @@ Runtime impact:
 - manual confirmation remains required.
 
 TEST_LEVEL: DOCUMENTATION_SYNC / EXISTING_EXECUTED_EVIDENCE_ONLY
+
+
+### Cash-defense destination ablation — executed result
+
+Run:
+- GitHub Actions: `36300363884`
+- source commit: `25f0b97e7ffce27daede34d7166427e674bc1056`
+- artifact ID: `10924184874`
+- workflow: SUCCESS
+- reproduction gate: PASS
+
+Only destination changed. Timing stayed frozen.
+
+Reproduction period 2025-03-29 -> 2026-03-28:
+- LOW_VOL: +49.05% median return / -47.13% median max DD;
+- CASH: +5.93% / -43.20%;
+- cash improved DD by only ~3.93pp while losing ~43.12pp of median return.
+
+Previously opened 2026-03-29 -> 2026-09-26:
+- LOW_VOL: +32.92% / -18.34%;
+- CASH: +20.99% / -18.34%;
+- cash produced no median DD improvement and reduced return by ~11.93pp;
+- positive starts: LOW_VOL 8/8, CASH 7/8.
+
+Full eligible history 2023-11-20 -> 2026-09-26:
+- baseline: +646.96% / -71.23%;
+- LOW_VOL: +887.02% / -47.13%;
+- CASH: +258.06% / -67.56%.
+
+Full-history cash versus LOW_VOL:
+- median return difference: ~-628.97pp;
+- median max-DD difference: ~-20.43pp, meaning CASH drawdown was materially worse.
+
+Eight defensive episodes:
+- CASH beat LOW_VOL on defensive-block return: 2/8;
+- LOW_VOL beat CASH: 6/8;
+- frozen low-vol token was TRX in all eight episodes.
+
+Robustness:
+- 5 complete non-overlapping 180d windows;
+- 8 complete non-overlapping 120d windows;
+- total 13 windows.
+
+Return:
+- CASH better: 3/13;
+- LOW_VOL better: 9/13;
+- equal: 1/13;
+- in 180d windows CASH beat LOW_VOL return in 0/5.
+
+Drawdown:
+- CASH better: 6/13;
+- LOW_VOL better: 2/13;
+- equal: 5/13.
+
+Interpretation:
+- zero crypto exposure does not automatically mean a lower portfolio max drawdown;
+- under the frozen slow breadth 3/5 timing, cash often locks in a prior loss and stays flat while TRX compounds during defense;
+- that lost defensive-period appreciation can keep portfolio equity further below its old peak, producing a worse max drawdown than LOW_VOL;
+- cash remains potentially useful only under a different, separately preregistered timing regime.
+
+Verdict:
+
+`CASH_DEFENSE_DESTINATION_ABLATION_V1_VERDICT = LOW_VOL_DOMINANT_UNDER_FROZEN_TIMING`
+
+Do not replace frozen LOW_VOL with CASH under the existing breadth entry/exit timing.
+
+Canonical evidence:
+- `research/relative_rotation/2026-09-27_CASH_DEFENSE_DESTINATION_ABLATION_V1_EVIDENCE.md`
+
+TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + FROZEN_REPRODUCTION_GATE + REAL_BINANCE_1D + FULL_HISTORY + 180D_120D_ROBUSTNESS
