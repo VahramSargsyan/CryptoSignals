@@ -3,39 +3,29 @@
 Date: 2026-09-27
 Mode: PATCH_FIX / research-only capital-management overlay
 Validated branch: research/u10-trailing-profit-lock-v1
-GitHub Actions run: 36335596026
-Source commit: 721c76d7e370696994b2e5c31d5d4043e186874b
+GitHub Actions run: 36336178272
+Source commit: 2a8986bf9c300436c94a192cb930f37840d052cf
 Result: PASS
 TEST_LEVEL: GITHUB_ACTIONS_LIVE_PUBLIC_DATA_BACKTEST
 
 ## Question
 
-Instead of selling immediately when U10 first reaches 10x original capital, use 10x only to activate a trailing profit monitor.
+After U10 first reaches 10x original capital, do not sell immediately.
 
-After activation:
-- track the frozen-U10 running peak;
-- when frozen-U10 daily-close equity falls at least 2x original capital (20,000 USDT) below that running peak, sell part of the active position on the next open;
+Instead:
+- activate a trailing monitor;
+- track frozen-U10 running peak;
+- after a decline of at least 2x original capital (20,000 USDT) from the running peak, sell part of the active position on the next open;
 - independently test 20%, 30%, 40%, and 50% cash-out fractions;
-- lock the peak at the cash-out trigger;
-- re-enter parked cash only after frozen-U10 daily-close equity falls at least 50% below that locked peak;
-- re-enter on the next open into the asset currently held by frozen U10.
+- lock the peak;
+- independently test re-entry at -5%, -10%, -15%, -20%, -25%, -30%, -35%, -40%, and -45% from the locked peak;
+- re-enter the parked cash on the next open after a trigger close.
+
+Total parameter combinations:
+
+4 cash-out fractions × 9 re-entry depths = 36 scenarios.
 
 No U10 signal logic was changed.
-
-## Frozen U10
-
-ATOM, TWT, PEPE, BNB, SOL, TRX, AAVE, LINK, FIL, HBAR
-
-Frozen mechanics:
-- Binance Spot 1D closed candles
-- rolling median 180 days
-- ARM 15%
-- reversal confirmation 3%
-- strongest confirmed max-dislocation router
-- next-open execution
-- 0.1% modeled U10 transition cost
-- 0.1% modeled cash-out transaction cost
-- 0.1% modeled re-entry transaction cost
 
 ## Shared trigger path
 
@@ -47,7 +37,7 @@ Original capital:
 
 100,000 USDT
 
-First close at/above 10x:
+10x activation close:
 
 2025-09-19
 
@@ -67,142 +57,196 @@ Actual decline from locked peak at trigger:
 
 25,244.66 USDT / -19.77%
 
-The trigger exceeds exactly 20,000 because only daily closes are evaluated.
-
 Cash-out execution:
 
 2025-09-23 while holding ATOM
 
-The same trigger dates were verified for all 20/30/40/50% cash-out fractions.
+The same activation, peak, cash-out trigger, and cash-out execution were verified for all 36 scenarios.
 
-## Re-entry threshold
+## Re-entry trigger behavior
 
 Locked peak:
 
 127,668.80 USDT
 
-50%-below-peak re-entry threshold:
+Observed trigger groups:
 
-63,834.40 USDT
+| Requested re-entry drawdown | Trigger close | Re-entry execution |
+|---:|---|---|
+| -5% | 2025-09-24 | 2025-09-25 |
+| -10% | 2025-09-24 | 2025-09-25 |
+| -15% | 2025-09-24 | 2025-09-25 |
+| -20% | 2025-09-25 | 2025-09-26 |
+| -25% | 2025-10-10 | 2025-10-11 |
+| -30% | 2025-10-10 | 2025-10-11 |
+| -35% | 2025-10-10 | 2025-10-11 |
+| -40% | 2025-10-10 | 2025-10-11 |
+| -45% | not reached | not reached |
 
-The frozen-U10 reference equity never closed at or below 63,834.40 USDT after cash-out before the historical test ended on 2026-09-26.
+Several requested thresholds share the same execution date because the model evaluates daily closes, so one close can cross multiple threshold levels at once.
 
-Therefore:
+## Baselines
 
-**NO 50%-FROM-PEAK RE-ENTRY OCCURRED IN ANY 20/30/40/50% SCENARIO.**
-
-All protected cash remained parked through the end of this historical window.
-
-## Results
-
-No-overlay baseline final equity:
+Frozen U10 no-overlay final equity:
 
 219,485.20 USDT
+
+Frozen U10 no-overlay total return:
+
++2,094.85%
 
 Prior immediate-20%-at-10x / cash-forever final equity:
 
 196,457.56 USDT
 
-| Cash-out fraction | Net cash parked | Minimum total equity after cash-out | Max DD after cash-out | Final equity | Delta vs no-overlay |
-|---:|---:|---:|---:|---:|---:|
-| 20% | 20,464.34 | 77,108.42 | -47.52% | 196,052.50 | -23,432.70 / -10.68% |
-| 30% | 30,696.52 | 80,260.08 | -43.89% | 184,336.16 | -35,149.04 / -16.01% |
-| 40% | 40,928.69 | 83,411.75 | -39.84% | 172,619.81 | -46,865.39 / -21.35% |
-| 50% | 51,160.86 | 86,563.41 | -35.28% | 160,903.46 | -58,581.74 / -26.69% |
+## Full 36-scenario matrix
 
-Approximate no-overlay minimum after the comparable trigger region from prior validated evidence:
+| Cash-out | Re-entry DD | Re-entry | Min equity | Max DD | Final equity | Delta vs baseline |
+|---:|---:|---|---:|---:|---:|---:|
+| 20% | 5% | 2025-09-25 | 70,804.01 | -53.73% | 219,481.84 | -3.36 / -0.00% |
+| 20% | 10% | 2025-09-25 | 70,804.01 | -53.73% | 219,481.84 | -3.36 / -0.00% |
+| 20% | 15% | 2025-09-25 | 70,804.01 | -53.73% | 219,481.84 | -3.36 / -0.00% |
+| 20% | 20% | 2025-09-26 | 71,298.01 | -53.73% | 221,013.14 | +1,527.94 / +0.70% |
+| 20% | 25% | 2025-10-11 | 76,632.59 | -53.73% | 237,549.56 | +18,064.37 / +8.23% |
+| 20% | 30% | 2025-10-11 | 76,632.59 | -53.73% | 237,549.56 | +18,064.37 / +8.23% |
+| 20% | 35% | 2025-10-11 | 76,632.59 | -53.73% | 237,549.56 | +18,064.37 / +8.23% |
+| 20% | 40% | 2025-10-11 | 76,632.59 | -53.73% | 237,549.56 | +18,064.37 / +8.23% |
+| 20% | 45% | not reached | 77,108.42 | -47.52% | 196,052.50 | -23,432.70 / -10.68% |
+| 30% | 5% | 2025-09-25 | 70,803.47 | -53.73% | 219,480.16 | -5.04 / -0.00% |
+| 30% | 10% | 2025-09-25 | 70,803.47 | -53.73% | 219,480.16 | -5.04 / -0.00% |
+| 30% | 15% | 2025-09-25 | 70,803.47 | -53.73% | 219,480.16 | -5.04 / -0.00% |
+| 30% | 20% | 2025-09-26 | 71,544.46 | -53.73% | 221,777.11 | +2,291.91 / +1.04% |
+| 30% | 25% | 2025-10-11 | 79,546.34 | -53.73% | 246,581.75 | +27,096.55 / +12.35% |
+| 30% | 30% | 2025-10-11 | 79,546.34 | -53.73% | 246,581.75 | +27,096.55 / +12.35% |
+| 30% | 35% | 2025-10-11 | 79,546.34 | -53.73% | 246,581.75 | +27,096.55 / +12.35% |
+| 30% | 40% | 2025-10-11 | 79,546.34 | -53.73% | 246,581.75 | +27,096.55 / +12.35% |
+| 30% | 45% | not reached | 80,260.08 | -43.89% | 184,336.16 | -35,149.04 / -16.01% |
+| 40% | 5% | 2025-09-25 | 70,802.93 | -53.73% | 219,478.48 | -6.72 / -0.00% |
+| 40% | 10% | 2025-09-25 | 70,802.93 | -53.73% | 219,478.48 | -6.72 / -0.00% |
+| 40% | 15% | 2025-09-25 | 70,802.93 | -53.73% | 219,478.48 | -6.72 / -0.00% |
+| 40% | 20% | 2025-09-26 | 71,790.91 | -53.73% | 222,541.08 | +3,055.89 / +1.39% |
+| 40% | 25% | 2025-10-11 | 82,460.09 | -53.73% | 255,613.93 | +36,128.73 / +16.46% |
+| 40% | 30% | 2025-10-11 | 82,460.09 | -53.73% | 255,613.93 | +36,128.73 / +16.46% |
+| 40% | 35% | 2025-10-11 | 82,460.09 | -53.73% | 255,613.93 | +36,128.73 / +16.46% |
+| 40% | 40% | 2025-10-11 | 82,460.09 | -53.73% | 255,613.93 | +36,128.73 / +16.46% |
+| 40% | 45% | not reached | 83,411.75 | -39.84% | 172,619.81 | -46,865.39 / -21.35% |
+| 50% | 5% | 2025-09-25 | 70,802.39 | -53.73% | 219,476.80 | -8.40 / -0.00% |
+| 50% | 10% | 2025-09-25 | 70,802.39 | -53.73% | 219,476.80 | -8.40 / -0.00% |
+| 50% | 15% | 2025-09-25 | 70,802.39 | -53.73% | 219,476.80 | -8.40 / -0.00% |
+| 50% | 20% | 2025-09-26 | 72,037.37 | -53.73% | 223,305.05 | +3,819.86 / +1.74% |
+| 50% | 25% | 2025-10-11 | 85,373.84 | -53.73% | 264,646.11 | +45,160.91 / +20.58% |
+| 50% | 30% | 2025-10-11 | 85,373.84 | -53.73% | 264,646.11 | +45,160.91 / +20.58% |
+| 50% | 35% | 2025-10-11 | 85,373.84 | -53.73% | 264,646.11 | +45,160.91 / +20.58% |
+| 50% | 40% | 2025-10-11 | 85,373.84 | -53.73% | 264,646.11 | +45,160.91 / +20.58% |
+| 50% | 45% | not reached | 86,563.41 | -35.28% | 160,903.46 | -58,581.74 / -26.69% |
 
-about 70,805 USDT
+## Key observations
 
-No-overlay post-trigger max drawdown:
+### 5%–15% re-entry
 
-about -53.73%
+The market was already beyond these shallow thresholds immediately after cash-out.
 
-## Protection / opportunity-cost trade-off
+All 5%, 10%, and 15% cases re-entered on 2025-09-25.
 
-Each extra 10 percentage points moved to cash:
-- raised the historical post-cashout minimum by about 3.15k USDT;
-- reduced terminal equity by about 11.72k USDT because the 50%-drawdown re-entry never happened.
+Their terminal results are almost identical to no overlay, with only the extra cash-out/re-entry transaction costs remaining.
 
-Observed floor progression:
+### 20% re-entry
 
-- no overlay: about 70.8k
-- 20% cash: 77.1k
-- 30% cash: 80.3k
-- 40% cash: 83.4k
-- 50% cash: 86.6k
+Re-entry occurred on 2025-09-26.
 
-Observed post-cashout max-drawdown progression:
+This produced small terminal improvements versus baseline:
+- +0.70% for 20% cash-out;
+- +1.04% for 30%;
+- +1.39% for 40%;
+- +1.74% for 50%.
 
-- no overlay: about -53.73%
-- 20% cash: -47.52%
-- 30% cash: -43.89%
-- 40% cash: -39.84%
-- 50% cash: -35.28%
+### 25%–40% re-entry
 
-Observed terminal equity progression:
+All thresholds from 25% through 40% were crossed by the same daily close.
 
-- no overlay: 219.5k
-- 20% cash: 196.1k
-- 30% cash: 184.3k
-- 40% cash: 172.6k
-- 50% cash: 160.9k
+Trigger:
 
-## Immediate 20% at 10x vs trailing 20%
+2025-10-10
 
-Immediate cash-out after first 10x:
-- executed 2025-09-20;
-- final equity: 196,457.56 USDT.
+Execution:
 
-Trailing 20%:
-- waited for peak 127,668.80;
-- trigger after fall to 102,424.14;
-- executed 2025-09-23;
-- final equity: 196,052.50 USDT.
+2025-10-11
 
-Trailing 20% finished about 405 USDT below immediate-20%-cash-forever on this historical path.
+These scenarios produced the highest terminal equity in this historical path.
 
-Reason:
-the trailing rule waited for a higher peak, but by the time the 20,000-USDT giveback trigger fired, the sell execution value was slightly below the immediate-10x execution value. Since the 50%-from-peak re-entry never occurred, the delayed sale did not recover that difference later.
+Terminal uplift scaled with the protected fraction:
+- 20% cash-out: +8.23% vs baseline;
+- 30%: +12.35%;
+- 40%: +16.46%;
+- 50%: +20.58%.
+
+Highest observed terminal equity:
+
+264,646.11 USDT
+
+Scenario:
+
+50% cash-out + re-entry at any threshold from -25% through -40%.
+
+### 45% re-entry
+
+The -45% threshold was never reached.
+
+Therefore no cash re-entered and these scenarios behaved as permanent cash protection.
+
+They produced the highest capital floors and shallowest drawdowns, but the lowest terminal equity.
+
+Highest post-cashout floor:
+
+86,563.41 USDT
+
+Scenario:
+
+50% cash-out + -45% re-entry threshold not reached.
+
+Shallowest post-cashout max drawdown:
+
+-35.28%
+
+Same scenario.
+
+## Important nuance on max drawdown
+
+For re-entered 5%–40% scenarios, the later portfolio again becomes fully exposed to frozen U10.
+
+Therefore their later percentage max drawdown can still reach the same approximately -53.73% as baseline even when:
+- the absolute capital floor is higher;
+- terminal equity is higher.
+
+The cash overlay changed the quantity accumulated on re-entry, not the later percentage path of the underlying U10 holding.
 
 ## Main finding
 
-The user's proposed rule successfully converts a growing U10 portfolio into a trailing capital-protection regime rather than forcing a sale exactly at 10x.
+On this one historical path, the middle re-entry zone of -25% through -40% was materially different from both very shallow re-entry and no re-entry:
 
-However, on this historical path:
-- the trailing trigger fired quickly after a 127.7k peak;
-- the 50%-from-peak re-entry level was never reached;
-- therefore cash-out percentage became primarily a protection-versus-opportunity-cost choice.
+- shallow -5% to -15% effectively canceled the protection almost immediately;
+- -20% gave only modest benefit;
+- -25% through -40% waited long enough to buy back materially lower and increased terminal equity;
+- -45% never re-entered and maximized protection at the cost of future upside.
 
-Higher cash fractions materially raised the capital floor and reduced drawdown, but permanently reduced terminal equity over the observed window.
+This is a single-path observation, not proof that 25%–40% is generally optimal.
 
-## Research implication
+## Next robustness requirement
 
-The next important parameter is not only cash-out fraction.
+Before any capital-management rule is accepted, repeat this matrix across:
+- rolling historical entry dates;
+- multiple 10x-like activation levels;
+- alternative trailing giveback amounts;
+- multiple market cycles where sufficient data exist.
 
-The **re-entry drawdown threshold** must be stress-tested.
-
-Candidate sweep:
-- re-enter at -25% from locked peak;
-- -30%;
-- -35%;
-- -40%;
-- -45%;
-- -50%.
-
-This can show whether -50% is too conservative and whether a shallower re-entry restores more upside without giving back most of the protection.
-
-A separate sweep should later test the trailing giveback amount itself:
-- 1x original capital;
-- 2x;
-- 3x;
-- percentage-based peak drawdown thresholds.
+The current result is especially sensitive to daily-close threshold clustering, where several nominal thresholds map to one actual execution date.
 
 ## Residual risks
 
 - one historical activation/peak path only;
-- cash modeled as non-yielding USDT;
-- stablecoin/counterparty risk not modeled;
+- thresholds are evaluated on daily closes;
+- multiple requested thresholds can collapse to the same real execution date;
+- cash is modeled as non-yielding USDT;
+- stablecoin/counterparty risk is not modeled;
 - real spread/slippage may exceed 0.1%;
-- historical performance does not establish future performance;
-- no rolling trigger-path distribution has yet been tested.
+- historical performance does not establish future performance.
