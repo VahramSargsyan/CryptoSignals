@@ -773,3 +773,72 @@ Status:
 
 Detailed evidence:
 - `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
+
+
+---
+
+## 21. Official M2 money-supply context V1 — 2026-09-27
+
+STATUS: EXECUTED / CONTEXT_ONLY / DO_NOT_PROMOTE
+MODE: STRESS_TEST_ONLY + ECOSYSTEM_PLANNING
+
+Official source:
+- Federal Reserve H.6
+- M2.M
+- seasonally adjusted monthly M2
+- source feasibility PASS.
+
+Causal alignment:
+- actual 2022-2026 H.6 release dates;
+- value usable by crypto engine only from next UTC calendar day.
+
+Frozen transformations:
+- 3m change
+- 6m change
+- 12m / YoY change.
+
+Stress entry across 8 frozen episodes:
+- 3m M2 negative: 0/8
+- 6m negative: 0/8
+- 12m negative: 1/8.
+
+Thus M2 contraction is not required for crypto stress onset.
+
+Recovery exits:
+- 3m M2 positive: 8/8
+- 6m positive: 8/8
+- 12m positive: 8/8.
+
+But during generic DEFENSIVE days:
+- 3m positive: 100%
+- 6m positive: 100%
+- 12m positive: 99.29%.
+
+Therefore positive M2 growth has essentially no timing discrimination for cash exit.
+
+Latest fixed-end 2026-09-26:
+- M2 observation 2026-08
+- M2 23,342.8 USD bn
+- 3m +1.43%
+- 6m +3.29%
+- YoY +5.66%.
+
+Verdict:
+
+`OFFICIAL_M2_MONEY_SUPPLY_V1 = LIQUIDITY_REGIME_CONTEXT_ONLY / NO_STANDALONE_ENTRY_OR_EXIT_TIMING_EDGE / DO_NOT_PROMOTE`
+
+Interpretation:
+- retain M2 as a slow macro/liquidity regime feature;
+- do not use M2 positive growth alone to re-enter crypto;
+- do not tune neighboring M2 horizons on this same sample;
+- any BTC + M2 + breadth combination requires a new preregistration.
+
+Run:
+- source feasibility `36306932451`
+- event study `36307341969`
+- artifact `10928016535`
+
+Canonical evidence:
+- `research/relative_rotation/2026-09-27_OFFICIAL_M2_MONEY_SUPPLY_V1_EVIDENCE.md`
+
+TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + OFFICIAL_H6_M2 + ACTUAL_RELEASE_DATE_ALIGNMENT + REAL_BINANCE_1D + 8_FROZEN_CRYPTO_STRESS_EPISODES
