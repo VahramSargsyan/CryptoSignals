@@ -140,6 +140,19 @@ When Telegram reports `ROTATION CONFIRMED`:
 - no automatic mutation of the held-asset configuration;
 - Telegram is advisory/paper-live only.
 
+## Research evidence index
+
+Relative Rotation research is cataloged in:
+
+- [Relative Rotation Research Index](../research/relative_rotation/README.md)
+- [Strategy Lab U8 Risk, Transition Ledger & Entry-Date Stress](evidence/2026-09-27_U8_RISK_ENTRY_STRESS_STRATEGY_LAB_V1.md)
+
+Current risk interpretation rule:
+
+- `MAX DRAWDOWN FROM PRIOR PEAK` and `MINIMUM EQUITY VS INITIAL CAPITAL` are separate metrics;
+- the historical `-71.23%` U8 drawdown is a peak-to-trough decline, not automatically a 71.23% loss of original capital;
+- fresh-entry stress shows that entry date materially changes original-capital risk.
+
 ## Test level
 
 Local static/unit verification for this patch covers:
