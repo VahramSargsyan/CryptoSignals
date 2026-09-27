@@ -1,0 +1,43 @@
+name: Grid vs U10 Universe Portfolios v1
+
+on:
+  push:
+    branches:
+      - research/grid-vs-u10-universes-v1
+    paths:
+      - "scripts/research_grid_vs_u10_universe_portfolios_v1.py"
+      - ".github/workflows/grid-vs-u10-universe-portfolios-v1.yml"
+      - "research/relative_rotation/2026-09-27_GRID_VS_U10_UNIVERSE_PORTFOLIOS_V1_PREREG.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+      - name: Compile
+        run: python -m py_compile scripts/research_grid_vs_u10_universe_portfolios_v1.py
+      - name: Run Grid vs U10 universe portfolio comparison
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_grid_vs_u10_universe_portfolios_v1 --cutoff 2026-09-27T00:00:00Z
+      - name: Publish summary
+        run: |
+          RUN_DIR="$(find research_artifacts/grid_vs_u10_universe_portfolios_v1 -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          cat "$RUN_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grid-vs-u10-universe-portfolios-v1-${{ github.run_number }}
+          path: research_artifacts/grid_vs_u10_universe_portfolios_v1/**
+          if-no-files-found: error
+          retention-days: 90
