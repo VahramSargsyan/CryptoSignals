@@ -1,0 +1,84 @@
+name: Relative Rotation Paper Live v1
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_notify:
+        description: "Send an initialization/snapshot Telegram even without a new signal"
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: "20 0 * * *"
+  push:
+    branches:
+      - deploy/relative-rotation-paper-live-v1
+      - main
+    paths:
+      - ".github/workflows/relative-rotation-paper-live-v1.yml"
+      - "config/relative_rotation_paper_live_v1.json"
+      - "scripts/run_relative_rotation_paper_live.py"
+      - "scripts/send_relative_rotation_report.py"
+      - "strategies/crypto/relative_rotation/**"
+      - "tests/test_relative_rotation_paper_live.py"
+
+permissions:
+  contents: read
+
+jobs:
+  relative-rotation-paper-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+
+      - name: Run targeted unit and data-contract tests
+        run: |
+          python -m unittest tests.test_relative_rotation_paper_live -v
+          python -m unittest tests.test_binance_historical tests.test_binance_rest_client -v
+
+      - name: Run relative-rotation paper-live monitor
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          FORCE_NOTIFY_INPUT: ${{ inputs.force_notify }}
+        run: |
+          EXTRA=""
+          if [ "$EVENT_NAME" = "push" ] || [ "$FORCE_NOTIFY_INPUT" = "true" ]; then
+            EXTRA="--force-notify"
+          fi
+          python -m scripts.run_relative_rotation_paper_live $EXTRA
+
+      - name: Publish report to job summary
+        run: |
+          RUN_DIR="$(find paper_artifacts/relative_rotation_paper_live_v1 -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          cat "$RUN_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "PAPER_RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
+
+      - name: Optional Telegram notification
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python -m scripts.send_relative_rotation_report \
+            --report-json "$PAPER_RUN_DIR/report.json" \
+            --notification-text "$PAPER_RUN_DIR/notification.txt"
+
+      - name: Upload paper evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: relative-rotation-paper-live-v1-${{ github.run_number }}
+          path: paper_artifacts/relative_rotation_paper_live_v1/**
+          if-no-files-found: error
+          retention-days: 90
