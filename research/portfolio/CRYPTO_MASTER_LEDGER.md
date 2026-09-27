@@ -773,3 +773,81 @@ Status:
 
 Detailed evidence:
 - `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
+
+
+### Untouched post-March validation — 2026-09-27
+
+Frozen candidate tested without retuning:
+- active graph: 8 assets / 28 pairs
+- base router: 180d median / 15% ARM / 3% reversal / next-open / 0.1% cost
+- defensive candidate: SMA200 breadth, enter <=3 for 3 closes, lowest 30d realized-vol token, exit >=5 for 3 closes, no USDT
+
+Fresh source:
+- `brasdor/UngerFink-TREND`
+- Binance USDT-M Futures 1D OHLCV
+- source commit `d4217400d4537ae9f49dbaf8e5e8cac78a172777`
+- common fresh data through 2026-09-25
+
+Cross-market overlap versus prior Spot-like source:
+- daily-return correlations ~0.9998 for most assets;
+- PEPE ~0.9987; SOL ~0.9952 due isolated historical outlier/basis;
+- median absolute close basis generally ~0.05-0.09%.
+
+Reproduction check on known 2025-03-29 -> 2026-03-28 period:
+- old Spot-like base: +41.6%, DD ~-62.2%
+- Futures proxy base: +43.4%, DD ~-61.7%
+- old low-vol defense: +49.4%, DD ~-47.1%
+- Futures proxy defense: +48.9%, DD ~-47.3%
+
+Untouched proxy window:
+- 2026-03-29 -> 2026-09-25
+- 175 available daily observations over 181 calendar days
+
+Benchmarks:
+- LINK HODL +65.6%
+- AAVE +61.0%
+- SOL +50.1%
+- TWT +39.0%
+- PEPE +37.1%
+- BNB +28.3%
+- ATOM +9.0%
+- TRX +5.1%
+- equal-weight 8: +36.9%
+
+Base 8-node router:
+- median return **+95.1%**
+- min start +72.7%, max +102.6%
+- 8/8 starts positive
+- median DD **-36.8%**
+- median relative rotations: 4
+- all starts ended in ATOM under this proxy event path
+
+Frozen low-vol defensive layer:
+- median return **+27.8%**
+- 8/8 starts positive
+- median DD **-18.3%**
+- median defensive transitions: 2
+- median defensive occupancy ~78.9%
+
+Representative TWT defense path:
+- enter defensive TRX on 2026-04-01 after breadth stress confirmation
+- router continued in background: TWT -> AAVE (May), AAVE -> TWT (Jun), TWT -> ATOM (Aug)
+- defensive layer stayed in TRX until recovery confirmation
+- exit TRX -> ATOM on 2026-08-23
+
+Interpretation:
+- untouched period strongly supports the core relative-router hypothesis in this Futures proxy window;
+- frozen low-vol defense successfully cut drawdown, but sacrificed too much upside during a rapid broad recovery;
+- it is therefore NOT a default return-enhancement layer;
+- status: `VALIDATED_RISK_REDUCTION_BEHAVIOR / RETURN_COST_TOO_HIGH / NOT_DEFAULT_LAYER`;
+- do not retune recovery thresholds using this untouched window.
+
+Data gap:
+- six dates missing in July 2026;
+- gap-fill sensitivity with synthetic zero-return calendar rows left headline results and defensive state transitions unchanged;
+- retain data-source caveat.
+
+Detailed evidence:
+- `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
+
+TEST_LEVEL: CROSS_MARKET_FUTURES_PROXY_UNTOUCHED_VALIDATION + GAP_SENSITIVITY
