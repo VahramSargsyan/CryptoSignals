@@ -22,7 +22,7 @@ DATA_START = pd.Timestamp("2023-04-01", tz="UTC")
 BASE8 = ("ATOM","TWT","PEPE","BNB","SOL","TRX","AAVE","LINK")
 U20 = BASE8 + ("BTC","ETH","XRP","DOGE","ADA","AVAX","DOT","LTC","BCH","NEAR","UNI","FIL")
 U30 = U20 + ("ICP","XLM","ETC","RUNE","CRV","SAND","MANA","OP","ARB","APE")
-U40 = U30 + ("GALA","AXS","THETA","VET","ALGO","XTZ","CHZ","ENJ","COMP","EOS")
+U40 = U30 + ("GALA","AXS","THETA","VET","ALGO","XTZ","CHZ","ENJ","COMP","LDO")
 TIERS = {"U8":BASE8, "U20":U20, "U30":U30, "U40":U40}
 
 WINDOWS = (
