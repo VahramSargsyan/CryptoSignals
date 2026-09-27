@@ -491,10 +491,13 @@ def _empty_journal() -> pd.DataFrame:
 
 
 def load_journal(path: Path) -> pd.DataFrame:
-    if not path.exists():
+    if not path.exists() or path.stat().st_size == 0:
         return _empty_journal()
 
-    frame = pd.read_csv(path)
+    try:
+        frame = pd.read_csv(path)
+    except pd.errors.EmptyDataError:
+        return _empty_journal()
     missing = [column for column in JOURNAL_COLUMNS if column not in frame.columns]
     if missing:
         raise ValueError(f"journal missing columns: {missing}")
