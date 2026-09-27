@@ -318,6 +318,20 @@ def main():
         "latest_1y":(YEAR_START,END),
     }
 
+    base_comparison={}
+    for base_name,base_assets in (
+        ("BASE_U10",BASE_U10),
+        ("BASE_U9_CLEANER",BASE_U9_CLEANER),
+    ):
+        base_comparison[base_name]={"assets":list(base_assets),"common_twt_pepe":{}}
+        for label,(s,e) in windows.items():
+            base_comparison[base_name]["common_twt_pepe"][label]=summarize(
+                dates,opens,closes,event_idx,base_assets,s,e,("TWT","PEPE")
+            )
+        base_comparison[base_name]["rolling_12m_common_twt_pepe"]=rolling_12m(
+            dates,opens,closes,event_idx,base_assets,("TWT","PEPE")
+        )
+
     results={}
     for v in variants:
         a=v["assets"]
@@ -375,6 +389,7 @@ def main():
         "generated_at":pd.Timestamp.now(tz="UTC").isoformat(),
         "source_commit":source_sha(),
         "data":meta,
+        "base_comparison":base_comparison,
         "variants":results,
         "migration":migration,
         "legacy_atom_start":legacy,
@@ -415,6 +430,11 @@ def main():
     (run_dir/"report.md").write_text("\n".join(lines)+"\n",encoding="utf-8")
 
     print("run_dir="+str(run_dir))
+    for base_name,x in base_comparison.items():
+        print(base_name+"_mature=%.6f" % x["common_twt_pepe"]["mature"]["median_return"])
+        print(base_name+"_2y=%.6f" % x["common_twt_pepe"]["latest_2y"]["median_return"])
+        print(base_name+"_1y=%.6f" % x["common_twt_pepe"]["latest_1y"]["median_return"])
+        print(base_name+"_12m_worst=%.6f" % x["rolling_12m_common_twt_pepe"]["worst"])
     for name in ("DROP_ATOM_U9","DROP_ATOM_U8_CLEANER"):
         x=results[name]
         print(name+"_mature=%.6f" % x["common_twt_pepe"]["mature"]["median_return"])
