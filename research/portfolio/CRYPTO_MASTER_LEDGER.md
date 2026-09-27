@@ -709,3 +709,67 @@ Canonical active graph remains 8 assets / 28 pairs.
 
 Detailed evidence:
 - `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
+
+
+### Internal defensive crypto candidate — 2026-09-27
+
+Goal:
+- protect the existing 8-node / 28-pair rotation graph without assuming a move to USDT;
+- remain continuously invested in approved crypto tokens.
+
+Failed concepts first:
+- daily strongest-token overlay: excessive churn, weak robustness;
+- stale-hold timer only: reduced churn but did not reliably solve the late-2025/early-2026 failure;
+- broad-market stress + momentum leader: selected recent winners such as BNB/TWT and missed TRX's defensive behavior.
+
+Key regime fact:
+2025-10-20 -> 2026-03-28 HODL returns inside the 8-token universe:
+- TRX ~-1.5%
+- BNB ~-44.0%
+- ATOM ~-48.5%
+- PEPE ~-53.1%
+- LINK ~-53.9%
+- SOL ~-56.1%
+- AAVE ~-57.1%
+- TWT ~-67.2%
+
+TRX was already the lowest-volatility token at the first broad-market stress triggers, while momentum still favored BNB/TWT.
+
+Research candidate: DEFENSIVE_LOW_VOL_CRYPTO
+Reference configuration:
+- market breadth = number of 8 tokens above own SMA200;
+- enter defensive mode after 3 consecutive closes with breadth <= 3;
+- defensive token = lowest realized 30-day daily-close volatility among the 8;
+- remain 100% in that token; no USDT;
+- relative router continues in background;
+- exit after 3 consecutive closes with breadth >= 5;
+- then return to the current shadow target;
+- 0.1% actual transition cost.
+
+Highlighted 2025-03-29 -> 2026-03-28 OOS year:
+- base 8-node rotation: +41.6% median, ~-62.2% DD
+- low-vol defensive crypto: **+49.4% median, ~-47.1% DD**
+- all 8 starts remained positive
+- median defensive transitions: ~3
+
+Sequential 180-day median returns:
+- base: +374.2%, -29.2%, +138.3%, +20.1%, -44.9%
+- low-vol defensive: +423.9%, +13.2%, +106.3%, +39.7%, -0.8%
+
+120-day robustness:
+- base: +405.9%, -32.1%, -30.4%, +132.7%, +9.5%, +54.1%, -30.8%
+- low-vol defensive: +405.9%, -10.9%, -13.6%, +95.7%, +6.0%, +35.7%, -11.1%
+
+Parameter-neighborhood check:
+- enter breadth 3-4 / exit 4-6 with 3-day confirmation produced broadly similar protection;
+- stricter enter <=2 or slower 5-day confirmation degraded results;
+- do not pick the historically best visible row after the fact.
+
+Status:
+- PROMISING_RESEARCH_CANDIDATE
+- NOT_PRODUCTION_APPROVED
+- designed after observing failure regimes, so hindsight bias remains a major residual risk
+- real execution remains manual only
+
+Detailed evidence:
+- `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
