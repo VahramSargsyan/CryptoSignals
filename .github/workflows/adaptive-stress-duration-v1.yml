@@ -27,7 +27,7 @@ jobs:
 
       - name: Install pinned research dependencies
         run: |
-          python -m pip install "pandas==2.2.3"
+          python -m pip install "pandas==2.2.3" "evalica==0.4.2" "choix==0.4.1"
 
       - name: Compile research runner
         run: |
