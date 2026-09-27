@@ -105,6 +105,12 @@ jobs:
 
           git fetch origin \
             paper/recovery-observations-v1:refs/remotes/origin/paper/recovery-observations-v1
+
+          # The restored journal is untracked on the code branch but tracked on
+          # the isolated observation branch. Save it in /tmp above, then remove
+          # the working copy before switching branches.
+          rm -rf paper_observations/recovery_v1
+
           git switch -C \
             paper/recovery-observations-v1 \
             origin/paper/recovery-observations-v1
