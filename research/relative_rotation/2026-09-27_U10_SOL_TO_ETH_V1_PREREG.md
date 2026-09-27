@@ -41,9 +41,9 @@ ATOM, TWT, PEPE, BNB, SOL, TRX, AAVE, LINK, FIL
 - strongest confirmed max-dislocation router
 - next-open execution
 - 0.1% transition cost
-- cross-universe medians use the same original eight starters where available:
-  ATOM, TWT, PEPE, BNB, SOL, TRX, AAVE, LINK.
-  For SOL_TO_ETH_U10, ETH replaces SOL as the eighth starter to preserve one starter per slot/niche.
+- cross-universe medians use the exact same seven common starters:
+  ATOM, TWT, PEPE, BNB, TRX, AAVE, LINK.
+  This avoids changing the median merely because SOL is removed or replaced.
   ATOM-start is always reported separately.
 
 ## Windows
