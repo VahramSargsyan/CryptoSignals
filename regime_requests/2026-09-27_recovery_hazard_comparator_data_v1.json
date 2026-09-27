@@ -1,0 +1,30 @@
+{
+  "purpose": "RECOVERY_HAZARD_COMPARATOR_DATA_ONLY",
+  "start": "2023-01-01T00:00:00Z",
+  "end": "2026-09-27T00:00:00Z",
+  "timeframe": "1D",
+  "symbols": [
+    "ATOMUSDT",
+    "TWTUSDT",
+    "PEPEUSDT",
+    "BNBUSDT",
+    "SOLUSDT",
+    "TRXUSDT",
+    "AAVEUSDT",
+    "LINKUSDT"
+  ],
+  "validation_type": "DIAGNOSTIC_ONLY_RECOVERY_HAZARD_COMPARATOR",
+  "horizons": [
+    1,
+    7,
+    14,
+    30,
+    45,
+    60
+  ],
+  "protected_period": "2026_POST_HOC_ONLY",
+  "regime_config": {
+    "benchmark_symbol": "ATOMUSDT",
+    "minimum_breadth_assets": 5
+  }
+}
