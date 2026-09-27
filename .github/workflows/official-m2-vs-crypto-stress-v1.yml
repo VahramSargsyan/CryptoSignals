@@ -1,0 +1,54 @@
+name: Official M2 vs Crypto Stress V1
+
+on:
+  push:
+    branches:
+      - research/m2-money-supply-context-v1
+    paths:
+      - research_requests/run_official_m2_vs_crypto_stress_v1.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  m2-event-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned research dependencies
+        run: |
+          python -m pip install "pandas==2.2.3" "evalica==0.4.2" "choix==0.4.1"
+
+      - name: Compile
+        run: |
+          python -m py_compile scripts/research_official_m2_vs_crypto_stress_v1.py
+          python -m py_compile tests/test_official_m2_vs_crypto_stress_v1.py
+
+      - name: Unit tests
+        run: |
+          python -m unittest tests.test_official_m2_source_feasibility_v1 -v
+          python -m unittest tests.test_official_m2_vs_crypto_stress_v1 -v
+
+      - name: Run M2 event study
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_official_m2_vs_crypto_stress_v1
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-m2-vs-crypto-stress-v1
+          path: research_artifacts/official_m2_vs_crypto_stress_v1/**
+          if-no-files-found: warn
+          retention-days: 30
