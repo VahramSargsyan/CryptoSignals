@@ -1,0 +1,126 @@
+name: Recovery Paper Observation V1
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "35 0 * * *"
+  push:
+    branches:
+      - feature/recovery-paper-observation-v1
+    paths:
+      - research_requests/run_recovery_paper_observation_v1.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  paper-observation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout model code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned dependencies
+        run: |
+          python -m pip install \
+            "pandas==2.2.3" \
+            "evalica==0.4.2" \
+            "choix==0.4.1" \
+            "lifelines==0.30.3" \
+            "scikit-learn==1.8.0"
+
+      - name: Compile paper runner
+        run: |
+          python -m py_compile scripts/recovery_paper_observation_v1.py
+
+      - name: Run focused paper-observation tests
+        run: |
+          python -m unittest tests.test_recovery_paper_observation_v1 -v
+
+      - name: Run repository regression suite
+        run: |
+          python -m unittest discover -s tests -v
+
+      - name: Restore append-only paper journal
+        shell: bash
+        run: |
+          mkdir -p paper_observations/recovery_v1
+          if git ls-remote --exit-code --heads origin paper/recovery-observations-v1 >/dev/null 2>&1; then
+            git fetch origin \
+              paper/recovery-observations-v1:refs/remotes/origin/paper/recovery-observations-v1
+            git show \
+              origin/paper/recovery-observations-v1:paper_observations/recovery_v1/observations.csv \
+              > paper_observations/recovery_v1/observations.csv 2>/dev/null || true
+          fi
+
+      - name: Run forward paper observation
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: |
+          python -m scripts.recovery_paper_observation_v1 --append-journal
+
+      - name: Resolve run directory
+        shell: bash
+        run: |
+          RUN_DIR="$(find paper_artifacts/recovery_paper_observation_v1 \
+            -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          if [ -z "$RUN_DIR" ]; then
+            echo "No paper observation run directory found"
+            exit 2
+          fi
+          echo "PAPER_RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
+          cat "$RUN_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload immutable run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: recovery-paper-observation-v1-${{ github.run_number }}
+          path: paper_artifacts/recovery_paper_observation_v1/**
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Prepare persistent paper evidence
+        shell: bash
+        run: |
+          cp paper_observations/recovery_v1/observations.csv /tmp/recovery-observations.csv
+          cp "$PAPER_RUN_DIR/resolved_history.csv" /tmp/recovery-resolved-history.csv
+
+      - name: Persist journal on isolated observation branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin \
+            paper/recovery-observations-v1:refs/remotes/origin/paper/recovery-observations-v1
+          git switch -C \
+            paper/recovery-observations-v1 \
+            origin/paper/recovery-observations-v1
+
+          mkdir -p paper_observations/recovery_v1
+          cp /tmp/recovery-observations.csv \
+            paper_observations/recovery_v1/observations.csv
+          cp /tmp/recovery-resolved-history.csv \
+            paper_observations/recovery_v1/resolved_history.csv
+
+          git add \
+            paper_observations/recovery_v1/observations.csv \
+            paper_observations/recovery_v1/resolved_history.csv
+
+          if git diff --cached --quiet; then
+            echo "Journal already contains this closed candle; nothing to commit."
+            exit 0
+          fi
+
+          OBS_CANDLE="$(tail -n 1 paper_observations/recovery_v1/observations.csv | cut -d, -f1)"
+          git commit -m "paper: record recovery observation $OBS_CANDLE"
+          git push origin HEAD:paper/recovery-observations-v1
