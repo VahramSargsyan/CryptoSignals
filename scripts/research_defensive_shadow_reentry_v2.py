@@ -521,7 +521,7 @@ def main() -> int:
         "post_2026_03_28_data_used": False,
         "dataset": metadata,
         "predeclared_gates": gates,
-        "summary": summary.to_dict(orient="records"),
+        "summary": summary.astype(object).where(pd.notna(summary), None).to_dict(orient="records"),
     }
     _write_json(run_dir / "summary.json", report)
 
