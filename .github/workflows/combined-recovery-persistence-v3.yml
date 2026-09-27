@@ -1,0 +1,53 @@
+name: Combined Recovery Persistence V3
+
+on:
+  push:
+    branches:
+      - research/combined-recovery-persistence-v3
+    paths:
+      - research_requests/run_combined_recovery_persistence_v3.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  combined-recovery-persistence-v3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned research dependencies
+        run: |
+          python -m pip install "pandas==2.2.3" "evalica==0.4.2" "choix==0.4.1"
+
+      - name: Compile
+        run: |
+          python -m py_compile scripts/research_combined_recovery_persistence_v3.py
+          python -m py_compile tests/test_combined_recovery_persistence_v3.py
+
+      - name: Unit tests
+        run: |
+          python -m unittest tests.test_combined_recovery_persistence_v3 -v
+
+      - name: Run combined recovery persistence V3
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_combined_recovery_persistence_v3
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: combined-recovery-persistence-v3
+          path: research_artifacts/combined_recovery_persistence_v3/**
+          if-no-files-found: warn
+          retention-days: 30
