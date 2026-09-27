@@ -14,8 +14,14 @@ class OfficialLiquidityFeasibilityV1Tests(unittest.TestCase):
           <Series SERIES_NAME="RESPPA_N.WW" UNIT="USD millions">
             <Obs TIME_PERIOD="2026-01-07" OBS_VALUE="6600000"/>
           </Series>
-          <Series SERIES_NAME="TGA_TEST" CONCEPT="DEPUSTG">
+          <Series SERIES_NAME="TGA_BANK_1" COMPONENT="DEPUSTG" DISTRIBUTION="1" SERIESTYPE="L" CURRENCY="USD" UNIT="Currency" UNIT_MULT="1000000">
+            <Obs TIME_PERIOD="2026-01-07" OBS_VALUE="100000"/>
+          </Series>
+          <Series SERIES_NAME="TGA_TEST" COMPONENT="DEPUSTG" DISTRIBUTION="TOT" SERIESTYPE="L" CURRENCY="USD" UNIT="Currency" UNIT_MULT="1000000">
             <Obs TIME_PERIOD="2026-01-07" OBS_VALUE="700000"/>
+          </Series>
+          <Series SERIES_NAME="TGA_AVG" COMPONENT="DEPUSTG" DISTRIBUTION="TOT" SERIESTYPE="A" CURRENCY="USD" UNIT="Currency" UNIT_MULT="1000000">
+            <Obs TIME_PERIOD="2026-01-07" OBS_VALUE="650000"/>
           </Series>
         </Root>"""
         struct = """<Root><Code value="DEPUSTG"><Description>Deposits with FR Banks: U.S. Treasury, General Account</Description></Code></Root>"""
@@ -25,7 +31,11 @@ class OfficialLiquidityFeasibilityV1Tests(unittest.TestCase):
             zf.writestr("H41_struct.xml", struct)
         result = inspect_h41(buf.getvalue())
         self.assertEqual(len(result["total_assets_matches"]), 1)
-        self.assertEqual(result["unique_tga_series_names_from_code_match"], ["TGA_TEST"])
+        self.assertEqual(
+            result["unique_tga_series_names_from_code_match"],
+            ["TGA_AVG", "TGA_BANK_1", "TGA_TEST"],
+        )
+        self.assertEqual(result["tga_total_level_series_names"], ["TGA_TEST"])
         self.assertTrue(result["structure_tga_hits"])
 
     def test_rrp_shape(self):

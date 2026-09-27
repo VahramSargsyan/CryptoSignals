@@ -117,6 +117,22 @@ def inspect_h41(payload: bytes) -> dict:
             for row in tga_attr_matches
             if row["attrs"].get("SERIES_NAME")
         })
+        # Resolve the canonical aggregate LEVEL row from official H.4.1 dimensions.
+        # DEPUSTG has bank-level distributions plus aggregate transforms; the raw
+        # total level is uniquely identified by TOT + L in USD millions.
+        tga_total_level_matches = [
+            row for row in tga_attr_matches
+            if row["attrs"].get("DISTRIBUTION") == "TOT"
+            and row["attrs"].get("SERIESTYPE") == "L"
+            and row["attrs"].get("CURRENCY") == "USD"
+            and row["attrs"].get("UNIT") == "Currency"
+            and row["attrs"].get("UNIT_MULT") == "1000000"
+        ]
+        tga_total_level_names = sorted({
+            row["attrs"].get("SERIES_NAME")
+            for row in tga_total_level_matches
+            if row["attrs"].get("SERIES_NAME")
+        })
 
         return {
             "zip_names": names,
@@ -129,6 +145,8 @@ def inspect_h41(payload: bytes) -> dict:
             "tga_fallback_candidates": tga_fallback_candidates[:100],
             "structure_tga_hits": structure_hits[:20],
             "unique_tga_series_names_from_code_match": unique_tga_series,
+            "tga_total_level_matches": tga_total_level_matches,
+            "tga_total_level_series_names": tga_total_level_names,
         }
 
 
@@ -197,14 +215,20 @@ def main() -> int:
     h41 = summary["sources"].get("h41", {})
     rrp = summary["sources"].get("nyfed_rrp", {})
     total_ok = bool(h41.get("total_assets_matches"))
-    tga_names = h41.get("unique_tga_series_names_from_code_match") or []
+    tga_names = h41.get("tga_total_level_series_names") or []
+    tga_rows = h41.get("tga_total_level_matches") or []
+    tga_history_ok = (
+        len(tga_rows) == 1
+        and int(tga_rows[0].get("observation_count") or 0) >= 1000
+        and tga_rows[0].get("last_date") == h41.get("total_assets_matches", [{}])[0].get("last_date")
+    ) if total_ok else False
     rrp_ok = bool(rrp.get("reachable")) and int(rrp.get("reverse_candidate_count") or 0) > 0
 
     if not h41.get("reachable"):
         status = "BLOCKED_H41_UNREACHABLE"
     elif not total_ok:
         status = "BLOCKED_TOTAL_ASSETS_IDENTITY_UNRESOLVED"
-    elif len(tga_names) != 1:
+    elif len(tga_names) != 1 or not tga_history_ok:
         status = "BLOCKED_TGA_IDENTITY_UNRESOLVED"
     elif not rrp_ok:
         status = "BLOCKED_NYFED_RRP_UNUSABLE"
@@ -215,7 +239,8 @@ def main() -> int:
     summary["gate"] = {
         "h41_reachable": bool(h41.get("reachable")),
         "total_assets_resolved": total_ok,
-        "tga_unique_series_names": tga_names,
+        "tga_unique_total_level_series_names": tga_names,
+        "tga_history_consistent_with_total_assets": tga_history_ok,
         "rrp_usable": rrp_ok,
     }
 

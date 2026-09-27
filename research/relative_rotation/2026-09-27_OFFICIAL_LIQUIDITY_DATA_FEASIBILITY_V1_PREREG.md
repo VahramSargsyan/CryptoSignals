@@ -47,7 +47,7 @@ PASS only if:
 
 - H.4.1 official package is reachable;
 - exact total-assets series is present;
-- a unique TGA data series can be resolved from official package metadata;
+- a unique TGA raw aggregate level can be resolved from official package metadata using `COMPONENT=DEPUSTG`, `DISTRIBUTION=TOT`, `SERIESTYPE=L`, USD currency and USD-million unit metadata;
 - NY Fed RRP endpoint is reachable with usable historical observations.
 
 If TGA is ambiguous or absent, status must be `BLOCKED_TGA_IDENTITY_UNRESOLVED`; do not infer an identifier.
@@ -63,3 +63,13 @@ This feasibility pass does not yet align or backtest the series.
 Production behavior changed: NONE
 Paper-live behavior changed: NONE
 Migration required: NO
+
+
+## Attempt-1 diagnostic refinement
+
+The first official-package probe found 18 `DEPUSTG` rows because H.4.1 exposes:
+- 12 district distributions;
+- an aggregate raw level;
+- aggregate average/change transforms.
+
+The feasibility gate is therefore refined using H.4.1's own dimensions rather than any hard-coded external name. The expected selector is the unique `DEPUSTG + TOT + L` USD-million row. Independent GitHub references map that row to `RESPPLLDT_N.WW`, but those references are only a cross-check; the gate itself remains based on official package metadata.
