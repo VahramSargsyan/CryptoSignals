@@ -1,0 +1,46 @@
+name: Official Liquidity Data Feasibility V1
+
+on:
+  push:
+    branches:
+      - research/global-macro-risk-regime-v1
+    paths:
+      - research_requests/run_official_liquidity_data_feasibility_v1.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  liquidity-source-feasibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile feasibility probe
+        run: |
+          python -m py_compile scripts/research_official_liquidity_data_feasibility_v1.py
+          python -m py_compile tests/test_official_liquidity_data_feasibility_v1.py
+
+      - name: Run unit tests
+        run: python -m unittest tests.test_official_liquidity_data_feasibility_v1 -v
+
+      - name: Probe official sources
+        run: python -m scripts.research_official_liquidity_data_feasibility_v1
+
+      - name: Upload feasibility evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-liquidity-data-feasibility-v1
+          path: research_artifacts/official_liquidity_data_feasibility_v1/**
+          if-no-files-found: warn
+          retention-days: 30
