@@ -1172,3 +1172,79 @@ Canonical evidence:
 - `research/relative_rotation/2026-09-27_CASH_SHADOW_SMA25_50_REENTRY_V1_EVIDENCE.md`
 
 TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + FROZEN_REPRODUCTION_GATE + REAL_BINANCE_1D + FULL_HISTORY + 180D_120D_ROBUSTNESS
+
+
+---
+
+## 19. BTC SMA cash re-entry development V1 — 2026-09-27
+
+STATUS: DEVELOPMENT_TUNING / TOP3_FROZEN_FOR_FUTURE_HOLDOUT / NOT_VALIDATED
+MODE: STRESS_TEST_ONLY + ECOSYSTEM_PLANNING
+
+Purpose:
+- deliberately tune BTC-based cash re-entry on already-known 2023-05-05 -> 2026-09-26 history;
+- do not use older history;
+- later validate frozen values on older unseen data.
+
+BTC data:
+- Binance BTCUSDT 1D via historical downloader;
+- 1241 rows;
+- no critical quality issues;
+- older history not requested;
+- repository data/BTCUSDT.csv not used because it appears mislabeled.
+
+Search:
+- fast SMA = 5,7,10,12,15,20,25,30
+- slow SMA = 20,25,30,40,50,60,75,100
+- fast<slow
+- 58 pairs tested.
+
+Frozen TOP3:
+1. **25/100**
+2. **30/100**
+3. **12/100**
+
+Rank 1 BTC 25/100:
+- reproduction: +104.66% / -43.20%; wait 35d
+- opened 2026: +77.96% / -36.68%; wait 26d
+- full: +865.37% / -56.93%
+- robustness BOTH wins vs LOW_VOL: 2/13
+- DD wins: 5/13
+- return wins: 5/13
+- full median cash wait 143d, max 182d.
+
+Rank 2 BTC 30/100:
+- reproduction: +46.13% / -43.20%; wait 38d
+- opened 2026: +83.17% / -36.68%; wait 28d
+- full: +593.10% / -55.67%
+- BOTH 2/13; DD 5/13; return 4/13.
+
+Rank 3 BTC 12/100:
+- reproduction: +83.20% / -43.20%; wait 29d
+- opened 2026: +91.34% / -36.68%; wait 21d
+- full: +846.30% / -53.69%
+- BOTH 2/13; DD 4/13; return 6/13.
+
+Frozen LOW_VOL:
+- reproduction +49.05% / -47.13%
+- opened 2026 +32.92% / -18.34%
+- full +887.02% / -47.13%.
+
+Observation:
+- all top-8 development candidates hit slow SMA100;
+- this is boundary saturation, not proof that 100 is globally optimal;
+- BTC appears more promising as a market recovery reference than the individual shadow-token SMA25/50 rule;
+- no candidate robustly dominates LOW_VOL on both return and risk.
+
+Future holdout contract:
+- test exactly 25/100, 30/100, 12/100 on older previously unseen history;
+- no retuning on holdout;
+- preserve negative results.
+
+Verdict:
+`PROMISING_DEVELOPMENT_SHORTLIST / NOT_VALIDATED / HOLDOUT_REQUIRED`
+
+Canonical evidence:
+- `research/relative_rotation/2026-09-27_BTC_SMA_REENTRY_DEVELOPMENT_V1_EVIDENCE.md`
+
+TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + REAL_BINANCE_BTC_1D + FROZEN_REPRODUCTION_GATE + DEVELOPMENT_GRID_SEARCH + 180D_120D_ROBUSTNESS
