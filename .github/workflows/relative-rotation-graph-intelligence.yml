@@ -1,0 +1,50 @@
+name: Relative Rotation Graph Intelligence Research
+
+on:
+  push:
+    branches:
+      - research/relative-graph-intelligence-v1
+    paths:
+      - research_requests/run_relative_rotation_graph_intelligence_v1.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  graph-intelligence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned research dependencies
+        run: |
+          python -m pip install "pandas==2.2.3" "evalica==0.4.2" "choix==0.4.1"
+
+      - name: Run graph-intelligence unit tests
+        run: python -m unittest tests.test_relative_rotation_graph_intelligence -v
+
+      - name: Run frozen historical graph-intelligence experiment
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: |
+          python -m scripts.research_relative_rotation_graph_intelligence \
+            --data-start 2023-05-05 \
+            --end 2026-03-28
+
+      - name: Upload research evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relative-graph-intelligence-v1
+          path: research_artifacts/relative_graph_intelligence/**
+          if-no-files-found: warn
+          retention-days: 30
