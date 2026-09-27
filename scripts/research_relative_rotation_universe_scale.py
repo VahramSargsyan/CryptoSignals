@@ -133,7 +133,7 @@ def run_one(panel, emap, start, end, start_asset):
         pending = sorted(c, key=lambda e:(-float(e["max_dislocation"]), e["to_asset"], e["pair"]))[0]
     return {
         "start_asset":start_asset,
-        "return":float(equity[-1]-1.0),
+        "return":float(equity[-1]/equity[0]-1.0),
         "max_dd":dd(equity),
         "transitions":transitions,
         "conflicts":conflicts,
