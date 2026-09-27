@@ -5,6 +5,7 @@ import unittest
 import pandas as pd
 
 from strategies.crypto.relative_rotation.paper_live import (
+    ASSETS,
     _defensive_state_machine,
     build_pair_monitor,
     choose_held_events,
@@ -89,6 +90,48 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         selected = choose_held_events(events, held_asset="ATOM", latest_date=latest)
         self.assertEqual(len(selected["confirmed"]), 2)
         self.assertEqual(selected["primary_confirmed"]["to_asset"], "SOL")
+
+    def test_default_live_universe_is_u10_and_has_45_pair_states(self):
+        self.assertEqual(
+            ASSETS,
+            ("ATOM", "TWT", "PEPE", "BNB", "SOL", "TRX", "AAVE", "LINK", "FIL", "HBAR"),
+        )
+        dates = pd.date_range("2026-01-01", periods=180, freq="D", tz="UTC")
+        payload = {"timestamp": dates}
+        for index, asset in enumerate(ASSETS, start=1):
+            payload[f"{asset}_close"] = [float(index)] * len(dates)
+        panel = pd.DataFrame(payload)
+
+        events, states = build_pair_monitor(panel)
+        self.assertEqual(events, [])
+        self.assertEqual(len(states), 45)
+
+    def test_atom_watch_can_be_evaluated_independently_of_held_asset(self):
+        latest = pd.Timestamp("2026-09-27", tz="UTC")
+        events = [
+            {
+                "date": latest.isoformat(),
+                "event": "CONFIRMED",
+                "pair": "ATOM/FIL",
+                "from_asset": "ATOM",
+                "to_asset": "FIL",
+                "max_dislocation": 0.31,
+            },
+            {
+                "date": latest.isoformat(),
+                "event": "CONFIRMED",
+                "pair": "TWT/HBAR",
+                "from_asset": "TWT",
+                "to_asset": "HBAR",
+                "max_dislocation": 0.42,
+            },
+        ]
+
+        held = choose_held_events(events, held_asset="TWT", latest_date=latest)
+        atom_watch = choose_held_events(events, held_asset="ATOM", latest_date=latest)
+
+        self.assertEqual(held["primary_confirmed"]["to_asset"], "HBAR")
+        self.assertEqual(atom_watch["primary_confirmed"]["to_asset"], "FIL")
 
     def test_defensive_state_machine_enters_and_exits_after_three_closes(self):
         dates = list(pd.date_range("2026-01-01", periods=8, freq="D", tz="UTC"))
