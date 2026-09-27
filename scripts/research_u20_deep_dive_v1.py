@@ -104,8 +104,8 @@ def event_map(panel, assets, lookback=LOOKBACK, arm=ARM, reversal=REVERSAL):
 def choose(candidates, router):
     if not candidates:
         return None
-    if router == "skip_conflict" and len(candidates) > 1:
-        return None
+    if router == "skip_conflict":
+        return None if len(candidates) > 1 else candidates[0]
     if router == "strongest":
         return sorted(candidates, key=lambda e:(-float(e["max_dislocation"]), e["to_asset"], e["pair"]))[0]
     if router == "weakest":
@@ -224,7 +224,7 @@ def monthly_windows(panel, mature_start, months):
         if start_candidates.empty:
             break
         start = utc(start_candidates.iloc[0]["timestamp"])
-        end_target = start + pd.DateOffset(months=months) - pd.Timedelta(days=1)
+        end_target = start + pd.DateOffset(months=months) - pd.Timedelta("1D")
         if end_target > last:
             break
         end_candidates = panel[panel["timestamp"] <= end_target]
