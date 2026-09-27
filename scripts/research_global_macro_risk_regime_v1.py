@@ -127,8 +127,20 @@ def fetch_fred_component(
         f"{FRED_URL}?{query}",
         headers={"User-Agent": "CryptoSignals research/global-macro-risk-regime-v1"},
     )
-    with urllib.request.urlopen(request, timeout=45) as response:
-        payload = response.read().decode("utf-8")
+    payload = None
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=90) as response:
+                payload = response.read().decode("utf-8")
+            break
+        except (TimeoutError, OSError) as exc:
+            last_error = exc
+            if attempt == 2:
+                raise
+            time.sleep(2 ** attempt)
+    if payload is None:
+        raise RuntimeError(f"FRED download failed for {spec.series_id}") from last_error
 
     raw = pd.read_csv(io.StringIO(payload))
     if raw.shape[1] < 2:
