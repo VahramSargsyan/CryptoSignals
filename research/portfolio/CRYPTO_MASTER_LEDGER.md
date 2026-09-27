@@ -1248,3 +1248,75 @@ Canonical evidence:
 - `research/relative_rotation/2026-09-27_BTC_SMA_REENTRY_DEVELOPMENT_V1_EVIDENCE.md`
 
 TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + REAL_BINANCE_BTC_1D + FROZEN_REPRODUCTION_GATE + DEVELOPMENT_GRID_SEARCH + 180D_120D_ROBUSTNESS
+
+
+---
+
+## 20. BTC SMA reverse-time LEGACY-7 holdout — 2026-09-27
+
+STATUS: EXECUTED / PRIMARY_HOLDOUT_FAIL / STANDALONE_REENTRY_REJECTED
+MODE: STRESS_TEST_ONLY + ECOSYSTEM_PLANNING
+
+Exact older 8-asset holdout is impossible because PEPE does not have sufficient older history plus SMA200 warmup.
+
+Preregistered LEGACY-7:
+- ATOM, TWT, BNB, SOL, TRX, AAVE, LINK
+- no replacement for PEPE
+- breadth thresholds remain 3/5 without retuning.
+
+Data:
+- requested 2020-01-01 -> 2023-05-04
+- common panel starts 2021-01-27 due TWT listing
+- eligible anchor after warmup: 2021-08-14
+- full holdout: 2021-08-14 -> 2023-05-04.
+
+Frozen development shortlist tested unchanged:
+1. BTC 25/100
+2. BTC 30/100
+3. BTC 12/100
+
+Full holdout:
+- BASELINE: -70.96% / -92.94%
+- LOW_VOL: -40.08% / -76.24%
+- frozen CASH: -36.13% / -69.77%
+- BTC 25/100: -70.74% / -93.76%
+- BTC 30/100: -72.88% / -94.21%
+- BTC 12/100: -64.69% / -92.46%
+
+All starts were negative in all variants.
+
+Thus none of the frozen BTC candidates beat LOW_VOL or frozen CASH on the primary full old holdout.
+
+Raw robustness:
+- 3 complete 180d windows
+- 5 complete 120d windows
+- each BTC candidate beats LOW_VOL on both return and DD in 6/8 windows.
+
+However, most raw wins are endpoint/truncation effects:
+- for 25/100, 4 of 6 simultaneous wins end with all seven starts still unresolved in CASH;
+- these show stress avoidance, not validated re-entry timing.
+
+Critical resolved failure:
+2022-02-10 -> 2022-08-08:
+- LOW_VOL +2.34% / -36.79%
+- BTC 25/100 -58.08% / -79.09%
+- BTC 30/100 -60.87% / -79.86%
+- BTC 12/100 -49.40% / -79.09%
+
+Interpretation:
+- BTC crossover can identify temporary recovery and still return to risk far too early inside a continuing bear market;
+- old unseen history rejects BTC crossover as a standalone systemic-recovery gate;
+- BTC still appears useful as one component of a recovery model, but not sufficient alone.
+
+Verdict:
+`PARTIAL_SIGNAL_VALUE / PRIMARY_HOLDOUT_FAIL / STANDALONE_REENTRY_REJECTED`
+
+Run:
+- GitHub Actions `36305802639`
+- source `d07324b57d2dbf65fe94e701a81b439f21bcef93`
+- artifact `10927261202`
+
+Canonical evidence:
+- `research/relative_rotation/2026-09-27_BTC_SMA_LEGACY7_HOLDOUT_V1_EVIDENCE.md`
+
+TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + REAL_BINANCE_1D + REVERSE_TIME_LEGACY7_HOLDOUT + 180D_120D_ROBUSTNESS
