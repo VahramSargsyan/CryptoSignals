@@ -248,7 +248,7 @@ def main():
         df.to_csv(run_dir/f"all_u{size}_last_year.csv",index=False)
         outputs[f"U{size}"]={
             "distribution":distribution(df),
-            "top10":df.head(10).to_dict(orient="records"),
+            "top10":json.loads(df.head(10).to_json(orient="records")),
             "top50_frequency":top_frequency(df,50),
             "top100_frequency":top_frequency(df,100),
             "top10_frequency":top_frequency(df,10),
