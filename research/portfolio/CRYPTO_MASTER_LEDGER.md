@@ -916,3 +916,86 @@ Canonical evidence:
 - `research/relative_rotation/2026-09-27_COMBINED_RECOVERY_GATE_V1_EVIDENCE.md`
 
 TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + REAL_BINANCE_1D + OFFICIAL_H6_M2_SNAPSHOT + CURRENT8_FULL_HISTORY + RETROSPECTIVE_LEGACY7 + 180D_120D_ROBUSTNESS
+
+
+---
+
+## 23. Combined recovery STATE V2 — 2026-09-27
+
+STATUS: EXECUTED / PARTIAL_IMPROVEMENT / DO_NOT_PROMOTE
+MODE: STRESS_TEST_ONLY + ECOSYSTEM_PLANNING
+
+Single change from V1:
+- V1 required a fresh BTC crossover on the same date as M2 expansion and breadth>=4.
+- V2 treats BTC as a persistent state: fast SMA > SMA100.
+- No parameters retuned.
+
+Current 8-asset full-history:
+
+LOW_VOL:
+- +887.02% / -47.13%.
+
+25/100 V2:
+- +381.74% / -64.04%
+- median cash wait 34.5d
+- max 296d
+- cash exposure 42.71%
+- both wins vs LOW_VOL 2/13.
+
+30/100 V2:
+- +381.74% / -64.04%
+- median wait 34.5d
+- max 296d
+- both wins 2/13.
+
+12/100 V2:
+- +362.48% / -64.21%
+- median wait 41d
+- max 294d
+- both wins 2/13.
+
+V1 waits had been roughly 205.5-296d median.
+Therefore state semantics solved most artificial delay.
+
+Reproduction:
+- LOW_VOL +49.05% / -47.13%
+- V2 all candidates approximately +18.61% / -43.20%
+- median wait 40d.
+
+Opened 2026:
+- V2 is unchanged from V1:
+  - 25/100 and 30/100 +25.44% / -18.34%, wait 146d
+  - 12/100 +20.99% / -18.34%, wait 144d.
+
+Retrospective LEGACY-7:
+- LOW_VOL -40.08% / -76.24%
+- V1 +30.17% / -37.06%, but 0 re-entry and 7/7 unresolved cash
+- V2 -18.79% / -62.52%
+- V2 resolved one re-entry, sometimes after only 1d
+- terminal unresolved cash remains 7/7.
+
+Critical 2022:
+- LOW_VOL +2.34% / -36.79%
+- V1 -7.36% / -7.36%, no re-entry
+- V2 -7.36% / -7.36%, no re-entry.
+
+Thus V2 preserves the block on the catastrophic 2022 false BTC recovery.
+
+Main finding:
+- V1 was too late because it required a new crossover event.
+- V2 fixes that and normalizes waits.
+- V2 then exposes the deeper problem: the combined states can still re-enter before a durable market recovery, producing full-history DD around -64%.
+- Frozen LOW_VOL remains substantially stronger on full-cycle return and DD.
+
+Verdict:
+`EVENT_SEMANTICS_FIX_WORKS / WAIT_NORMALIZED / 2022_FALSE_RECOVERY_STILL_BLOCKED / FULL_CYCLE_RISK_TOO_HIGH / PARTIAL_IMPROVEMENT / DO_NOT_PROMOTE`
+
+Run:
+- GitHub Actions `36309021430`
+- source `d9833d9c8d8c208aba2015de8cebcbb1cad2c912`
+- artifact ID `10928223513`
+
+Canonical evidence:
+- `research/relative_rotation/2026-09-27_COMBINED_RECOVERY_STATE_V2_EVIDENCE.md`
+
+TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + REAL_BINANCE_1D + OFFICIAL_H6_M2_SNAPSHOT + CURRENT8_FULL_HISTORY + RETROSPECTIVE_LEGACY7 + 180D_120D_ROBUSTNESS
