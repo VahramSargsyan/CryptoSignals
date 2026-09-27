@@ -1,0 +1,43 @@
+name: Relative Rotation Universe Scale Stress Test v1
+
+on:
+  push:
+    branches:
+      - research/relative-rotation-universe-scale-v1
+    paths:
+      - "scripts/research_relative_rotation_universe_scale.py"
+      - ".github/workflows/relative-rotation-universe-scale-v1.yml"
+      - "research/relative_rotation/2026-09-27_UNIVERSE_SCALE_V1_PREREG.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+      - name: Compile research script
+        run: python -m py_compile scripts/research_relative_rotation_universe_scale.py
+      - name: Run fixed-universe stress test
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_relative_rotation_universe_scale --cutoff 2026-09-27T00:00:00Z
+      - name: Publish summary
+        run: |
+          RUN_DIR="$(find research_artifacts/relative_rotation_universe_scale_v1 -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          cat "$RUN_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relative-rotation-universe-scale-v1-${{ github.run_number }}
+          path: research_artifacts/relative_rotation_universe_scale_v1/**
+          if-no-files-found: error
+          retention-days: 90
