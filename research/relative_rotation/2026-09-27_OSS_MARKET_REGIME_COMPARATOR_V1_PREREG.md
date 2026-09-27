@@ -86,7 +86,7 @@ No change:
 - exit after 3 consecutive closes breadth >=5
 - next-open execution semantics
 
-The known untouched episode 2026-04-01 -> 2026-08-23 must reproduce or the comparator run fails.
+The untouched validation window starts on 2026-03-29 with state reset, matching the frozen untouched evidence. The known untouched episode 2026-04-01 -> 2026-08-23 must reproduce or the comparator run fails.
 
 ## Outputs
 
