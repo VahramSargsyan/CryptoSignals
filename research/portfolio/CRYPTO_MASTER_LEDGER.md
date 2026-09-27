@@ -985,3 +985,122 @@ Canonical evidence:
 - `research/relative_rotation/2026-09-27_CASH_DEFENSE_DESTINATION_ABLATION_V1_EVIDENCE.md`
 
 TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + FROZEN_REPRODUCTION_GATE + REAL_BINANCE_1D + FULL_HISTORY + 180D_120D_ROBUSTNESS
+
+
+---
+
+## 16. Fixed cash crisis quarantine research — 2026-09-27
+
+### V1 — immediate re-arm after fixed cash exit
+
+STATUS: EXECUTED / REJECTED_FOR_PROMOTION
+
+Preregistered durations:
+- 14d / 21d / 30d / 45d / 60d
+
+V1 semantics:
+- frozen breadth<=3 x3 entry;
+- fixed cash duration;
+- return to current shadow target;
+- crisis detector immediately begins counting a fresh low streak again.
+
+Result:
+- materially duration-sensitive;
+- persistent crises caused repeated cash ping-pong;
+- full-history median cash entries ranged from 11 to 33 depending on duration;
+- no duration consistently beat frozen LOW_VOL on both return and drawdown;
+- no 180d robustness window showed a duration consistently dominating LOW_VOL on both dimensions.
+
+Verdict:
+`CASH_CRISIS_QUARANTINE_V1 = DURATION_SENSITIVE / RETRIGGER_CHURN / DO_NOT_PROMOTE`
+
+Evidence:
+- `research/relative_rotation/2026-09-27_CASH_CRISIS_QUARANTINE_V1_EVIDENCE.md`
+
+### V2 — one cash quarantine per crisis episode
+
+STATUS: EXECUTED / PROMISING_ARCHITECTURE / NOT_PRODUCTION_APPROVED
+
+Semantic correction:
+- after fixed cash exit, relative rotations resume immediately;
+- crisis detector becomes POST_CASH_DISARMED;
+- another cash exit is forbidden until the existing frozen recovery condition breadth>=5 x3 is observed;
+- that recovery condition only re-arms future crisis detection and does not keep capital in cash;
+- after re-arm, a future cash entry requires a completely fresh breadth<=3 x3 sequence.
+
+Run:
+- GitHub Actions: `36301213660`
+- source commit: `72c71ee641f258f7d7c97735eec9d043683dd046`
+- artifact ID: `10926076102`
+- workflow: SUCCESS
+- reproduction gate: PASS
+
+Reproduction 2025-03-29 -> 2026-03-28:
+- frozen LOW_VOL: +49.05% / -47.13%
+- 14d: +54.46% / -59.30%
+- 21d: +66.22% / -53.81%
+- 30d: +63.83% / -53.30%
+- 45d: +4.29% / -53.30%
+- 60d: +23.48% / -53.30%
+
+Opened 2026-03-29 -> 2026-09-26:
+- baseline: +103.36% / -36.68%
+- frozen LOW_VOL: +32.92% / -18.34%
+- 14d: +97.37% / -36.68%
+- 21d: +91.34% / -36.68%
+- 30d: +86.76% / -36.68%
+- 45d: +59.41% / -34.77%
+- 60d: +77.25% / -26.54%
+
+Full eligible history 2023-11-20 -> 2026-09-26:
+- baseline: +646.96% / -71.23%
+- frozen LOW_VOL: +887.02% / -47.13%
+- frozen-timing CASH: +258.06% / -67.56%
+- 14d: +567.39% / -69.53%
+- 21d: +1,142.45% / -65.42%
+- 30d: +1,684.58% / -65.04%
+- 45d: +965.68% / -65.04%
+- 60d: +470.70% / -68.31%
+
+Important:
+- 30d is the strongest full-history return row, but it is NOT selected or validated;
+- all five durations were preregistered together;
+- the ranking is sample-sensitive;
+- all durations remain materially worse than LOW_VOL on full-history drawdown.
+
+Robustness, 13 non-overlapping windows:
+- LOW_VOL return wins by V2 duration:
+  - 14d beats LOW_VOL in 4/13;
+  - 21d in 7/13;
+  - 30d in 8/13;
+  - 45d in 6/13;
+  - 60d in 4/13.
+- LOW_VOL drawdown is harder to beat:
+  - every duration beats LOW_VOL drawdown in only 2/13 windows.
+- both return and drawdown improved together:
+  - 14d 2/13;
+  - 21d 2/13;
+  - 30d 2/13;
+  - 45d 2/13;
+  - 60d 1/13.
+
+Interpretation:
+- one-quarantine-per-crisis removes the V1 re-trigger churn;
+- fixed cash quarantine can recover much of the active-router upside that frozen LOW_VOL sacrifices;
+- fixed time alone is not a robust risk-control exit;
+- after quarantine expiry, capital can spend months back inside crypto while the same crisis remains unresolved;
+- the next research problem is re-entry timing, not cash-entry timing.
+
+Verdict:
+
+`CASH_CRISIS_QUARANTINE_REARM_V2 = PROMISING_RETURN_RECOVERY / RISK_CONTROL_WEAK / DURATION_SENSITIVE / DO_NOT_PROMOTE`
+
+Canonical evidence:
+- `research/relative_rotation/2026-09-27_CASH_CRISIS_QUARANTINE_REARM_V2_EVIDENCE.md`
+
+Next boundary:
+- do not pick 30d from this sample;
+- future work should preserve one cash reaction per crisis and test a separately preregistered recovery/re-entry condition;
+- macro/Fed-liquidity context may be tested for re-entry only in a new experiment.
+
+TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + FROZEN_REPRODUCTION_GATE + REAL_BINANCE_1D + FULL_HISTORY + 180D_120D_ROBUSTNESS
