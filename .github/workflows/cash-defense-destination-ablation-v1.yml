@@ -1,0 +1,56 @@
+name: Cash Defense Destination Ablation V1
+
+on:
+  push:
+    branches:
+      - research/cash-defense-destination-ablation-v1
+    paths:
+      - research_requests/run_cash_defense_destination_ablation_v1.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cash-destination-ablation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned research dependencies
+        run: |
+          python -m pip install "pandas==2.2.3" "evalica==0.4.2" "choix==0.4.1"
+
+      - name: Compile research runners
+        run: |
+          python -m py_compile scripts/research_relative_rotation_graph_intelligence.py
+          python -m py_compile scripts/research_defensive_low_vol_untouched.py
+          python -m py_compile scripts/research_cash_defense_destination_ablation_v1.py
+          python -m py_compile tests/test_cash_defense_destination_ablation_v1.py
+
+      - name: Run unit tests
+        run: |
+          python -m unittest tests.test_relative_rotation_graph_intelligence -v
+          python -m unittest tests.test_cash_defense_destination_ablation_v1 -v
+
+      - name: Run frozen destination ablation
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_cash_defense_destination_ablation_v1
+
+      - name: Upload research evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cash-defense-destination-ablation-v1
+          path: research_artifacts/cash_defense_destination_ablation_v1/**
+          if-no-files-found: warn
+          retention-days: 30
