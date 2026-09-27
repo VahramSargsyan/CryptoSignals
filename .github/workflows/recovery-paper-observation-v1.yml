@@ -57,9 +57,12 @@ jobs:
           if git ls-remote --exit-code --heads origin paper/recovery-observations-v1 >/dev/null 2>&1; then
             git fetch origin \
               paper/recovery-observations-v1:refs/remotes/origin/paper/recovery-observations-v1
-            git show \
+            if git show \
               origin/paper/recovery-observations-v1:paper_observations/recovery_v1/observations.csv \
-              > paper_observations/recovery_v1/observations.csv 2>/dev/null || true
+              > /tmp/recovery-observations-existing.csv 2>/dev/null; then
+              mv /tmp/recovery-observations-existing.csv \
+                paper_observations/recovery_v1/observations.csv
+            fi
           fi
 
       - name: Run forward paper observation
