@@ -1,0 +1,55 @@
+name: Defensive Shadow Re-entry V2 Research
+
+on:
+  push:
+    branches:
+      - research/defensive-shadow-reentry-v2
+    paths:
+      - research_requests/run_defensive_shadow_reentry_v2.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  development-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned research dependencies
+        run: |
+          python -m pip install "pandas==2.2.3" "evalica==0.4.2" "choix==0.4.1"
+
+      - name: Compile research runners
+        run: |
+          python -m py_compile scripts/research_relative_rotation_graph_intelligence.py
+          python -m py_compile scripts/research_defensive_low_vol_untouched.py
+          python -m py_compile scripts/research_defensive_shadow_reentry_v2.py
+
+      - name: Run research unit tests
+        run: |
+          python -m unittest tests.test_relative_rotation_graph_intelligence -v
+          python -m unittest tests.test_defensive_shadow_reentry_v2 -v
+
+      - name: Run preregistered V2 development comparison
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_defensive_shadow_reentry_v2
+
+      - name: Upload development evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: defensive-shadow-reentry-v2
+          path: research_artifacts/defensive_shadow_reentry_v2/**
+          if-no-files-found: warn
+          retention-days: 30
