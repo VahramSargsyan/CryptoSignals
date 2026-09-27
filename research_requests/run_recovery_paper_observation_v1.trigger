@@ -1,3 +1,0 @@
-run=2026-09-27T12:40+04:00
-purpose=RECOVERY_PAPER_OBSERVATION_V1_CLEAN_MAIN_RUN
-retry=standalone-test-import-fix
