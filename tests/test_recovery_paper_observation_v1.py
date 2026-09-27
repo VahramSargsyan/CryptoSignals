@@ -72,6 +72,17 @@ class RecoveryPaperObservationV1Tests(unittest.TestCase):
         self.assertNotIn(0, frame["remaining_stress_days"].astype(int).tolist())
         self.assertAlmostEqual(float(frame["sample_weight"].sum()), 1.0)
 
+    def test_empty_existing_journal_bootstraps_cleanly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "observations.csv"
+            path.write_text("", encoding="utf-8")
+
+            from scripts.recovery_paper_observation_v1 import load_journal
+
+            frame = load_journal(path)
+            self.assertEqual(list(frame.columns), JOURNAL_COLUMNS)
+            self.assertTrue(frame.empty)
+
     def test_append_observation_is_idempotent_by_candle(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "observations.csv"
