@@ -230,7 +230,7 @@ Research files:
 - [Evidence](../../research/relative_rotation/2026-09-27_U10_TRAILING_PROFIT_LOCK_V1_EVIDENCE.md)
 - runner: `scripts/research_u10_trailing_profit_lock_v1.py`
 - workflow: `.github/workflows/u10-trailing-profit-lock-v1.yml`
-- GitHub Actions run: `36335596026`
+- GitHub Actions run: `36336178272`
 - result: PASS
 - test level: `GITHUB_ACTIONS_LIVE_PUBLIC_DATA_BACKTEST`
 
@@ -238,47 +238,78 @@ Rule:
 
 - reaching 10x capital only activates monitoring;
 - keep tracking the frozen-U10 running peak;
-- after a decline of at least 2x original capital (20,000 USDT) from that peak, sell a protected fraction;
-- test 20%, 30%, 40%, and 50% cash-out independently;
-- lock the peak;
-- re-enter only after frozen-U10 equity falls 50% from that locked peak.
+- after a decline of at least 2x original capital (20,000 USDT) from that peak, sell 20%, 30%, 40%, or 50%;
+- lock that peak;
+- sweep re-entry at -5%, -10%, -15%, -20%, -25%, -30%, -35%, -40%, and -45% from the locked peak.
 
-Observed path:
+Observed shared trigger path:
 
 - 10x activation: 2025-09-19;
 - running peak: 127,668.80 USDT on 2025-09-20;
-- trigger: 102,424.14 USDT on 2025-09-22;
+- cash-out trigger: 102,424.14 USDT on 2025-09-22;
 - actual giveback at trigger: 25,244.66 USDT / -19.77%;
 - cash-out execution: 2025-09-23.
 
-The 50%-from-peak re-entry level was:
+Re-entry timing by threshold:
 
-63,834.40 USDT.
+| Requested drawdown | Re-entry execution |
+|---:|---|
+| -5% | 2025-09-25 |
+| -10% | 2025-09-25 |
+| -15% | 2025-09-25 |
+| -20% | 2025-09-26 |
+| -25% | 2025-10-11 |
+| -30% | 2025-10-11 |
+| -35% | 2025-10-11 |
+| -40% | 2025-10-11 |
+| -45% | not reached |
 
-That level was **never reached** before 2026-09-26, so all protected cash remained outside the market through the end of this historical test.
+Because decisions use daily closes, several nominal thresholds collapse to the same real execution date.
 
-| Protected fraction | Minimum after cash-out | Max DD after cash-out | Final equity | Delta vs no overlay |
-|---:|---:|---:|---:|---:|
-| 20% | 77,108.42 | -47.52% | 196,052.50 | -10.68% |
-| 30% | 80,260.08 | -43.89% | 184,336.16 | -16.01% |
-| 40% | 83,411.75 | -39.84% | 172,619.81 | -21.35% |
-| 50% | 86,563.41 | -35.28% | 160,903.46 | -26.69% |
+Key observations:
 
-No-overlay reference:
-- final equity: 219,485.20 USDT;
-- post-trigger minimum: about 70.8k USDT;
-- post-trigger max drawdown: about -53.73%.
+- -5% to -15% re-entry was so shallow that the overlay effectively canceled itself almost immediately; terminal equity stayed essentially equal to baseline minus extra transaction costs.
+- -20% re-entry produced only a small uplift.
+- -25% through -40% all re-entered on 2025-10-11 and materially increased terminal equity in this single path.
+- -45% never triggered, so it behaved as permanent cash protection and maximized the capital floor while sacrificing terminal upside.
 
-Interpretation:
+Highest terminal equity observed in the 36-scenario sweep:
 
-- more cash materially raises the capital floor;
-- more cash materially reduces max drawdown;
-- because the -50% re-entry condition never fired, higher protection permanently sacrificed more upside in this window;
-- the next parameter requiring stress-test is the **re-entry threshold**, not only the protected fraction.
+**264,646.11 USDT**
 
-Recommended next sweep:
+Scenario:
 
-`-25%, -30%, -35%, -40%, -45%, -50%` from locked peak.
+**50% cash-out + re-entry at any threshold from -25% through -40%**
+
+This was:
+
+**+20.58% versus the no-overlay U10 baseline terminal equity of 219,485.20 USDT.**
+
+Highest post-cashout floor:
+
+**86,563.41 USDT**
+
+Scenario:
+
+**50% cash-out + -45% re-entry threshold not reached**
+
+Shallowest post-cashout max drawdown:
+
+**-35.28%**
+
+Same 50% / -45% no-re-entry scenario.
+
+Important limitation:
+
+This is one historical trigger path. It does **not** establish 50% cash-out or a -25% to -40% re-entry zone as generally optimal.
+
+Required robustness before accepting any rule:
+
+- rolling historical trigger paths;
+- alternative activation multiples;
+- alternative trailing giveback amounts;
+- more than one market cycle where data permit;
+- sensitivity to daily-close threshold clustering.
 
 ## Promotion guardrail
 
