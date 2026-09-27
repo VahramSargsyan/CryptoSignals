@@ -1104,3 +1104,71 @@ Next boundary:
 - macro/Fed-liquidity context may be tested for re-entry only in a new experiment.
 
 TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + FROZEN_REPRODUCTION_GATE + REAL_BINANCE_1D + FULL_HISTORY + 180D_120D_ROBUSTNESS
+
+
+---
+
+## 18. Cash shadow-target SMA25/50 re-entry V1 — 2026-09-27
+
+STATUS: EXECUTED / FAIL / DO_NOT_PROMOTE
+MODE: STRESS_TEST_ONLY + ECOSYSTEM_PLANNING
+
+Hypothesis:
+- frozen crypto-stress entry sends actual capital to CASH_PROXY;
+- shadow router continues;
+- exit cash only after the prospective next-open shadow target produces a fresh bullish SMA25 cross above SMA50;
+- next-open direct CASH -> shadow target execution;
+- one cash reaction per crisis;
+- future crisis detector re-arms only after breadth>=5 x3.
+
+Run:
+- GitHub Actions: `36303730983`
+- source commit: `1bd02b9a9ca637bad5bd8c869f045065daff42f2`
+- artifact ID: `10926721005`
+- workflow: SUCCESS
+- reproduction gate: PASS
+
+Observed re-entry waits:
+- full-history median: 47d;
+- full-history max: 113d;
+- reproduction median: 44d;
+- reproduction max: 74d;
+- opened 2026: 39d.
+
+Reproduction 2025-03-29 -> 2026-03-28:
+- BASELINE: +43.82% / -61.57%
+- frozen LOW_VOL: +49.05% / -47.13%
+- SMA re-entry: +5.41% / -72.22%
+- positive starts: 7/8.
+
+Opened 2026-03-29 -> 2026-09-26:
+- prior BASELINE: +103.36% / -36.68%
+- prior frozen LOW_VOL: +32.92% / -18.34%
+- SMA re-entry: +69.15% / -36.68%
+- positive starts: 8/8.
+
+Full eligible history 2023-11-20 -> 2026-09-26:
+- BASELINE: +646.96% / -71.23%
+- frozen LOW_VOL: +887.02% / -47.13%
+- frozen-timing CASH: +258.06% / -67.56%
+- SMA re-entry: +611.48% / -79.20%.
+
+Robustness:
+- 180d: beats LOW_VOL return 1/5, DD 2/5, both 0/5.
+- 120d: beats LOW_VOL return 3/8, DD 1/8, both 1/8.
+- unresolved cash existed at some robustness-window ends.
+
+Verdict:
+
+`CASH_SHADOW_SMA25_50_REENTRY_V1 = FAIL / LAGGING_REENTRY / RISK_CONTROL_NOT_IMPROVED / DO_NOT_PROMOTE`
+
+Interpretation:
+- SMA25/50 gives an objective exit but is too lagging in some episodes;
+- a target-asset bullish crossover is not a reliable market-wide recovery signal;
+- opened 2026 upside recovery was meaningful, but risk protection reverted to baseline-like behavior;
+- do not search neighboring SMA lengths on the same sample and call the best one validation.
+
+Canonical evidence:
+- `research/relative_rotation/2026-09-27_CASH_SHADOW_SMA25_50_REENTRY_V1_EVIDENCE.md`
+
+TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + FROZEN_REPRODUCTION_GATE + REAL_BINANCE_1D + FULL_HISTORY + 180D_120D_ROBUSTNESS
