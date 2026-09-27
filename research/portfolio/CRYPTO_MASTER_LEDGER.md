@@ -1104,3 +1104,89 @@ Next boundary:
 - macro/Fed-liquidity context may be tested for re-entry only in a new experiment.
 
 TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + FROZEN_REPRODUCTION_GATE + REAL_BINANCE_1D + FULL_HISTORY + 180D_120D_ROBUSTNESS
+
+
+---
+
+## 17. One TRX defense per crisis V4 — 2026-09-27
+
+STATUS: EXECUTED / DO_NOT_PROMOTE  
+MODE: STRESS_TEST_ONLY + ECOSYSTEM_PLANNING
+
+Hypothesis:
+- frozen crisis entry breadth<=3 x3;
+- fixed defensive asset TRX;
+- shadow router continues;
+- first NEW shadow-router transition after entry exits TRX directly into the new target;
+- no TRX -> old shadow -> new target intermediate trade;
+- after exit, ordinary router resumes;
+- another TRX defense is forbidden until breadth>=5 x3 re-arms the detector;
+- next crisis requires a fresh breadth<=3 x3.
+
+Run:
+- GitHub Actions: `36302318501`
+- source commit: `a3445d70d981d5d7694e5bcc8e5b1bb326788c02`
+- artifact ID: `10925409207`
+- workflow: SUCCESS
+- reproduction gate: PASS
+
+Old V3 reference:
+- 2025-03-29 -> 2026-03-28:
+  - return -2.78%
+  - DD -56.57%
+  - repeated defensive churn
+  - rejected.
+
+V4 reproduction 2025-03-29 -> 2026-03-28:
+- BASELINE: +43.82% / -61.57%
+- frozen LOW_VOL: +49.05% / -47.13%
+- V4: +5.08% / -57.05%
+- worst start -5.56%
+- positive starts 4/8
+- median actual transitions 8
+- median TRX entries 2
+- median router-reactivation exits 2
+- defensive exposure ~15.21%
+- POST_TRX_DISARMED exposure ~54.66%.
+
+Opened 2026-03-29 -> 2026-09-26:
+- prior BASELINE: +103.36% / -36.68%
+- prior frozen LOW_VOL: +32.92% / -18.34%
+- V4: +105.02% / -36.68%
+- positive starts 8/8
+- TRX exposure ~0.55%
+- POST_TRX_DISARMED exposure ~78.57%.
+
+Interpretation:
+- V4 recovered nearly all baseline upside in 2026 because the first router signal arrived almost immediately after TRX entry;
+- therefore it also lost almost all LOW_VOL drawdown protection.
+
+Full eligible history 2023-11-20 -> 2026-09-26:
+- BASELINE: +646.96% / -71.23%
+- frozen LOW_VOL: +887.02% / -47.13%
+- V4: +1,209.45% / -67.85%
+- median TRX entries: 4
+- defensive exposure ~18.52%
+- POST_TRX_DISARMED exposure ~42.23%.
+
+The strong full-history return is path-dependent:
+- e.g. one TRX block ran 2024-06-14 -> 2024-11-26 before a new router transition;
+- several breadth-defined stress/recovery episodes were effectively merged.
+
+Robustness:
+- 180d: V4 beats LOW_VOL return 2/5, drawdown 1/5, both 1/5.
+- 120d: V4 beats LOW_VOL return 2/8, drawdown 0/8, both 0/8.
+
+Conclusion:
+
+`ONE_TRX_DEFENSE_PER_CRISIS_V4_VERDICT = CHURN_FIXED / FULL_HISTORY_RETURN_HIGH / ROBUSTNESS_FAIL / LOW_VOL_STILL_BETTER_FOR_RISK_CONTROL / DO_NOT_PROMOTE`
+
+Main engineering finding:
+- direct TRX -> new shadow target execution is correct;
+- forbidding repeated TRX defense inside the same crisis fixes old V3 ping-pong;
+- but first router activity is still not reliable evidence that broad market stress is safe enough to abandon defense.
+
+Canonical evidence:
+- `research/relative_rotation/2026-09-27_ONE_TRX_DEFENSE_PER_CRISIS_V4_EVIDENCE.md`
+
+TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + FROZEN_REPRODUCTION_GATE + REAL_BINANCE_1D + FULL_HISTORY + 180D_120D_ROBUSTNESS
