@@ -109,11 +109,10 @@ Tie-break:
 For each causal case report:
 - structurally selected U8;
 - historical U8;
-- training-return-selected U8;
 - median of all max-niche sets;
-- best future U8, explicitly HINDSIGHT ONLY.
+- best max-niche future U8, explicitly HINDSIGHT ONLY.
 
-Also report the future rank of the structural selection among all 1,716 U8s and among max-niche U8s.
+The previous exhaustive 1,716-set audit already established that trailing-return selection is not reliable, so this run does not recompute all 1,716 graph backtests. It evaluates only the 193 max-niche sets and reports the structural selection's future rank within that fixed max-diversity subset. This amendment was made before any structural-selector outcome was observed.
 
 ## Interpretation
 
