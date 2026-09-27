@@ -1,0 +1,43 @@
+name: U8 Plus Two Diverse Nodes v1
+
+on:
+  push:
+    branches:
+      - research/u8-plus-two-diverse-nodes-v1
+    paths:
+      - "scripts/research_u8_plus_two_diverse_nodes_v1.py"
+      - ".github/workflows/u8-plus-two-diverse-nodes-v1.yml"
+      - "research/relative_rotation/2026-09-27_U8_PLUS_TWO_DIVERSE_NODES_V1_PREREG.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+      - name: Compile
+        run: python -m py_compile scripts/research_u8_plus_two_diverse_nodes_v1.py
+      - name: Run U8 plus diverse nodes stress test
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_u8_plus_two_diverse_nodes_v1 --cutoff 2026-09-27T00:00:00Z
+      - name: Publish summary
+        run: |
+          RUN_DIR="$(find research_artifacts/u8_plus_two_diverse_nodes_v1 -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          cat "$RUN_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: u8-plus-two-diverse-nodes-v1-${{ github.run_number }}
+          path: research_artifacts/u8_plus_two_diverse_nodes_v1/**
+          if-no-files-found: error
+          retention-days: 90
