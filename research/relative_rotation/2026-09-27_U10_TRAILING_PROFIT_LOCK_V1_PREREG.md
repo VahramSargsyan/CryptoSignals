@@ -48,9 +48,14 @@ Trailing cash-out threshold:
 
 2x initial capital = 20,000 USDT absolute decline from the running post-activation U10 reference-equity peak.
 
-Cash-out fraction:
+Cash-out fractions tested independently:
 
-20% of the actually invested sleeve.
+- 20%
+- 30%
+- 40%
+- 50%
+
+Each scenario sells that fraction of the actually invested sleeve.
 
 Cash-out execution:
 
@@ -93,8 +98,11 @@ The trigger-day close that caused the cash-out cannot simultaneously cause re-en
 ## Comparison set
 
 1. NO_OVERLAY — frozen U10 baseline.
-2. IMMEDIATE_20PCT_AT_10X — prior experiment: sell 20% immediately after first 10x close and keep it in cash through end.
-3. TRAILING_2X_THEN_REENTER_50PCT — this experiment.
+2. IMMEDIATE_20PCT_AT_10X — prior context: sell 20% immediately after first 10x close and keep it in cash through end.
+3. TRAILING_2X_REENTER_50PCT with 20% cash-out.
+4. TRAILING_2X_REENTER_50PCT with 30% cash-out.
+5. TRAILING_2X_REENTER_50PCT with 40% cash-out.
+6. TRAILING_2X_REENTER_50PCT with 50% cash-out.
 
 Also report the prior 6-month and 12-month re-entry results from existing Strategy Lab evidence only as contextual comparison, not as recomputed outputs unless needed.
 
@@ -106,6 +114,7 @@ Also report the prior 6-month and 12-month re-entry results from existing Strate
 - cash-out execution date;
 - locked peak;
 - trigger decline in USDT and percent;
+- cash-out fraction;
 - cash parked after cost;
 - 50%-from-peak re-entry trigger date;
 - re-entry execution date / asset / cost;
