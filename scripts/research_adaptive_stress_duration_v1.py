@@ -288,7 +288,11 @@ def walk_forward_episode_validation(
             continue
 
         local_rows = []
-        for _, state in test_ep.states.iterrows():
+        replay_states = test_ep.states[
+            (test_ep.states["timestamp"] >= replay_start)
+            & (test_ep.states["timestamp"] <= REPLAY_END)
+        ]
+        for _, state in replay_states.iterrows():
             pred = predict_state(state, train)
             actual = int(state["remaining_stress_days"])
 
@@ -477,10 +481,12 @@ def replay_2026(
     episodes: list[Episode],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     completed = [ep for ep in episodes if ep.completed]
+    replay_start = pd.Timestamp("2026-03-29", tz="UTC")
     targets = [
         ep
         for ep in completed
-        if ep.start >= pd.Timestamp("2026-03-29", tz="UTC")
+        if ep.end is not None
+        and ep.end >= replay_start
         and ep.start <= REPLAY_END
     ]
 
