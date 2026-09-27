@@ -168,7 +168,7 @@ def analyze_values(timestamps, values, initial_usdt: float) -> dict:
         [pd.Series([float(initial_usdt)]), vals],
         ignore_index=True,
     )
-    synthetic_ts = ts.iloc[0] - pd.Timedelta(days=1)
+    synthetic_ts = ts.iloc[0] - pd.Timedelta("1D")
     aug_ts = pd.concat(
         [pd.Series([synthetic_ts]), ts],
         ignore_index=True,
@@ -259,7 +259,7 @@ def worst_running_drawdown(
     initial_peak: float,
 ) -> tuple[float, str | None, float]:
     start = utc(event_date)
-    end = start + pd.Timedelta(days=horizon_days)
+    end = start + pd.Timedelta(f"{horizon_days}D")
     window = reference[
         (reference["timestamp"] >= start)
         & (reference["timestamp"] <= end)
@@ -363,7 +363,17 @@ def run_overlay(
     total_cashout_fees = 0.0
     total_reentry_fees = 0.0
     cycle_rows = []
-    equity_rows = []
+
+    peak_equity = float(initial_usdt)
+    peak_date = "INITIAL"
+    minimum_equity = float(initial_usdt)
+    minimum_date = "INITIAL"
+    max_drawdown = 0.0
+    max_dd_peak_equity = float(initial_usdt)
+    max_dd_peak_date = "INITIAL"
+    max_dd_trough_equity = float(initial_usdt)
+    max_dd_trough_date = "INITIAL"
+    final_total = float(initial_usdt)
 
     for i in range(n):
         ts = timestamps[i]
@@ -392,9 +402,7 @@ def run_overlay(
                     "reference_equity_signal_usdt": cashout_signal[
                         "reference_equity_signal_usdt"
                     ],
-                    "pullback_from_peak": cashout_signal[
-                        "pullback_from_peak"
-                    ],
+                    "pullback_from_peak": cashout_signal["pullback_from_peak"],
                     "gross_usdt": gross,
                     "fee_usdt": fee,
                     "net_cash_usdt": net,
@@ -424,9 +432,7 @@ def run_overlay(
                     "reference_equity_signal_usdt": reentry_signal[
                         "reference_equity_signal_usdt"
                     ],
-                    "pullback_from_peak": reentry_signal[
-                        "pullback_from_peak"
-                    ],
+                    "pullback_from_peak": reentry_signal["pullback_from_peak"],
                     "gross_usdt": gross_cash,
                     "fee_usdt": fee,
                     "net_cash_usdt": net,
@@ -441,20 +447,26 @@ def run_overlay(
 
         invested_close = scale * ref_close[i]
         total_close = invested_close + cash
+        final_total = total_close
+
         if cash > 0:
             days_in_cash += 1
 
-        equity_rows.append(
-            {
-                "timestamp": ts,
-                "reference_equity_usdt": ref_close[i],
-                "invested_equity_usdt": invested_close,
-                "cash_usdt": cash,
-                "total_equity_usdt": total_close,
-                "scale_vs_reference": scale,
-                "armed": armed,
-            }
-        )
+        if total_close < minimum_equity:
+            minimum_equity = total_close
+            minimum_date = ts.isoformat()
+
+        if total_close > peak_equity:
+            peak_equity = total_close
+            peak_date = ts.isoformat()
+
+        drawdown = total_close / peak_equity - 1.0
+        if drawdown < max_drawdown:
+            max_drawdown = drawdown
+            max_dd_peak_equity = peak_equity
+            max_dd_peak_date = peak_date
+            max_dd_trough_equity = total_close
+            max_dd_trough_date = ts.isoformat()
 
         # End-of-day signal logic. No same-close execution.
         if i == n - 1:
@@ -484,10 +496,7 @@ def run_overlay(
                 running_peak = ref_close[i]
 
             pullback = ref_close[i] / running_peak - 1.0
-            if (
-                not cashout_pending
-                and pullback <= -pullback_threshold
-            ):
+            if not cashout_pending and pullback <= -pullback_threshold:
                 locked_peak = running_peak
                 cashout_signal = {
                     "signal_date": ts.isoformat(),
@@ -516,13 +525,6 @@ def run_overlay(
             running_peak = ref_close[i]
             arms += 1
 
-    equity = pd.DataFrame(equity_rows)
-    risk = analyze_values(
-        equity["timestamp"],
-        equity["total_equity_usdt"],
-        initial_usdt,
-    )
-
     result = {
         "surge_threshold": surge_threshold,
         "pullback_threshold": pullback_threshold,
@@ -535,10 +537,18 @@ def run_overlay(
         "terminal_cash_usdt": cash,
         "cashout_fees_usdt": total_cashout_fees,
         "reentry_fees_usdt": total_reentry_fees,
-        **risk,
+        "final_equity_usdt": float(final_total),
+        "total_return": float(final_total / initial_usdt - 1.0),
+        "minimum_equity_usdt": float(minimum_equity),
+        "minimum_equity_date": minimum_date,
+        "minimum_vs_initial": float(minimum_equity / initial_usdt - 1.0),
+        "max_drawdown": float(max_drawdown),
+        "max_drawdown_peak_equity_usdt": float(max_dd_peak_equity),
+        "max_drawdown_peak_date": max_dd_peak_date,
+        "max_drawdown_trough_equity_usdt": float(max_dd_trough_equity),
+        "max_drawdown_trough_date": max_dd_trough_date,
     }
     return result, pd.DataFrame(cycle_rows)
-
 
 def param_key(surge, pullback, reentry) -> str:
     return (
