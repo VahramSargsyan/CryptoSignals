@@ -14,7 +14,7 @@ Example intended behavior:
 
 If the running peak is 150,000 and the portfolio falls by at least 2x original capital (20,000), sell 20% into cash.
 
-Re-enter that cash only after the frozen U10 reference equity falls to 50% below the locked peak.
+Re-enter that cash at independently tested drawdown thresholds from the locked peak: 5%, 10%, 15%, 20%, 25%, 30%, 35%, 40%, and 45%.
 
 For the example above:
 - locked peak = 150,000
@@ -100,9 +100,7 @@ The trigger-day close that caused the cash-out cannot simultaneously cause re-en
 1. NO_OVERLAY — frozen U10 baseline.
 2. IMMEDIATE_20PCT_AT_10X — prior context: sell 20% immediately after first 10x close and keep it in cash through end.
 3. TRAILING_2X_REENTER_50PCT with 20% cash-out.
-4. TRAILING_2X_REENTER_50PCT with 30% cash-out.
-5. TRAILING_2X_REENTER_50PCT with 40% cash-out.
-6. TRAILING_2X_REENTER_50PCT with 50% cash-out.
+4. TRAILING_2X with 20/30/40/50% cash-out crossed with re-entry at -5/-10/-15/-20/-25/-30/-35/-40/-45% from locked peak.
 
 Also report the prior 6-month and 12-month re-entry results from existing Strategy Lab evidence only as contextual comparison, not as recomputed outputs unless needed.
 
@@ -116,7 +114,8 @@ Also report the prior 6-month and 12-month re-entry results from existing Strate
 - trigger decline in USDT and percent;
 - cash-out fraction;
 - cash parked after cost;
-- 50%-from-peak re-entry trigger date;
+- re-entry drawdown threshold;
+- re-entry trigger date;
 - re-entry execution date / asset / cost;
 - minimum total overlay equity after cash-out;
 - overlay max drawdown after cash-out;
