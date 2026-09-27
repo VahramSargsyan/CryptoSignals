@@ -52,8 +52,11 @@ The post-bull window begins immediately after ALGO's already documented stronges
 
 Report:
 - ALGO HODL return over mature, post-bull, latest-2Y and latest-1Y windows;
-- strongest 90d and 180d drawups;
-- total common-history return.
+- strongest 90d and 180d drawups over the strategy-common history beginning 2023-05-05;
+- strongest 90d and 180d drawups over the full Binance ALGO/USDT daily history available from 2019 onward, for context only;
+- total strategy-common-history return.
+
+Only bull runs inside the strategy-common history can be treated as possible backtest confounds. Earlier bull runs are contextual only.
 
 This separates token appreciation from graph value.
 
