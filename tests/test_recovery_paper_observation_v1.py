@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from scripts.recovery_paper_observation_v1 import (
+    Episode,
     JOURNAL_COLUMNS,
     _episode_training_frame,
     _market_status,
@@ -14,7 +15,6 @@ from scripts.recovery_paper_observation_v1 import (
     latest_fully_closed_d1,
     resolve_history,
 )
-from scripts.research_adaptive_stress_duration_v1 import Episode
 
 
 def _episode(
