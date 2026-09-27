@@ -288,11 +288,7 @@ def walk_forward_episode_validation(
             continue
 
         local_rows = []
-        replay_states = test_ep.states[
-            (test_ep.states["timestamp"] >= replay_start)
-            & (test_ep.states["timestamp"] <= REPLAY_END)
-        ]
-        for _, state in replay_states.iterrows():
+        for _, state in test_ep.states.iterrows():
             pred = predict_state(state, train)
             actual = int(state["remaining_stress_days"])
 
@@ -502,7 +498,11 @@ def replay_2026(
             continue
 
         local = []
-        for _, state in test_ep.states.iterrows():
+        replay_states = test_ep.states[
+            (test_ep.states["timestamp"] >= replay_start)
+            & (test_ep.states["timestamp"] <= REPLAY_END)
+        ]
+        for _, state in replay_states.iterrows():
             pred = predict_state(state, train)
             actual = int(state["remaining_stress_days"])
             row = {
