@@ -3,8 +3,8 @@
 Date: 2026-09-27
 Mode: PATCH_FIX / research reporting only
 Branch: research/u8-transition-ledger-v1
-GitHub Actions run: 36320850496
-Source commit: 0bf0854466df8a9bcea6d0ab4a94c465e2cd1b66
+GitHub Actions run: 36322314111
+Source commit: b96ee6fa812025b38374bc52934e37d38a96646b
 Result: PASS
 TEST_LEVEL: GITHUB_ACTIONS_LIVE_PUBLIC_DATA_BACKTEST
 
@@ -52,6 +52,32 @@ legacy-compatible return = final / first-close equity - 1 = +875.75%
 
 This exactly reconciles the older U8 evidence. The older runner did apply transition costs; the apparent discrepancy came from its return denominator convention.
 
+## Risk clarification: drawdown is not loss of initial capital
+
+The previously reported `-71.23%` is a **peak-to-trough drawdown**, not a loss of 71.23% of the original 10,000 USDT.
+
+Exact ATOM-start equity path:
+
+- peak before max drawdown: **141,044.55 USDT** on **2025-09-20** while holding TWT;
+- trough: **40,576.26 USDT** on **2026-06-06** while holding AAVE;
+- decline from that peak: **-100,468.29 USDT / -71.23%**;
+- the trough was still **+305.76% above the original 10,000 USDT**.
+
+The lowest equity relative to the original capital occurred much earlier:
+
+- lowest equity: **9,570.48 USDT** on **2023-11-03**;
+- loss versus original capital: **-4.30%**;
+- daily closes below 10,000 USDT: **5** total, all at the start of the mature test.
+
+After the strategy recovered above the initial 10,000 USDT, it never again closed below the original capital during the tested mature period.
+
+Therefore future U8 evidence must keep these two risk measures separate:
+
+1. **MAX DRAWDOWN FROM PRIOR PEAK** — path risk / give-back from accumulated gains;
+2. **LOWEST EQUITY VS INITIAL CAPITAL** — actual loss relative to starting capital.
+
+A `-71.23%` max drawdown must never be described as `-71.23% of starting capital`.
+
 ## Cost shadow
 
 Same route with zero transition cost: 97,519.47 USDT
@@ -98,7 +124,7 @@ ATOM -> BNB -> TRX -> TWT -> PEPE -> ATOM -> TWT -> ATOM -> BNB -> TWT -> ATOM -
 
 ## Conclusion
 
-The 0.1% modeled transition cost is not a one-time deduction from starting capital.
+The 0.1% modeled transition cost is not a one-time deduction from starting capital. Separately, the -71.23% risk figure is peak-to-trough drawdown from accumulated gains, not a 71.23% loss of original capital.
 
 It is applied independently at every executed transition. Across 21 transitions, the exact multiplicative cost factor is 0.979208675965, equivalent to a 2.0791% terminal drag versus an otherwise identical zero-cost route.
 
