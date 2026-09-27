@@ -232,6 +232,25 @@ def run_ledger(panel, event_map, initial_usdt):
 
     initial_equity = float(initial_usdt)
     first_close_equity = float(equity_df.iloc[0]["equity_usdt"])
+
+    equity_values = equity_df["equity_usdt"].astype(float)
+    running_peak = equity_values.cummax()
+    drawdown = equity_values / running_peak - 1.0
+    max_dd_idx = int(drawdown.idxmin())
+    peak_idx = int(equity_values.loc[:max_dd_idx].idxmax())
+    min_idx = int(equity_values.idxmin())
+    peak_equity = float(equity_values.loc[peak_idx])
+    trough_equity = float(equity_values.loc[max_dd_idx])
+    max_drawdown = float(drawdown.loc[max_dd_idx])
+    max_drawdown_peak_date = str(equity_df.loc[peak_idx, "timestamp"])
+    max_drawdown_trough_date = str(equity_df.loc[max_dd_idx, "timestamp"])
+    max_drawdown_peak_asset = str(equity_df.loc[peak_idx, "asset"])
+    max_drawdown_trough_asset = str(equity_df.loc[max_dd_idx, "asset"])
+    min_equity_usdt = float(equity_values.loc[min_idx])
+    min_equity_date = str(equity_df.loc[min_idx, "timestamp"])
+    min_vs_initial_return = min_equity_usdt / initial_equity - 1.0
+    below_initial_days = int((equity_values < initial_equity).sum())
+
     final_equity = float(equity_df.iloc[-1]["equity_usdt"])
     final_shadow = float(shadow_df.iloc[-1]["equity_usdt"])
     total_return = final_equity / initial_equity - 1.0
@@ -259,6 +278,17 @@ def run_ledger(panel, event_map, initial_usdt):
         "initial_qty": float(initial_usdt) / first_open,
         "first_close_equity_usdt": first_close_equity,
         "legacy_compatible_return": legacy_compatible_return,
+        "max_drawdown": max_drawdown,
+        "max_drawdown_peak_equity_usdt": peak_equity,
+        "max_drawdown_trough_equity_usdt": trough_equity,
+        "max_drawdown_peak_date": max_drawdown_peak_date,
+        "max_drawdown_trough_date": max_drawdown_trough_date,
+        "max_drawdown_peak_asset": max_drawdown_peak_asset,
+        "max_drawdown_trough_asset": max_drawdown_trough_asset,
+        "min_equity_usdt": min_equity_usdt,
+        "min_equity_date": min_equity_date,
+        "min_vs_initial_return": min_vs_initial_return,
+        "below_initial_days": below_initial_days,
         "transitions": int(len(ledger_df)),
         "conflict_signal_days": int(conflicts),
         "route": route,
@@ -317,6 +347,18 @@ def write_report(result, metadata, run_dir):
         f"- Return from initial 10,000 USDT at first open: {100*result['total_return']:+.2f}%",
         f"- First-day close equity: {result['first_close_equity_usdt']:,.2f} USDT",
         f"- Legacy-compatible return (final / first close - 1): {100*result['legacy_compatible_return']:+.2f}%",
+        "",
+        "## Risk: drawdown vs starting capital",
+        "",
+        f"- Maximum peak-to-trough drawdown: {100*result['max_drawdown']:.2f}%",
+        f"- Drawdown peak: {result['max_drawdown_peak_equity_usdt']:,.2f} USDT on {pd.Timestamp(result['max_drawdown_peak_date']).date()} while holding {result['max_drawdown_peak_asset']}",
+        f"- Drawdown trough: {result['max_drawdown_trough_equity_usdt']:,.2f} USDT on {pd.Timestamp(result['max_drawdown_trough_date']).date()} while holding {result['max_drawdown_trough_asset']}",
+        f"- Dollar decline from that peak: {result['max_drawdown_trough_equity_usdt'] - result['max_drawdown_peak_equity_usdt']:,.2f} USDT",
+        f"- Trough versus original 10,000 USDT: {100*(result['max_drawdown_trough_equity_usdt']/result['initial_usdt']-1):+.2f}%",
+        f"- Lowest equity versus original capital: {result['min_equity_usdt']:,.2f} USDT on {pd.Timestamp(result['min_equity_date']).date()} = {100*result['min_vs_initial_return']:+.2f}%",
+        f"- Daily closes below original capital: {result['below_initial_days']}",
+        "- Interpretation: max drawdown is measured from the preceding equity peak, not from the original starting capital.",
+        "",
         f"- Same route with zero transition cost: {result['no_cost_final_equity_usdt']:,.2f} USDT",
         f"- Zero-cost return: {100*result['no_cost_total_return']:+.2f}%",
         f"- Terminal fee drag: {result['terminal_fee_drag_usdt']:,.2f} USDT",
@@ -351,6 +393,7 @@ def write_report(result, metadata, run_dir):
         "- Token quantities use a normalized 10,000 USDT initial notional; scale them linearly for another starting capital.",
         "- Fee drag is measured against a shadow portfolio following the exact same route with zero transition cost.",
         "- Legacy U8 research runners report return as final equity / first-day close equity - 1; this report shows that value separately from return on the 10,000 USDT first-open starting capital.",
+        "- Drawdown and loss from original capital are separate metrics. A large peak-to-trough drawdown can occur while equity remains far above the original starting capital.",
         "- This patch adds reporting only. It does not change U8 selection, signals, routing, parameters, or live held_asset.",
         "- Slippage beyond the frozen 0.1% transition-cost model is not separately modeled in this runner.",
         "",
@@ -404,6 +447,17 @@ def main():
         "initial_qty": result["initial_qty"],
         "first_close_equity_usdt": result["first_close_equity_usdt"],
         "legacy_compatible_return": result["legacy_compatible_return"],
+        "max_drawdown": result["max_drawdown"],
+        "max_drawdown_peak_equity_usdt": result["max_drawdown_peak_equity_usdt"],
+        "max_drawdown_trough_equity_usdt": result["max_drawdown_trough_equity_usdt"],
+        "max_drawdown_peak_date": result["max_drawdown_peak_date"],
+        "max_drawdown_trough_date": result["max_drawdown_trough_date"],
+        "max_drawdown_peak_asset": result["max_drawdown_peak_asset"],
+        "max_drawdown_trough_asset": result["max_drawdown_trough_asset"],
+        "min_equity_usdt": result["min_equity_usdt"],
+        "min_equity_date": result["min_equity_date"],
+        "min_vs_initial_return": result["min_vs_initial_return"],
+        "below_initial_days": result["below_initial_days"],
         "transitions": result["transitions"],
         "conflict_signal_days": result["conflict_signal_days"],
         "route": result["route"],
@@ -433,6 +487,11 @@ def main():
     print("final_equity_usdt=%.8f" % result["final_equity_usdt"])
     print("total_return=%.8f" % result["total_return"])
     print("legacy_compatible_return=%.8f" % result["legacy_compatible_return"])
+    print("max_drawdown=%.8f" % result["max_drawdown"])
+    print("max_drawdown_peak_equity_usdt=%.8f" % result["max_drawdown_peak_equity_usdt"])
+    print("max_drawdown_trough_equity_usdt=%.8f" % result["max_drawdown_trough_equity_usdt"])
+    print("min_equity_usdt=%.8f" % result["min_equity_usdt"])
+    print("min_vs_initial_return=%.8f" % result["min_vs_initial_return"])
     print("no_cost_final_equity_usdt=%.8f" % result["no_cost_final_equity_usdt"])
     print("terminal_fee_drag_usdt=%.8f" % result["terminal_fee_drag_usdt"])
     print("terminal_fee_drag_pct=%.8f" % result["terminal_fee_drag_pct_vs_no_cost"])
