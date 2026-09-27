@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "strategy": "RELATIVE_ROTATION_GRAPH_8_V1",
+  "held_asset": "ATOM",
+  "monitor_start": "2026-09-27T00:00:00Z",
+  "manual_execution_only": true,
+  "notes": "Update held_asset only after Vahram manually confirms and executes a real rotation. No exchange API trading keys are used."
+}

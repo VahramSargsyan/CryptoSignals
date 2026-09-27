@@ -1,0 +1,155 @@
+# Relative Rotation Paper Live v1
+
+Date: 2026-09-27  
+Workflow mode: PATCH_FIX  
+Status: PAPER_LIVE_MONITOR / MANUAL_EXECUTION_ONLY
+
+## Purpose
+
+Move the frozen 8-token relative-rotation research engine into forward observation without changing its trading logic and without enabling automatic exchange execution.
+
+Canonical monitored universe:
+
+- ATOM
+- TWT
+- PEPE
+- BNB
+- SOL
+- TRX
+- AAVE
+- LINK
+
+This is the existing 8-node / 28-pair graph.
+
+## Frozen relative-rotation parameters
+
+The monitor preserves the research baseline:
+
+- timeframe: Binance Spot 1D closed candles
+- pair ratio: right asset close / left asset close
+- rolling median: 180 days
+- ARM threshold: 15%
+- post-ARM extreme tracking: yes
+- reversal confirmation: 3%
+- conflict router: strongest confirmed max dislocation
+- order execution: none
+- real rotations: manual approval only
+
+State path:
+
+`NO_SIGNAL -> ARMED -> EXTREME_TRACKING -> CONFIRMED`
+
+`ARMED` is only a warning. It is not a rotation instruction. A historical-model rotation exists only after the 3% reversal confirmation.
+
+## Current held asset
+
+The current configured held asset is stored in:
+
+`config/relative_rotation_paper_live_v1.json`
+
+Initial value for this patch:
+
+`ATOM`
+
+After Vahram manually executes a confirmed rotation, update this file to the asset actually held. The workflow never changes it automatically because the workflow cannot know whether a manual swap was really executed.
+
+## Telegram notification policy
+
+Telegram is sent only when at least one of these events happens on the latest closed daily candle:
+
+1. a new `ARMED` event exists from the configured held asset;
+2. a new `CONFIRMED` event exists from the configured held asset;
+3. the defensive low-vol research overlay enters or exits;
+4. a manual/branch verification run uses `--force-notify`.
+
+No repeated daily warning is sent merely because a pair remains armed. The monitor recomputes the complete state from historical closed candles on every run, so it does not need hidden mutable workflow state for deduplication.
+
+## Defensive research overlay
+
+The monitor reports the documented candidate:
+
+`DEFENSIVE_LOW_VOL_CRYPTO_SMA200_BREADTH_3_5_CONFIRM3_VOL30`
+
+Rules:
+
+- breadth = number of the 8 tokens above their own causal SMA200;
+- enter defensive mode after 3 consecutive closes with breadth <= 3;
+- choose the token with the lowest 30-day realized close-to-close volatility at entry;
+- keep that defensive token fixed until exit;
+- exit after 3 consecutive closes with breadth >= 5;
+- no USDT is required by this overlay.
+
+Important: this remains `PROMISING_RESEARCH_CANDIDATE / NOT_PRODUCTION_APPROVED`. The alert is evidence, not an automatic instruction.
+
+## Daily workflow
+
+Workflow:
+
+`.github/workflows/relative-rotation-paper-live-v1.yml`
+
+Scheduled time after merge to the default branch:
+
+`00:20 UTC` daily, shortly after the Binance daily candle closes.
+
+For Armenia this is normally around `04:20` local time.
+
+Each run:
+
+1. downloads closed Binance Spot 1D candles for all 8 assets;
+2. builds a common 8-asset panel;
+3. recomputes all 28 relative-pair state machines from common history;
+4. filters new events for the configured held asset;
+5. selects the strongest confirmed candidate when several exist;
+6. calculates the defensive breadth/low-vol overlay;
+7. writes JSON/Markdown/CSV evidence;
+8. sends Telegram only if notification policy allows it;
+9. uploads the evidence as a GitHub Actions artifact.
+
+## Output evidence
+
+Each run writes under:
+
+`paper_artifacts/relative_rotation_paper_live_v1/<RUN_ID>/`
+
+Files:
+
+- `report.json`
+- `report.md`
+- `notification.txt`
+- `pair_events.csv`
+- `pair_states.csv`
+- `defensive_diagnostics.csv`
+
+## Manual real-rotation procedure
+
+When Telegram reports `ROTATION CONFIRMED`:
+
+1. do not assume an order was executed;
+2. Vahram decides manually whether to act;
+3. if acted, record the real swap in `research/relative_rotation/REAL_ROTATION_LOG.md`;
+4. update `held_asset` in `config/relative_rotation_paper_live_v1.json` to the token actually held;
+5. preserve exact exchange execution evidence when available: timestamp, quantities, fees, slippage, order/trade ID;
+6. compare the real execution with the historical-model signal later.
+
+## Safety boundary
+
+- no exchange API key;
+- no private trading key;
+- no automatic order placement;
+- no wallet transaction signing;
+- no automatic mutation of the held-asset configuration;
+- Telegram is advisory/paper-live only.
+
+## Test level
+
+Local static/unit verification for this patch covers:
+
+- HIGH dislocation -> ARMED -> CONFIRMED direction;
+- LOW dislocation direction;
+- strongest-confirmed router conflict selection;
+- 3-close defensive entry/exit;
+- defensive asset frozen until exit.
+
+GitHub Actions additionally runs the monitor against live Binance public market data.
+
+`TEST_LEVEL: UNIT_REGRESSION + GITHUS_ACTIONS_LIVE_PUBLIC_DATA` only after the workflow run succeeds.
