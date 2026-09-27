@@ -1,0 +1,54 @@
+name: BTC SMA Reentry Development V1
+
+on:
+  push:
+    branches:
+      - research/btc-sma-reentry-development-v1
+    paths:
+      - research_requests/run_btc_sma_reentry_development_v1.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  btc-sma-development:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned research dependencies
+        run: |
+          python -m pip install "pandas==2.2.3" "evalica==0.4.2" "choix==0.4.1"
+
+      - name: Compile
+        run: |
+          python -m py_compile scripts/research_btc_sma_reentry_development_v1.py
+          python -m py_compile tests/test_btc_sma_reentry_development_v1.py
+
+      - name: Run unit tests
+        run: |
+          python -m unittest tests.test_relative_rotation_graph_intelligence -v
+          python -m unittest tests.test_btc_sma_reentry_development_v1 -v
+
+      - name: Run development search
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_btc_sma_reentry_development_v1
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: btc-sma-reentry-development-v1
+          path: research_artifacts/btc_sma_reentry_development_v1/**
+          if-no-files-found: warn
+          retention-days: 30
