@@ -371,10 +371,16 @@ def evaluate_case(panel, events_by_date, confirmed, cfg, run_dir, name):
         "max_niche_future_median":float(struct["future_median"].median()),
         "max_niche_future_positive_rate":float((struct["future_median"]>0).mean()),
         "structural_score_future_spearman":float(
-            struct["structural_score"].corr(struct["future_median"],method="spearman")
+            struct["structural_score"].rank(method="average").corr(
+                struct["future_median"].rank(method="average")
+            )
         ),
         "feature_future_spearman":{
-            c:float(struct[c].corr(struct["future_median"],method="spearman"))
+            c:float(
+                struct[c].rank(method="average").corr(
+                    struct["future_median"].rank(method="average")
+                )
+            )
             for c in (
                 "mean_abs_corr","pca1_share","mean_relative_vol",
                 "signal_edge_entropy","occupancy_entropy",
