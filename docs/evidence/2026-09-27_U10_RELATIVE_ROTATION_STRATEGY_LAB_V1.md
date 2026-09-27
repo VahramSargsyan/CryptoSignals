@@ -361,6 +361,65 @@ Potential next research:
 
 Test fixed, preregistered allocations such as 80/20, 70/30, 60/40, and 50/50 to see whether Grid can reduce U10 drawdown without destroying most of its terminal growth.
 
+## U10 + Grid fixed-split blend
+
+Research:
+
+- prereg: `research/relative_rotation/2026-09-27_U10_GRID_BLEND_PORTFOLIO_V1_PREREG.md`
+- runner: `scripts/research_u10_grid_blend_portfolio_v1.py`
+- workflow: `.github/workflows/u10-grid-blend-portfolio-v1.yml`
+- evidence: [U10 + Grid Blend Portfolio v1](2026-09-27_U10_GRID_BLEND_PORTFOLIO_V1.md)
+- GitHub Actions run: `36341663411`
+- result: PASS
+- test level: `GITHUB_ACTIONS_LIVE_PUBLIC_DATA_STRESS_TEST`
+
+Construction:
+
+- split 10,000 USDT once at the start;
+- U10 and Grid compound independently;
+- no rebalancing or transfers between sleeves;
+- test U10/Grid splits 80/20, 70/30, 60/40, 50/50;
+- Grid BASE tested on Tier A 5, Tier A+B 10, and Full 15.
+
+Controls:
+
+- 100% U10: 219,485.20 USDT / +2,094.85% / max DD -71.04%;
+- best tested Grid control: Tier A+B 10 BASE 35,613.98 / +256.14% / max DD -44.97%.
+
+Highest terminal blend:
+
+- Tier A+B 10, 80% U10 / 20% Grid;
+- final 182,710.96 USDT;
+- +1,727.11%;
+- max DD -68.04%;
+- retained 83.25% of U10 terminal equity;
+- improved max DD by only 3.00 percentage points.
+
+Shallowest blend max DD:
+
+- Tier A 5, 50/50;
+- final 126,507.89 USDT;
+- +1,165.08%;
+- max DD -59.59%;
+- retained 57.64% of U10 terminal equity;
+- max DD improved by 11.46 percentage points.
+
+Key interpretation:
+
+Grid was **not a strong historical hedge** for U10.
+
+Daily close return correlation with U10 was about +0.51 to +0.56, and the sleeves were below their own prior peaks at the same time on roughly 89% to 90% of common observations.
+
+The static blend reduced percentage drawdown mainly by replacing part of the high-growth/high-volatility U10 sleeve with a slower Grid sleeve. It did not create a large free diversification gain.
+
+At U10's 2024-09-07 absolute max-DD trough, the blends actually held less absolute equity than 100% U10 because U10 had accumulated much more capital before that trough.
+
+Current implication:
+
+A permanent large Grid allocation is less compelling than expected if the target is to preserve most of U10's upside while materially cutting severe drawdown.
+
+Conditional capital-protection mechanisms may deserve higher research priority than a simple static blend.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
