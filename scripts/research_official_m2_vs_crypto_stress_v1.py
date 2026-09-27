@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import argparse
-import io
+import hashlib
 import json
 import math
 import os
 import subprocess
-import time
-import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -19,16 +17,13 @@ from scripts.research_global_macro_risk_regime_v1 import (
     build_crypto_breadth,
     build_crypto_stress_episodes,
 )
-from scripts.research_official_liquidity_data_feasibility_v1 import _request_bytes
-from scripts.research_official_m2_source_feasibility_v1 import (
-    H6_URL,
-    inspect_h6_m2,
-)
 from scripts.research_relative_rotation_graph_intelligence import download_panel
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CHANGE_MONTHS = (3, 6, 12)
 EXPECTED_EPISODES = 8
+M2_SNAPSHOT_PATH = REPO_ROOT / "research" / "reference_data" / "official_h6_m2_monthly_2022_2026.csv"
+M2_SNAPSHOT_SHA256 = "0a14375baf3c5c38285565727375701ccda3e7b0a6dc531aabec311f261713e2"
 
 # Actual Federal Reserve H.6 release dates, frozen before execution.
 # Each release is mapped to the immediately preceding observation month.
@@ -77,18 +72,30 @@ def _write_json(path: Path, payload: object) -> None:
     )
 
 
-def fetch_valid_h6_zip(attempts: int = 3) -> bytes:
-    last_size = 0
-    for attempt in range(attempts):
-        payload = _request_bytes(H6_URL, timeout=180)
-        last_size = len(payload)
-        if zipfile.is_zipfile(io.BytesIO(payload)):
-            return payload
-        if attempt + 1 < attempts:
-            time.sleep(2 ** attempt)
-    raise RuntimeError(
-        f"Federal Reserve H6 returned non-ZIP payload after {attempts} attempts; last_bytes={last_size}"
-    )
+def load_official_m2_snapshot() -> tuple[pd.DataFrame, dict]:
+    payload = M2_SNAPSHOT_PATH.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
+    if digest != M2_SNAPSHOT_SHA256:
+        raise RuntimeError(
+            f"Official M2 snapshot SHA mismatch: expected={M2_SNAPSHOT_SHA256} actual={digest}"
+        )
+    frame = pd.read_csv(M2_SNAPSHOT_PATH)
+    frame["period_date"] = pd.to_datetime(frame["period_date"], errors="raise")
+    frame = frame.sort_values("period_date").reset_index(drop=True)
+    meta = {
+        "source": "Federal Reserve Board H.6 DDP",
+        "series_name": "M2.M",
+        "adjusted": "SA",
+        "unit_mult": "1e+09",
+        "snapshot_path": str(M2_SNAPSHOT_PATH.relative_to(REPO_ROOT)),
+        "snapshot_sha256": digest,
+        "source_probe_run": 36306932451,
+        "source_probe_artifact_id": 10928005872,
+        "rows": int(len(frame)),
+        "first_period": frame["period_date"].min().date().isoformat(),
+        "last_period": frame["period_date"].max().date().isoformat(),
+    }
+    return frame, meta
 
 
 def release_map() -> pd.DataFrame:
@@ -265,8 +272,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
-    payload = fetch_valid_h6_zip()
-    raw_m2, source_meta = inspect_h6_m2(payload)
+    raw_m2, source_meta = load_official_m2_snapshot()
     m2 = build_causal_m2(raw_m2)
 
     panel, crypto_meta = download_panel(CRYPTO_DOWNLOAD_START, ANALYSIS_END)
@@ -304,11 +310,15 @@ def main(argv: list[str] | None = None) -> int:
         "source": {
             "name": "Federal Reserve Board H.6 Money Stock Measures",
             "series": "M2.M",
-            "adjustment": source_meta["series_attributes"].get("ADJUSTED"),
-            "unit_mult": source_meta["series_attributes"].get("UNIT_MULT"),
+            "adjustment": source_meta["adjusted"],
+            "unit_mult": source_meta["unit_mult"],
             "rows": source_meta["rows"],
             "first_period": source_meta["first_period"],
             "last_period": source_meta["last_period"],
+            "snapshot_path": source_meta["snapshot_path"],
+            "snapshot_sha256": source_meta["snapshot_sha256"],
+            "source_probe_run": source_meta["source_probe_run"],
+            "source_probe_artifact_id": source_meta["source_probe_artifact_id"],
         },
         "causal_contract": {
             "release_dates": "Frozen actual Federal Reserve H.6 schedule 2022-2026",
