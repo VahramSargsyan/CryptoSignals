@@ -30,7 +30,7 @@ SECTORS = ("XLK", "XLF", "XLE", "XLV", "XLI", "XLY", "XLP", "XLU", "XLB", "XLRE"
 DEFENSIVE = ("XLV", "XLP", "XLU")
 CYCLICAL = ("XLK", "XLY", "XLI", "XLF", "XLE", "XLB")
 MARKET_TICKERS = (*SECTORS, "SPY", "QQQ", "IWM", "RSP", "IEF", "TLT", "HYG", "LQD", "GLD", "^VIX")
-EVENT_OFFSETS = (-30, -14, -7, 0, 7, 14, 30)
+EVENT_OFFSETS = (-30, -14, -7, 0, 7, 14, 30)\nUNTOUCHED_VALIDATION_START = pd.Timestamp("2026-03-29")
 
 
 def _source_commit() -> str:
@@ -324,8 +324,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     panel, crypto_meta = download_panel(CRYPTO_DOWNLOAD_START, ANALYSIS_END)
-    crypto = build_crypto_breadth(panel)
-    episodes = build_crypto_stress_episodes(crypto)
+    crypto_full = build_crypto_breadth(panel)\n    crypto = crypto_full[crypto_full["date"] >= UNTOUCHED_VALIDATION_START].reset_index(drop=True)\n    episodes = build_crypto_stress_episodes(crypto)
     known_check = known_2026_episode_check(episodes)
     if not known_check["pass"]:
         raise RuntimeError("Frozen crypto stress integration check failed.")
@@ -359,7 +358,7 @@ def main(argv: list[str] | None = None) -> int:
         "run_id": run_id,
         "source_commit_sha": _source_commit(),
         "status": "RESEARCH_ONLY_OSS_MARKET_REGIME_COMPARATOR_EXECUTED",
-        "analysis_end": ANALYSIS_END.date().isoformat(),
+        "analysis_end": ANALYSIS_END.date().isoformat(),\n        "untouched_validation_start": UNTOUCHED_VALIDATION_START.date().isoformat(),\n        "window_state_reset": True,
         "external_methodology": {
             "source": SOURCE_NAME,
             "license": SOURCE_LICENSE,
@@ -390,7 +389,7 @@ def main(argv: list[str] | None = None) -> int:
             "market_session_date": pd.Timestamp(latest["market_session_date"]).date().isoformat(),
         },
         "limitations": [
-            "External regime is a U.S. cross-asset market regime, not a world-economy causal model.",
+            "Crypto state is intentionally reset at the untouched validation boundary 2026-03-29 to match the frozen evidence window.",\n            "External regime is a U.S. cross-asset market regime, not a world-economy causal model.",
             "Yahoo adjusted history can be revised; point-in-time vendor vintages are not modeled.",
             "The +1 calendar-day market availability lag is conservative for crypto 00:00 UTC decisions.",
             "No external threshold was tuned on CryptoSignals evidence.",
