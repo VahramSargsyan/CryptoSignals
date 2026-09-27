@@ -4,3 +4,4 @@ Development cutoff: 2026-03-28.
 No trading rule is authorized.
 Retry after CI dependency fix; model logic unchanged.
 Retry after post-hoc overlap selection fix; model logic unchanged.
+Final replay retry after isolated overlap-filter fix; model logic unchanged.
