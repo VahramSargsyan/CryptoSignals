@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import math
 import os
 import subprocess
+import time
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -71,6 +74,20 @@ def _write_json(path: Path, payload: object) -> None:
     path.write_text(
         json.dumps(_json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
         encoding="utf-8",
+    )
+
+
+def fetch_valid_h6_zip(attempts: int = 3) -> bytes:
+    last_size = 0
+    for attempt in range(attempts):
+        payload = _request_bytes(H6_URL, timeout=180)
+        last_size = len(payload)
+        if zipfile.is_zipfile(io.BytesIO(payload)):
+            return payload
+        if attempt + 1 < attempts:
+            time.sleep(2 ** attempt)
+    raise RuntimeError(
+        f"Federal Reserve H6 returned non-ZIP payload after {attempts} attempts; last_bytes={last_size}"
     )
 
 
@@ -248,7 +265,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
 
-    payload = _request_bytes(H6_URL, timeout=180)
+    payload = fetch_valid_h6_zip()
     raw_m2, source_meta = inspect_h6_m2(payload)
     m2 = build_causal_m2(raw_m2)
 
