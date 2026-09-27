@@ -1,0 +1,52 @@
+name: Defensive Low-Vol Untouched Validation
+
+on:
+  push:
+    branches:
+      - research/defensive-low-vol-untouched-v1
+    paths:
+      - research_requests/run_defensive_low_vol_untouched_v1.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  untouched-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned research dependencies
+        run: |
+          python -m pip install "pandas==2.2.3" "evalica==0.4.2" "choix==0.4.1"
+
+      - name: Compile research runners
+        run: |
+          python -m py_compile scripts/research_relative_rotation_graph_intelligence.py
+          python -m py_compile scripts/research_defensive_low_vol_untouched.py
+
+      - name: Run graph adapter unit tests
+        run: python -m unittest tests.test_relative_rotation_graph_intelligence -v
+
+      - name: Run frozen reproduction gate and untouched validation
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_defensive_low_vol_untouched
+
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: defensive-low-vol-untouched-v1
+          path: research_artifacts/defensive_low_vol_untouched/**
+          if-no-files-found: warn
+          retention-days: 30
