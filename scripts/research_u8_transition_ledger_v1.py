@@ -231,9 +231,11 @@ def run_ledger(panel, event_map, initial_usdt):
     ledger_df = pd.DataFrame(ledger)
 
     initial_equity = float(initial_usdt)
+    first_close_equity = float(equity_df.iloc[0]["equity_usdt"])
     final_equity = float(equity_df.iloc[-1]["equity_usdt"])
     final_shadow = float(shadow_df.iloc[-1]["equity_usdt"])
     total_return = final_equity / initial_equity - 1.0
+    legacy_compatible_return = final_equity / first_close_equity - 1.0
     no_cost_return = final_shadow / initial_equity - 1.0
     final_fee_drag = final_shadow - final_equity
     final_drag_pct = final_fee_drag / final_shadow
@@ -255,6 +257,8 @@ def run_ledger(panel, event_map, initial_usdt):
         "initial_asset": START_ASSET,
         "initial_asset_open": first_open,
         "initial_qty": float(initial_usdt) / first_open,
+        "first_close_equity_usdt": first_close_equity,
+        "legacy_compatible_return": legacy_compatible_return,
         "transitions": int(len(ledger_df)),
         "conflict_signal_days": int(conflicts),
         "route": route,
@@ -310,7 +314,9 @@ def write_report(result, metadata, run_dir):
         "",
         f"- Final position: {fmt_qty(result['final_qty'])} {result['final_asset']}",
         f"- Final equity after transition costs: {result['final_equity_usdt']:,.2f} USDT",
-        f"- Return after costs: {100*result['total_return']:+.2f}%",
+        f"- Return from initial 10,000 USDT at first open: {100*result['total_return']:+.2f}%",
+        f"- First-day close equity: {result['first_close_equity_usdt']:,.2f} USDT",
+        f"- Legacy-compatible return (final / first close - 1): {100*result['legacy_compatible_return']:+.2f}%",
         f"- Same route with zero transition cost: {result['no_cost_final_equity_usdt']:,.2f} USDT",
         f"- Zero-cost return: {100*result['no_cost_total_return']:+.2f}%",
         f"- Terminal fee drag: {result['terminal_fee_drag_usdt']:,.2f} USDT",
@@ -344,6 +350,7 @@ def write_report(result, metadata, run_dir):
         "",
         "- Token quantities use a normalized 10,000 USDT initial notional; scale them linearly for another starting capital.",
         "- Fee drag is measured against a shadow portfolio following the exact same route with zero transition cost.",
+        "- Legacy U8 research runners report return as final equity / first-day close equity - 1; this report shows that value separately from return on the 10,000 USDT first-open starting capital.",
         "- This patch adds reporting only. It does not change U8 selection, signals, routing, parameters, or live held_asset.",
         "- Slippage beyond the frozen 0.1% transition-cost model is not separately modeled in this runner.",
         "",
@@ -395,6 +402,8 @@ def main():
         "initial_asset": result["initial_asset"],
         "initial_asset_open": result["initial_asset_open"],
         "initial_qty": result["initial_qty"],
+        "first_close_equity_usdt": result["first_close_equity_usdt"],
+        "legacy_compatible_return": result["legacy_compatible_return"],
         "transitions": result["transitions"],
         "conflict_signal_days": result["conflict_signal_days"],
         "route": result["route"],
@@ -423,6 +432,7 @@ def main():
     print("route=" + "->".join(result["route"]))
     print("final_equity_usdt=%.8f" % result["final_equity_usdt"])
     print("total_return=%.8f" % result["total_return"])
+    print("legacy_compatible_return=%.8f" % result["legacy_compatible_return"])
     print("no_cost_final_equity_usdt=%.8f" % result["no_cost_final_equity_usdt"])
     print("terminal_fee_drag_usdt=%.8f" % result["terminal_fee_drag_usdt"])
     print("terminal_fee_drag_pct=%.8f" % result["terminal_fee_drag_pct_vs_no_cost"])
