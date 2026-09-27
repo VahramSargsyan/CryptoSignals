@@ -21,7 +21,6 @@ from scripts.research_official_m2_source_feasibility_v1 import (
     H6_URL,
     inspect_h6_m2,
 )
-from scripts.research_oss_market_regime_comparator_v1 import add_crypto_mode
 from scripts.research_relative_rotation_graph_intelligence import download_panel
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -138,6 +137,21 @@ def align_m2_to_crypto(crypto_daily: pd.DataFrame, m2: pd.DataFrame) -> pd.DataF
         right_on="available_date",
         direction="backward",
     )
+    return out
+
+
+def add_crypto_mode(daily: pd.DataFrame, episodes: pd.DataFrame) -> pd.DataFrame:
+    out = daily.copy()
+    out["crypto_mode"] = "NORMAL"
+    for _, ep in episodes.iterrows():
+        entry = pd.Timestamp(ep["entry_execution_date"])
+        exit_value = ep.get("exit_execution_date")
+        if pd.isna(exit_value):
+            mask = out["date"] >= entry
+        else:
+            exit_date = pd.Timestamp(exit_value)
+            mask = (out["date"] >= entry) & (out["date"] < exit_date)
+        out.loc[mask, "crypto_mode"] = "DEFENSIVE"
     return out
 
 
