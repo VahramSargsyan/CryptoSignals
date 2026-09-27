@@ -999,3 +999,69 @@ Canonical evidence:
 - `research/relative_rotation/2026-09-27_COMBINED_RECOVERY_STATE_V2_EVIDENCE.md`
 
 TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + REAL_BINANCE_1D + OFFICIAL_H6_M2_SNAPSHOT + CURRENT8_FULL_HISTORY + RETROSPECTIVE_LEGACY7 + 180D_120D_ROBUSTNESS
+
+
+---
+
+## 24. Combined recovery persistence V3 — 2026-09-27
+
+STATUS: EXECUTED / PARTIAL_CURRENT_IMPROVEMENT / DO_NOT_PROMOTE
+MODE: STRESS_TEST_ONLY + ECOSYSTEM_PLANNING
+
+Single change from V2:
+- same M2 + BTC bullish state + breadth>=4 recovery states;
+- require all states to remain true for the existing 3-close confirmation while in CASH;
+- then next-open re-entry.
+
+No parameter search.
+
+Current 8-asset:
+
+LOW_VOL full:
+- +887.02% / -47.13%.
+
+V3 25/100:
+- reproduction +21.37% / -43.20%, wait 50d
+- opened 2026 +26.27% / -18.34%, wait 148d
+- full +401.35% / -62.01%, wait 41d
+- both wins vs LOW_VOL 2/13.
+
+V3 30/100:
+- effectively identical to 25/100.
+
+V3 12/100:
+- reproduction +21.37% / -43.20%, wait 50d
+- opened 2026 +25.44% / -18.34%, wait 146d
+- full +387.03% / -62.85%, wait 48d
+- both wins vs LOW_VOL 2/13.
+
+Compared with V2:
+- V3 raises full-history median wait only about 6-7 days;
+- full-history return improves modestly;
+- DD improves modestly;
+- no V1-style 200-400d over-waiting.
+
+Retrospective LEGACY-7:
+- LOW_VOL -40.08% / -76.24%
+- V2 -18.79% / -62.52%
+- V3 -28.46% / -66.99%
+- V3 is worse than V2 on all 8 robustness windows by return and DD comparison.
+
+Critical 2022:
+- V2 -7.36% / -7.36%, no re-entry
+- V3 -7.36% / -7.36%, no re-entry
+- catastrophic standalone-BTC false recovery remains blocked.
+
+Verdict:
+`PERSISTENCE_FILTER_HELPS_CURRENT_SAMPLE / WAIT_ACCEPTABLE / 2022_BLOCK_PRESERVED / LEGACY_WORSE_THAN_V2 / NO_ROBUSTNESS_BREAKTHROUGH / DO_NOT_PROMOTE`
+
+Run:
+- GitHub Actions `36310096438`
+- source `cf7a310cfd66a53d239ebf3f0a97ce9b39569117`
+- artifact ID `10928512309`
+- artifact digest `sha256:147c9768d07cad6a8266f5aa0329e08cb681494599cacc5cf4144d5eac2ee889`
+
+Canonical evidence:
+- `research/relative_rotation/2026-09-27_COMBINED_RECOVERY_PERSISTENCE_V3_EVIDENCE.md`
+
+TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + REAL_BINANCE_1D + OFFICIAL_H6_M2_SNAPSHOT + CURRENT8_FULL_HISTORY + RETROSPECTIVE_LEGACY7 + 180D_120D_ROBUSTNESS
