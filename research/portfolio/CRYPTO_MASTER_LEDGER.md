@@ -842,3 +842,77 @@ Canonical evidence:
 - `research/relative_rotation/2026-09-27_OFFICIAL_M2_MONEY_SUPPLY_V1_EVIDENCE.md`
 
 TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + OFFICIAL_H6_M2 + ACTUAL_RELEASE_DATE_ALIGNMENT + REAL_BINANCE_1D + 8_FROZEN_CRYPTO_STRESS_EPISODES
+
+
+---
+
+## 22. Combined M2 + BTC + breadth recovery gate V1 — 2026-09-27
+
+STATUS: EXECUTED / OVERCONSTRAINED / DO_NOT_PROMOTE
+MODE: STRESS_TEST_ONLY + ECOSYSTEM_PLANNING
+
+Rule:
+- stress entry breadth<=3 x3 -> CASH;
+- M2 3m>0 AND 6m>0 AND 12m>0;
+- fresh BTC crossover from frozen candidate 25/100, 30/100, or 12/100;
+- breadth>=4 on that crossover date;
+- next-open CASH -> current shadow target;
+- re-arm breadth>=5 x3.
+
+Current 8-asset results:
+
+LOW_VOL reference:
+- reproduction +49.05% / -47.13%
+- opened 2026 +32.92% / -18.34%
+- full +887.02% / -47.13%.
+
+Combined 25/100:
+- reproduction -30.06% / -31.97%
+- opened 2026 +25.44% / -18.34%
+- full +163.62% / -60.73%
+- median full wait 296d, max 476d
+- robustness both wins 3/13.
+
+Combined 30/100:
+- reproduction -27.05% / -31.04%
+- opened 2026 +25.44% / -18.34%
+- full +136.56% / -64.76%
+- robustness both wins 2/13.
+
+Combined 12/100:
+- reproduction +2.18% / -43.20%
+- opened 2026 +20.99% / -18.34%
+- full +245.01% / -48.61%
+- robustness both wins 2/13.
+
+Retrospective LEGACY-7:
+- LOW_VOL -40.08% / -76.24%
+- combined all variants +30.17% / -37.06%
+- BUT re-entry exits=0 and unresolved cash=7/7;
+- result is cash-quarantine endpoint effect, not successful recovery timing.
+
+Critical 2022 window:
+- LOW_VOL +2.34% / -36.79%
+- standalone BTC roughly -49% to -61% / ~-79% to -80%
+- combined all variants -7.36% / -7.36%
+- combined stayed in cash, no re-entry.
+
+Mechanism:
+- M2 blocks only one BTC cross per candidate;
+- breadth gate blocks several;
+- requiring fresh BTC crossover and breadth>=4 on the same date discards earlier BTC recovery;
+- next crossover may arrive 146-476 days later.
+
+Verdict:
+`FALSE_RECOVERY_FILTERED / OVERCONSTRAINED / CASH_QUARANTINE / NO_MATERIAL_IMPROVEMENT / DO_NOT_PROMOTE`
+
+Run:
+- GitHub Actions `36307956119`
+- source `8053944a83c595b2fecc495a93ec8503b76f4f96`
+- calculation SUCCESS
+- artifact finalization failed with GitHub Actions ECONNRESET after successful calculation.
+
+Canonical evidence:
+- `research/relative_rotation/2026-09-27_COMBINED_RECOVERY_GATE_V1_EVIDENCE.md`
+
+TEST_LEVEL: GITHUB_ACTIONS_EXECUTED + UNIT_TESTS + REAL_BINANCE_1D + OFFICIAL_H6_M2_SNAPSHOT + CURRENT8_FULL_HISTORY + RETROSPECTIVE_LEGACY7 + 180D_120D_ROBUSTNESS
