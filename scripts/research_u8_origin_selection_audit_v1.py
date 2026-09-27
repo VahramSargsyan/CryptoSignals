@@ -113,32 +113,38 @@ def window_rows(panel, start, end):
     return w
 
 
-def run_graph(panel, event_map, assets, start, end, start_asset):
+def _prepared_window(panel, assets, start, end):
+    w = window_rows(panel, start, end)
+    timestamps = [utc(x) for x in w["timestamp"].tolist()]
+    opens = {a:w[a+"_open"].to_numpy() for a in assets}
+    closes = {a:w[a+"_close"].to_numpy() for a in assets}
+    return timestamps, opens, closes
+
+
+def _run_prepared(event_map, assets, timestamps, opens, closes, start_asset):
     aset = set(assets)
     if start_asset not in aset:
         raise ValueError(start_asset)
-    w = window_rows(panel, start, end)
     current = start_asset
-    qty = 1.0 / float(w.iloc[0][current+"_open"])
+    qty = 1.0 / float(opens[current][0])
     pending = None
     equity = []
     transitions = 0
     conflicts = 0
     route = [current]
 
-    for pos, (_, row) in enumerate(w.iterrows()):
-        ts = utc(row["timestamp"])
+    for pos, ts in enumerate(timestamps):
         if pending is not None:
-            value = qty * float(row[current+"_open"])
+            value = qty * float(opens[current][pos])
             current = pending["to_asset"]
-            qty = value * (1.0 - COST) / float(row[current+"_open"])
+            qty = value * (1.0 - COST) / float(opens[current][pos])
             transitions += 1
             route.append(current)
             pending = None
 
-        equity.append(qty * float(row[current+"_close"]))
+        equity.append(qty * float(closes[current][pos]))
 
-        if pos == len(w)-1:
+        if pos == len(timestamps)-1:
             continue
         candidates = [
             e for e in event_map.get(ts, [])
@@ -165,10 +171,16 @@ def run_graph(panel, event_map, assets, start, end, start_asset):
     }
 
 
+def run_graph(panel, event_map, assets, start, end, start_asset):
+    timestamps, opens, closes = _prepared_window(panel, assets, start, end)
+    return _run_prepared(event_map, assets, timestamps, opens, closes, start_asset)
+
+
 def graph_summary(panel, event_map, assets, start, end):
+    timestamps, opens, closes = _prepared_window(panel, assets, start, end)
     runs = []
     for a in assets:
-        r = run_graph(panel, event_map, assets, start, end, a)
+        r = _run_prepared(event_map, assets, timestamps, opens, closes, a)
         runs.append({"start_asset":a, **r})
     df = pd.DataFrame(runs)
     atom = df[df["start_asset"]=="ATOM"].iloc[0]
