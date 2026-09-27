@@ -6,7 +6,7 @@ Status: PAPER_LIVE_MONITOR / MANUAL_EXECUTION_ONLY
 
 ## Purpose
 
-Move the frozen 8-token relative-rotation research engine into forward observation without changing its trading logic and without enabling automatic exchange execution.
+Move the promoted 10-token relative-rotation research engine into forward observation without changing its trading logic and without enabling automatic exchange execution.
 
 Canonical monitored universe:
 
@@ -18,8 +18,11 @@ Canonical monitored universe:
 - TRX
 - AAVE
 - LINK
+- FIL
+- HBAR
 
-This is the existing 8-node / 28-pair graph.
+This is the promoted U10 graph: 10 nodes / 45 undirected pairs.
+The signal engine remains 180d median / 15% ARM / 3% reversal / strongest max-dislocation router.
 
 ## Frozen relative-rotation parameters
 
@@ -41,7 +44,7 @@ State path:
 
 `ARMED` is only a warning. It is not a rotation instruction. A historical-model rotation exists only after the 3% reversal confirmation.
 
-## Current held asset
+## Current held asset and persistent ATOM watch
 
 The current configured held asset is stored in:
 
@@ -53,14 +56,21 @@ Initial value for this patch:
 
 After Vahram manually executes a confirmed rotation, update this file to the asset actually held. The workflow never changes it automatically because the workflow cannot know whether a manual swap was really executed.
 
+The same config also contains:
+
+`"watch_assets": ["ATOM"]`
+
+This watch is independent of `held_asset`. If the real held asset later becomes TWT, PEPE, FIL, HBAR, or another U10 token, the monitor still evaluates outbound ATOM ARMED/CONFIRMED events and can send Telegram alerts while any legacy ATOM position remains. This is alert-only; it does not block ATOM re-entry and does not execute a swap.
+
 ## Telegram notification policy
 
 Telegram is sent only when at least one of these events happens on the latest closed daily candle:
 
 1. a new `ARMED` event exists from the configured held asset;
 2. a new `CONFIRMED` event exists from the configured held asset;
-3. the defensive low-vol research overlay enters or exits;
-4. a manual/branch verification run uses `--force-notify`.
+3. a new outbound `ARMED` or `CONFIRMED` event exists from a persistent watch asset; ATOM is configured;
+4. the defensive low-vol research overlay enters or exits;
+5. a manual verification run uses `--force-notify`.
 
 No repeated daily warning is sent merely because a pair remains armed. The monitor recomputes the complete state from historical closed candles on every run, so it does not need hidden mutable workflow state for deduplication.
 
@@ -72,14 +82,14 @@ The monitor reports the documented candidate:
 
 Rules:
 
-- breadth = number of the 8 tokens above their own causal SMA200;
+- breadth = number of the 10 U10 tokens above their own causal SMA200;
 - enter defensive mode after 3 consecutive closes with breadth <= 3;
 - choose the token with the lowest 30-day realized close-to-close volatility at entry;
 - keep that defensive token fixed until exit;
 - exit after 3 consecutive closes with breadth >= 5;
 - no USDT is required by this overlay.
 
-Important: this remains `PROMISING_RESEARCH_CANDIDATE / NOT_PRODUCTION_APPROVED`. The alert is evidence, not an automatic instruction.
+Important: this remains `PROMISING_RESEARCH_CANDIDATE / NOT_PRODUCTION_APPROVED`. The existing 3/5 breadth thresholds were not retuned for U10 in this patch, so the overlay must not be interpreted as production-approved U10 defensive logic. The alert is evidence, not an automatic instruction.
 
 ## Daily workflow
 
@@ -95,15 +105,16 @@ For Armenia this is normally around `04:20` local time.
 
 Each run:
 
-1. downloads closed Binance Spot 1D candles for all 8 assets;
-2. builds a common 8-asset panel;
-3. recomputes all 28 relative-pair state machines from common history;
+1. downloads closed Binance Spot 1D candles for all 10 assets;
+2. builds a common 10-asset panel;
+3. recomputes all 45 relative-pair state machines from common history;
 4. filters new events for the configured held asset;
-5. selects the strongest confirmed candidate when several exist;
-6. calculates the defensive breadth/low-vol overlay;
-7. writes JSON/Markdown/CSV evidence;
-8. sends Telegram only if notification policy allows it;
-9. uploads the evidence as a GitHub Actions artifact.
+5. independently filters outbound events for persistent watch assets such as ATOM;
+6. selects the strongest confirmed candidate when several exist;
+7. calculates the defensive breadth/low-vol overlay;
+8. writes JSON/Markdown/CSV evidence;
+9. sends Telegram only if notification policy allows it;
+10. uploads the evidence as a GitHub Actions artifact.
 
 ## Output evidence
 
@@ -152,4 +163,4 @@ Local static/unit verification for this patch covers:
 
 GitHub Actions additionally runs the monitor against live Binance public market data.
 
-`TEST_LEVEL: UNIT_REGRESSION + GITHUS_ACTIONS_LIVE_PUBLIC_DATA` only after the workflow run succeeds.
+`TEST_LEVEL: UNIT_REGRESSION + GITHUB_ACTIONS_LIVE_PUBLIC_DATA` only after the workflow run succeeds.

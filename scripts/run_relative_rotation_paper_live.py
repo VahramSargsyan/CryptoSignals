@@ -61,9 +61,17 @@ def _read_config(path: Path) -> dict:
     if held_asset not in ASSETS:
         raise ValueError(f"held_asset must be one of {ASSETS}; got {held_asset!r}")
     monitor_start = _utc(payload.get("monitor_start", "2026-09-27T00:00:00Z"))
+    watch_assets = []
+    for value in payload.get("watch_assets", []):
+        asset = str(value).upper()
+        if asset not in ASSETS:
+            raise ValueError(f"watch_asset must be one of {ASSETS}; got {asset!r}")
+        if asset not in watch_assets:
+            watch_assets.append(asset)
     return {
         **payload,
         "held_asset": held_asset,
+        "watch_assets": watch_assets,
         "monitor_start": monitor_start,
     }
 
@@ -113,7 +121,7 @@ def download_panel(*, start: pd.Timestamp, cutoff: pd.Timestamp) -> tuple[pd.Dat
         panel = panel.merge(frame, on="timestamp", how="inner", validate="one_to_one")
     panel = panel.sort_values("timestamp", kind="stable").reset_index(drop=True)
     if panel.empty:
-        raise RuntimeError("Common 8-asset panel is empty")
+        raise RuntimeError(f"Common {len(ASSETS)}-asset panel is empty")
 
     latest = pd.Timestamp(panel.iloc[-1]["timestamp"])
     metadata["panel"] = {
@@ -140,6 +148,7 @@ def build_notification(payload: dict) -> str:
     held = payload["held_asset"]
     latest = payload["latest_closed_candle"]
     selected = payload["held_events"]
+    watch_events = payload.get("watch_events", {})
     defensive = payload["defensive"]
     latest_defensive_events = payload["latest_defensive_events"]
 
@@ -169,23 +178,42 @@ def build_notification(payload: dict) -> str:
     elif payload.get("force_notify"):
         lines.append("Initialization snapshot — no confirmed rotation from held asset on this candle.")
 
+    for asset, watched in watch_events.items():
+        primary_watch = watched.get("primary_confirmed")
+        if primary_watch:
+            lines.extend(
+                [
+                    f"{asset} WATCH — EXIT CONFIRMED",
+                    _event_line(primary_watch),
+                    "Manual review only — this watch does not place an order.",
+                ]
+            )
+            extra_watch = [event for event in watched.get("confirmed", []) if event is not primary_watch]
+            if extra_watch:
+                lines.append(f"Other {asset} confirmed outbound candidates:")
+                lines.extend(f"- {_event_line(event)}" for event in extra_watch)
+        elif watched.get("armed"):
+            lines.append(f"{asset} WATCH — ARMED / PREWATCH")
+            lines.extend(f"- {_event_line(event)}" for event in watched["armed"])
+            lines.append("15% threshold reached; wait for 3% reversal confirmation.")
+
     if latest_defensive_events:
         for event in latest_defensive_events:
             if event["event"] == "DEFENSIVE_ENTER":
                 lines.append(
-                    f"DEFENSIVE ENTER candidate: breadth {event['breadth']}/8; "
+                    f"DEFENSIVE ENTER candidate: breadth {event['breadth']}/{len(ASSETS)}; "
                     f"low-vol token {event['defensive_asset']}."
                 )
             elif event["event"] == "DEFENSIVE_EXIT":
                 lines.append(
-                    f"DEFENSIVE EXIT candidate: breadth {event['breadth']}/8; "
+                    f"DEFENSIVE EXIT candidate: breadth {event['breadth']}/{len(ASSETS)}; "
                     "return-to-shadow routing remains manual."
                 )
 
     lines.append(
         "Defensive status: "
         + (f"ON ({defensive['defensive_asset']})" if defensive["active"] else "OFF")
-        + f"; breadth={defensive.get('breadth')}/8"
+        + f"; breadth={defensive.get('breadth')}/{len(ASSETS)}"
     )
     lines.append("PAPER/MANUAL ONLY — no exchange orders, no API trading keys.")
     return "\n".join(lines) + "\n"
@@ -201,13 +229,14 @@ def build_report_markdown(payload: dict) -> str:
         f"Source commit: `{payload['source_commit_sha']}`",
         f"Latest closed candle: **{payload['latest_closed_candle']}**",
         f"Current configured held asset: **{payload['held_asset']}**",
+        f"Persistent watch assets: **{', '.join(payload.get('watch_assets', [])) or '-'}**",
         f"Monitor start: **{payload['monitor_start']}**",
         f"Status: **{payload['status']}**",
         "",
         "## Frozen relative-rotation engine",
         "",
         f"- Assets: {', '.join(ASSETS)}",
-        f"- Pair graph: 8 assets / 28 undirected pairs",
+        f"- Pair graph: {len(ASSETS)} assets / {len(ASSETS) * (len(ASSETS) - 1) // 2} undirected pairs",
         f"- Rolling median: {LOOKBACK} closed daily candles",
         f"- ARM threshold: {ARM_THRESHOLD:.0%}",
         f"- Reversal confirmation: {REVERSAL:.0%}",
@@ -230,6 +259,23 @@ def build_report_markdown(payload: dict) -> str:
             lines.append(f"- {_event_line(event)}")
     else:
         lines.append("No new ARMED or CONFIRMED event from the configured held asset on the latest closed candle.")
+
+    watch_events = payload.get("watch_events", {})
+    if watch_events:
+        lines.extend(["", "## Persistent watch-asset events", ""])
+        for asset, watched in watch_events.items():
+            if watched["confirmed"]:
+                lines.append(f"### {asset} — CONFIRMED")
+                lines.append("")
+                for event in watched["confirmed"]:
+                    lines.append(f"- {_event_line(event)}")
+            elif watched["armed"]:
+                lines.append(f"### {asset} — ARMED / PREWATCH")
+                lines.append("")
+                for event in watched["armed"]:
+                    lines.append(f"- {_event_line(event)}")
+            else:
+                lines.append(f"- {asset}: no new latest-candle ARMED/CONFIRMED outbound event.")
 
     lines.extend(
         [
@@ -260,7 +306,7 @@ def build_report_markdown(payload: dict) -> str:
             f"- Status: **{defensive['status']}**",
             f"- Current mode: **{'ON' if defensive['active'] else 'OFF'}**",
             f"- Defensive asset: **{defensive.get('defensive_asset') or '-'}**",
-            f"- Current breadth above SMA{DEFENSIVE_SMA_LOOKBACK}: **{defensive.get('breadth')}/8**",
+            f"- Current breadth above SMA{DEFENSIVE_SMA_LOOKBACK}: **{defensive.get('breadth')}/{len(ASSETS)}**",
             f"- Enter: breadth <= {DEFENSIVE_ENTER_BREADTH} for {DEFENSIVE_CONFIRM_DAYS} closed days",
             f"- Exit: breadth >= {DEFENSIVE_EXIT_BREADTH} for {DEFENSIVE_CONFIRM_DAYS} closed days",
             f"- Defensive token: lowest {DEFENSIVE_VOL_LOOKBACK}-day realized close-to-close volatility at entry",
@@ -268,7 +314,8 @@ def build_report_markdown(payload: dict) -> str:
             "",
             "## Notification policy",
             "",
-            "Telegram is requested only for a new latest-candle ARMED/CONFIRMED event from the configured held asset, "
+            "Telegram is requested for a new latest-candle ARMED/CONFIRMED event from the configured held asset, "
+            "a new ARMED/CONFIRMED outbound event from any persistent watch asset (ATOM is configured), "
             "a latest-candle defensive ENTER/EXIT event, or an explicit force-notify run.",
             "",
             "## Safety boundary",
@@ -282,7 +329,7 @@ def build_report_markdown(payload: dict) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Daily paper-live monitor for the frozen 8-token relative-rotation graph.")
+    parser = argparse.ArgumentParser(description="Daily paper-live monitor for the configured relative-rotation graph.")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--history-start", default=DEFAULT_HISTORY_START)
     parser.add_argument("--cutoff")
@@ -303,6 +350,11 @@ def main(argv: list[str] | None = None) -> int:
     latest = pd.Timestamp(panel.iloc[-1]["timestamp"])
     events, pair_states = build_pair_monitor(panel)
     held_events = choose_held_events(events, held_asset=config["held_asset"], latest_date=latest)
+    independent_watch_assets = [asset for asset in config["watch_assets"] if asset != config["held_asset"]]
+    watch_events = {
+        asset: choose_held_events(events, held_asset=asset, latest_date=latest)
+        for asset in independent_watch_assets
+    }
     defensive_events, defensive, defensive_diagnostics = evaluate_defensive_mode(panel)
 
     latest_iso = latest.isoformat()
@@ -315,7 +367,12 @@ def main(argv: list[str] | None = None) -> int:
     ]
 
     after_monitor_start = latest >= config["monitor_start"]
-    new_signal = bool(held_events["armed"] or held_events["confirmed"] or latest_defensive_events)
+    held_signal = bool(held_events["armed"] or held_events["confirmed"])
+    watch_signal = any(
+        watched["armed"] or watched["confirmed"]
+        for watched in watch_events.values()
+    )
+    new_signal = bool(held_signal or watch_signal or latest_defensive_events)
     should_notify = bool(args.force_notify or (after_monitor_start and new_signal))
 
     generated_at = pd.Timestamp.now(tz="UTC")
@@ -325,11 +382,12 @@ def main(argv: list[str] | None = None) -> int:
 
     payload = {
         "schema_version": 1,
-        "strategy": "RELATIVE_ROTATION_GRAPH_8_V1",
+        "strategy": config.get("strategy", "RELATIVE_ROTATION_GRAPH_10_V1"),
         "status": "PAPER_LIVE_MONITOR / MANUAL_EXECUTION_ONLY",
         "generated_at": generated_at.isoformat(),
         "source_commit_sha": _source_commit(),
         "held_asset": config["held_asset"],
+        "watch_assets": config["watch_assets"],
         "monitor_start": config["monitor_start"].isoformat(),
         "latest_closed_candle": latest_iso,
         "force_notify": bool(args.force_notify),
@@ -338,6 +396,13 @@ def main(argv: list[str] | None = None) -> int:
             "after_monitor_start": after_monitor_start,
             "held_armed": len(held_events["armed"]),
             "held_confirmed": len(held_events["confirmed"]),
+            "watch_events": {
+                asset: {
+                    "armed": len(watched["armed"]),
+                    "confirmed": len(watched["confirmed"]),
+                }
+                for asset, watched in watch_events.items()
+            },
             "defensive_events": len(latest_defensive_events),
             "force_notify": bool(args.force_notify),
         },
@@ -346,9 +411,10 @@ def main(argv: list[str] | None = None) -> int:
             "arm_threshold": ARM_THRESHOLD,
             "reversal": REVERSAL,
             "assets": list(ASSETS),
-            "pair_count": 28,
+            "pair_count": len(ASSETS) * (len(ASSETS) - 1) // 2,
         },
         "held_events": held_events,
+        "watch_events": watch_events,
         "held_pair_states": held_pair_states,
         "latest_pair_states": pair_states,
         "defensive": defensive,
@@ -368,6 +434,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"held_asset={config['held_asset']}")
     print(f"held_armed={len(held_events['armed'])}")
     print(f"held_confirmed={len(held_events['confirmed'])}")
+    for asset, watched in watch_events.items():
+        print(f"watch_{asset}_armed={len(watched['armed'])}")
+        print(f"watch_{asset}_confirmed={len(watched['confirmed'])}")
     print(f"defensive_active={defensive['active']}")
     print(f"defensive_breadth={defensive.get('breadth')}")
     print(f"should_notify={should_notify}")
