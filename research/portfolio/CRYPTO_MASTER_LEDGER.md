@@ -773,3 +773,145 @@ Status:
 
 Detailed evidence:
 - `research/relative_rotation/2026-09-26_MULTI_ASSET_ROTATION_GRAPH_STRESS_TEST.md`
+
+
+---
+
+## 14. Cross-asset macro transition context — 2026-09-27
+
+STATUS: PROMISING_TRANSITION_CONTEXT / NOT_A_TRADING_GATE  
+MODE: STRESS_TEST_ONLY + ECOSYSTEM_PLANNING
+
+Independent OSS comparator:
+- methodology source: `zhuy9/market-rotation` (MIT);
+- U.S. cross-asset regimes: BROAD_RISK_OFF / DEFENSIVE_ROTATION / BROAD_RISK_ON / INTERNAL_ROTATION / MIXED;
+- external thresholds were not tuned on CryptoSignals evidence;
+- U.S. session D is exposed to crypto only on D+1 calendar day to avoid same-date U.S.-close look-ahead.
+
+Full-history replication:
+- eligible crypto history begins: 2023-11-20;
+- eight closed crypto-stress episodes;
+- frozen crypto thresholds changed: NO;
+- external OSS thresholds changed: NO.
+
+Entry relationship:
+- same-day BROAD_RISK_OFF before crypto entry signal: **4/8 = 50.0%**;
+- within 7d: **4/8 = 50.0%**;
+- within 14d: **5/8 = 62.5%**;
+- within 30d: **8/8 = 100.0%**;
+- median lead when found: **6.5 days**.
+
+State-conditioned NORMAL-day baselines:
+- same-day BROAD_RISK_OFF: 12.29%;
+- within 7d: 32.29%;
+- within 14d: 45.42%;
+- within 30d: 66.04%.
+
+Strongest descriptive entry enrichment:
+- same-day BROAD_RISK_OFF: ~4.07x versus generic NORMAL days.
+
+Exit relationship:
+- same-day BROAD_RISK_ON before crypto exit signal: **1/8 = 12.5%**;
+- within 7d: **2/8 = 25.0%**;
+- within 14d: **5/8 = 62.5%**;
+- within 30d: **6/8 = 75.0%**;
+- median lead when found: **8 days**.
+
+Interpretation:
+- cross-asset stress is concentrated around crypto stress entries;
+- raw daily external regime labels are not sufficient to replace crypto breadth;
+- BROAD_RISK_ON looks more interesting as transition context roughly 1–2 weeks before crypto recovery than as a same-day exit rule;
+- no statistical-significance claim is made because the eight episodes are not independent IID events and regime observations are serially correlated.
+
+Canonical evidence:
+- `research/relative_rotation/2026-09-27_OSS_MARKET_REGIME_COMPARATOR_V1_EVIDENCE.md`
+- `research/relative_rotation/2026-09-27_OSS_MARKET_REGIME_FULL_HISTORY_EVIDENCE.md`
+
+Current verdict:
+
+`PROMISING_TRANSITION_CONTEXT / RAW_REGIME_NOT_A_TRADING_GATE`
+
+---
+
+## 15. Cash-defense destination hypothesis — 2026-09-27
+
+STATUS: RESEARCH_CANDIDATE / NOT_PRODUCTION_APPROVED  
+CANDIDATE: `CASH_DEFENSE_DESTINATION_ABLATION_V1`
+
+Question:
+If crypto stress is already confirmed by the frozen breadth state machine, is it better to leave the crypto asset class entirely and hold a cash/stable-value proxy instead of rotating into the lowest-volatility crypto token?
+
+Why this question is now justified:
+
+1. **External cross-asset context supports stress-entry timing.**
+   - all 8 historical crypto stress entries had a BROAD_RISK_OFF observation within the previous 30 days;
+   - 4/8 had BROAD_RISK_OFF on the same day;
+   - same-day entry enrichment was ~4.07x versus generic NORMAL days.
+
+2. **Internal low-vol crypto defense reduces risk but remains exposed to crypto.**
+   Untouched 2026 validation:
+   - base rotation: +103.36% median return / -36.68% median max DD;
+   - low-vol defense: +32.92% / -18.34%;
+   - defense occupied 144/182 days (~79.1%);
+   - verdict: real risk control, but excessive upside sacrifice.
+
+3. **A separate earlier USDT smoke test showed that leaving crypto can cut drawdown much more aggressively.**
+   Same 2025-03-29 -> 2026-03-28 OOS year under a DIFFERENT absolute-SMA trigger:
+   - no risk gate: +41.6% median / ~-62.2% max DD;
+   - SMA100 -> USDT: +63.5% / ~-27.0%;
+   - SMA200 -> USDT: +37.4% / ~-15.2%;
+   - SMA300 -> USDT: +42.7% / ~-15.2%.
+
+Important boundary:
+The USDT smoke test does **not** prove that the new cross-asset macro signal should trigger cash. It used a different entry gate. It only establishes that a true crypto-vs-cash layer can materially change drawdown behavior and therefore deserves an apples-to-apples test.
+
+### Required next test: destination ablation first
+
+Hold entry/exit timing fixed to the already-frozen crypto defensive state machine:
+- enter after 3 consecutive closes with breadth <=3;
+- exit after 3 consecutive closes with breadth >=5;
+- same next-open semantics;
+- same 0.1% transition cost;
+- relative router continues in shadow.
+
+Compare only destination:
+- Variant A: frozen lowest-VOL30 crypto token;
+- Variant B: cash/stable-value proxy at 0% modeled yield.
+
+This isolates the question:
+`LOW_VOL_CRYPTO vs CASH`
+without changing the trigger.
+
+Required comparison:
+- median return;
+- max drawdown;
+- worst start;
+- positive starts;
+- defensive occupancy;
+- transition count;
+- opportunity cost during recovery;
+- sequential 180d and 120d robustness.
+
+### Only after destination ablation
+
+A second, separately preregistered candidate may test whether external macro confirmation improves cash-entry timing:
+- crypto breadth remains the primary stress state;
+- external BROAD_RISK_OFF is confirmation/context, not a replacement;
+- no post-hoc choice of 0/7/14/30-day window;
+- do not use the broad 30-day result as an automatic entry rule merely because it covered 8/8 episodes.
+
+### Exit remains the critical unresolved problem
+
+Cash protects against broad crypto downside more completely than a low-vol crypto token, but it also earns little/no modeled upside while defense remains active.
+
+Therefore the existing over-defense problem becomes **more important**, not less, if capital moves to cash.
+
+The ongoing official Fed net-liquidity research is relevant specifically to this recovery/exit problem, but no liquidity result is yet promoted into a trading rule.
+
+Runtime impact:
+- production changed: NONE;
+- paper-live changed: NONE;
+- real swaps authorized: NO;
+- manual confirmation remains required.
+
+TEST_LEVEL: DOCUMENTATION_SYNC / EXISTING_EXECUTED_EVIDENCE_ONLY
