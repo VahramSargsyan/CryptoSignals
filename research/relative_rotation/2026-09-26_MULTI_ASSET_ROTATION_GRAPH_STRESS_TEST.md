@@ -969,3 +969,222 @@ Current conceptual stack:
 - DEFENSIVE_LOW_VOL_CRYPTO = which token to hold when the whole approved universe enters stress;
 - NEW_NODE_PROBATION = which new edges/nodes are allowed to influence routing;
 - USDT / true RISK_OFF remains a separate optional research layer, not a baseline assumption.
+
+
+## 26. Untouched post-2026-03-28 validation — frozen low-vol defense
+
+Date: 2026-09-27
+
+Purpose:
+Validate the already-frozen `DEFENSIVE_LOW_VOL_CRYPTO_SMA200_BREADTH_3_5_CONFIRM3_VOL30` rule on data that was not used when the defensive layer was designed.
+
+No parameters were changed for this test.
+
+Frozen rules:
+- relative graph: 8 assets / 28 pairs;
+- 180d rolling median;
+- 15% ARM;
+- 3% reversal;
+- next-daily-open execution;
+- 0.1% transition cost;
+- defensive breadth: count of the 8 assets above own SMA200;
+- enter defensive mode after 3 consecutive closes with breadth <= 3;
+- defensive asset = lowest 30d realized daily-close volatility among the 8;
+- exit after 3 consecutive closes with breadth >= 5;
+- no USDT; remain fully invested in crypto.
+
+### 26.1 Fresh data source and cross-market validation
+
+The original independent Spot-like dataset `marek3993/trendatlas-crypto` ends on 2026-03-28, so it cannot provide the untouched period.
+
+Fresh proxy source:
+- public GitHub repository: `brasdor/UngerFink-TREND`;
+- source family: Binance USDT-M Futures daily OHLCV;
+- source commit used: `d4217400d4537ae9f49dbaf8e5e8cac78a172777`;
+- fresh common period available through 2026-09-25;
+- TWT uses `TWTUSDT`;
+- PEPE uses `1000PEPEUSDT`, which is scale-equivalent for relative-ratio logic.
+
+Overlap check versus the previous Spot-like source through 2026-03-28:
+- daily-return correlation was approximately 0.9998+ for ATOM, TWT, BNB, TRX, AAVE and LINK;
+- SOL correlation was approximately 0.9952 because of an isolated historical basis/outlier issue;
+- PEPE correlation was approximately 0.9987;
+- median absolute close basis was approximately 0.05% to 0.09% for the eight assets;
+- PEPE had the widest typical basis, with p95 absolute close basis around 0.68%.
+
+Therefore this is NOT promoted as canonical Spot evidence. It is classified as a cross-market Futures proxy validation.
+
+### 26.2 Reproduction check before opening the untouched window
+
+Known period: 2025-03-29 -> 2026-03-28.
+
+Previous Spot-like results:
+- base 8-node rotation: +41.6% median, ~-62.2% median max DD;
+- frozen low-vol defense: +49.4% median, ~-47.1% median max DD.
+
+Fresh Futures-proxy reproduction:
+- base 8-node rotation: **+43.4%**, median max DD **-61.7%**;
+- frozen low-vol defense: **+48.9%**, median max DD **-47.3%**;
+- all 8 starting assets remained positive;
+- base median rotations remained 8;
+- defensive median actual defensive transitions remained 3.
+
+The close reproduction supports using this Futures dataset as a proxy stress-test continuation, with the market-basis caveat retained.
+
+## 27. Untouched validation result: 2026-03-29 -> 2026-09-25
+
+Available common observations: 175 daily rows over 181 calendar days.
+
+### Benchmarks
+
+HODL returns over the untouched period:
+
+| Asset | HODL return |
+|---|---:|
+| LINK | +65.6% |
+| AAVE | +61.0% |
+| SOL | +50.1% |
+| TWT | +39.0% |
+| PEPE | +37.1% |
+| BNB | +28.3% |
+| ATOM | +9.0% |
+| TRX | +5.1% |
+
+Equal-weight 8-asset benchmark: **+36.9%**.
+
+This was a broad positive crypto regime, not a continuation of the late-2025/early-2026 stress regime.
+
+### 27.1 Base 8-node relative rotation — untouched
+
+| Starting asset | Return |
+|---|---:|
+| ATOM | +94.3% |
+| TWT | +72.7% |
+| PEPE | +98.1% |
+| BNB | +92.3% |
+| SOL | +90.1% |
+| TRX | +96.3% |
+| AAVE | +96.0% |
+| LINK | +102.6% |
+
+Summary:
+- median return: **+95.1%**;
+- minimum starting-asset return: **+72.7%**;
+- maximum: **+102.6%**;
+- positive starts: **8/8**;
+- median max drawdown: **-36.8%**;
+- median relative rotations: **4**;
+- all starts ended in ATOM under the proxy event sequence.
+
+The untouched base router materially exceeded:
+- equal-weight benchmark (+36.9%);
+- best single HODL LINK (+65.6%).
+
+This is new supportive evidence for the relative-rotation core itself, subject to the Futures-proxy limitation.
+
+### 27.2 Frozen low-vol defensive layer — untouched
+
+| Starting asset | Return |
+|---|---:|
+| ATOM | +29.4% |
+| TWT | +5.0% |
+| PEPE | +29.6% |
+| BNB | +27.0% |
+| SOL | +27.4% |
+| TRX | +26.0% |
+| AAVE | +28.2% |
+| LINK | +30.1% |
+
+Summary:
+- median return: **+27.8%**;
+- positive starts: **8/8**;
+- median max drawdown: **-18.3%**;
+- median defensive transitions: **2**;
+- median time in defensive mode: **~78.9%** of available observations.
+
+Relative to the base router:
+- return fell from +95.1% to +27.8%;
+- median max DD improved from -36.8% to -18.3%.
+
+Relative to passive benchmarks:
+- defensive strategy underperformed equal-weight (+36.9%);
+- it underperformed HODL LINK, AAVE, SOL, TWT and PEPE;
+- it still remained positive for all 8 starting assets.
+
+### 27.3 Why the defensive layer lagged
+
+For a representative TWT start:
+- breadth was already only 1/8 near the beginning of the untouched period;
+- after the frozen 3-close confirmation, defensive mode entered on signal date 2026-03-31;
+- execution on 2026-04-01 moved actual capital from TWT into TRX;
+- TRX was correctly the lowest-volatility token at entry;
+- relative router continued to update in the background:
+  - 2026-05-18: TWT -> AAVE signal;
+  - 2026-06-29: AAVE -> TWT signal;
+  - 2026-08-02: TWT -> ATOM signal;
+- defensive mode remained active through the broad recovery because the frozen recovery breadth requirement had not yet been satisfied;
+- exit signal occurred on 2026-08-22 after breadth reached 6/8 under the three-close recovery rule;
+- execution on 2026-08-23 moved from TRX to the current shadow target ATOM.
+
+The low-vol layer therefore did exactly what it was designed to do — suppress participation while breadth remained weak — but in this new regime that behavior was too conservative and missed much of the recovery.
+
+### 27.4 Data-gap audit
+
+The fresh Futures proxy is missing six calendar dates in the untouched interval:
+- 2026-07-12
+- 2026-07-13
+- 2026-07-14
+- 2026-07-15
+- 2026-07-16
+- 2026-07-18
+
+Four of those dates are absent for all eight contracts; the other two affect only subsets.
+
+No relative rotation or defensive entry/exit occurred in that gap zone.
+
+Gap sensitivity:
+- the test was repeated with those six dates inserted synthetically as zero-return / previous-close days solely to restore the calendar axis;
+- base result remained **+95.1%**, median DD **-36.8%**;
+- defensive result remained **+27.8%**, median DD **-18.3%**;
+- defensive entry and exit dates were unchanged.
+
+Therefore the six-date data gap is not driving the reported result, although the source-quality limitation remains documented.
+
+## 28. Updated interpretation after untouched validation
+
+### Relative-rotation core
+
+Status improves from merely promising historical behavior to:
+
+`PROMISING_CORE / PASSED_FIRST_UNTOUCHED_FUTURES_PROXY_WINDOW`
+
+Evidence now includes a genuinely later period that was not used to design the router or the low-vol layer. The base router produced +95.1% median versus +36.9% equal-weight and +65.6% best HODL in this proxy period.
+
+This is still not production approval because:
+- the fresh validation uses Futures rather than Spot;
+- one new 175-observation period is not enough;
+- drawdown remains substantial at ~36.8%;
+- market-basis, funding, slippage and live execution are not fully modeled.
+
+### DEFENSIVE_LOW_VOL_CRYPTO
+
+The untouched result materially changes the interpretation.
+
+It **passed as a drawdown-reduction mechanism** but **failed as an all-weather return enhancement**.
+
+It should no longer be described as a general improvement over the core router.
+
+Current status:
+
+`VALIDATED_RISK_REDUCTION_BEHAVIOR / RETURN_COST_TOO_HIGH / NOT_DEFAULT_LAYER`
+
+Key lesson:
+- low-vol defense can protect capital during broad crypto stress;
+- a slow SMA200 breadth recovery rule can remain defensive far too long during a fast regime reversal;
+- the untouched period demonstrates the exact cost of that conservatism.
+
+Do NOT tune the recovery threshold using this new period. This period must remain untouched evidence against the current frozen rule.
+
+Future research should treat defensive protection as a separate risk-budget decision rather than silently replacing the base relative-rotation strategy.
+
+TEST_LEVEL: CROSS_MARKET_FUTURES_PROXY_UNTOUCHED_VALIDATION + GAP_SENSITIVITY
