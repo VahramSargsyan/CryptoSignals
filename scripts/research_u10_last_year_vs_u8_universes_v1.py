@@ -171,10 +171,11 @@ def run_one(panel,events,assets,start,end,start_asset,collect=False):
     return out
 
 
-def summarize(panel,events,assets,start,end,collect_atom=False):
+def summarize(panel,events,assets,start,end,collect_atom=False,starters=None):
     runs=[]
     atom_detail=None
-    for a in assets:
+    starters = assets if starters is None else starters
+    for a in starters:
         collect=(collect_atom and a=="ATOM")
         r=run_one(panel,events,assets,start,end,a,collect=collect)
         runs.append(r)
@@ -248,10 +249,10 @@ def main():
     canonical_row=df[df["key"]==canonical_key].iloc[0].to_dict()
 
     u8_detail=summarize(panel,events,CANONICAL_U8,YEAR_START,YEAR_END,collect_atom=True)
-    u10_detail=summarize(panel,events,U10,YEAR_START,YEAR_END,collect_atom=True)
+    u10_detail=summarize(panel,events,U10,YEAR_START,YEAR_END,collect_atom=True,starters=CANONICAL_U8)
 
     u8_2y=summarize(panel,events,CANONICAL_U8,TWO_YEAR_START,TWO_YEAR_END,collect_atom=True)
-    u10_2y=summarize(panel,events,U10,TWO_YEAR_START,TWO_YEAR_END,collect_atom=True)
+    u10_2y=summarize(panel,events,U10,TWO_YEAR_START,TWO_YEAR_END,collect_atom=True,starters=CANONICAL_U8)
 
     rng=random.Random(20260927)
     idxs=rng.sample(range(len(df)),12)
