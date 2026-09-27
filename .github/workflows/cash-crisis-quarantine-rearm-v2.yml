@@ -1,0 +1,55 @@
+name: Cash Crisis Quarantine Rearm V2
+
+on:
+  push:
+    branches:
+      - research/cash-crisis-quarantine-rearm-v2
+    paths:
+      - research_requests/run_cash_crisis_quarantine_rearm_v2.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cash-crisis-quarantine-rearm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned research dependencies
+        run: |
+          python -m pip install "pandas==2.2.3" "evalica==0.4.2" "choix==0.4.1"
+
+      - name: Compile research runners
+        run: |
+          python -m py_compile scripts/research_cash_crisis_quarantine_rearm_v2.py
+          python -m py_compile tests/test_cash_crisis_quarantine_rearm_v2.py
+
+      - name: Run unit tests
+        run: |
+          python -m unittest tests.test_relative_rotation_graph_intelligence -v
+          python -m unittest tests.test_cash_defense_destination_ablation_v1 -v
+          python -m unittest tests.test_cash_crisis_quarantine_rearm_v2 -v
+
+      - name: Run one-quarantine-per-crisis stress test
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_cash_crisis_quarantine_rearm_v2
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cash-crisis-quarantine-rearm-v2
+          path: research_artifacts/cash_crisis_quarantine_rearm_v2/**
+          if-no-files-found: warn
+          retention-days: 30
