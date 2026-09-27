@@ -6,7 +6,7 @@ from typing import Iterable, Sequence
 
 import pandas as pd
 
-ASSETS = ("ATOM", "TWT", "PEPE", "BNB", "SOL", "TRX", "AAVE", "LINK")
+ASSETS = ("ATOM", "TWT", "PEPE", "BNB", "SOL", "TRX", "AAVE", "LINK", "FIL", "HBAR")
 LOOKBACK = 180
 ARM_THRESHOLD = 0.15
 REVERSAL = 0.03
