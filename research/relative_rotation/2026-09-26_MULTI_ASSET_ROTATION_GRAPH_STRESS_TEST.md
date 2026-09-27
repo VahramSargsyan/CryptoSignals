@@ -776,3 +776,196 @@ Avoid permanent deletion solely because one period was weak. Rare edges may stil
 - NEW_NODE_PROBATION becomes a research candidate for any future ninth/tenth asset, not just BTC.
 
 Status: PROMISING_TOPOLOGY_SAFETY_RULE / NOT_PRODUCTION_APPROVED
+
+
+## 24. Internal defensive crypto research — stay inside the 8-token universe
+
+Date: 2026-09-27
+
+User requirement:
+- do not assume that protection must mean USDT;
+- preserve the original idea of remaining invested in crypto tokens;
+- try to protect the two weak walk-forward regimes by rotating into a defensive token inside the existing 8-asset universe.
+
+Canonical active graph remains unchanged:
+- ATOM, TWT, PEPE, BNB, SOL, TRX, AAVE, LINK
+- 8 nodes / 28 relative pairs
+- base router: 180d median / 15% ARM / 3% reversal / next-open / 0.1% cost
+
+### 24.1 Failed first attempts
+
+#### Daily strongest-token overlay
+
+Rule concept:
+- if the router-selected shadow asset is below its own SMA, hold the strongest token by price/SMA ratio.
+
+Result:
+- caused excessive churn, often 20–40 defensive transitions per year;
+- did not robustly solve the late-2025/early-2026 failure;
+- rejected as an architecture candidate.
+
+#### Stale-hold trigger
+
+Rule concept:
+- intervene only after 30/45/60 days without a relative-router transition;
+- if the shadow token is weak, make one defensive switch to the strongest token and hold until the next relative-router transition.
+
+Result:
+- reduced churn substantially;
+- improved selected windows in some configurations;
+- did not robustly solve the late-2025/early-2026 regime;
+- confirms that stale holding is a symptom, but timer-only logic is insufficient.
+
+#### Broad-market stress + momentum leader
+
+Rule concept:
+- when most of the 8-token universe is weak, enter defensive mode;
+- select the strongest recent 30/60/90d momentum token.
+
+Result:
+- momentum frequently selected BNB/TWT because they had been recent winners;
+- in the 2025-10 stress entry, TRX was not the momentum leader even though it subsequently preserved capital far better;
+- momentum was therefore too backward-looking for the defensive role.
+
+### 24.2 Why TRX mattered in the second weak regime
+
+Period:
+- 2025-10-20 -> 2026-03-28
+
+HODL returns inside the existing 8-token universe:
+
+| Asset | Return |
+|---|---:|
+| TRX | -1.5% |
+| BNB | -44.0% |
+| ATOM | -48.5% |
+| PEPE | -53.1% |
+| LINK | -53.9% |
+| SOL | -56.1% |
+| AAVE | -57.1% |
+| TWT | -67.2% |
+
+At the first 100d-SMA breadth stress trigger on 2025-10-22:
+- only 2 of 8 assets were above SMA100;
+- 30d momentum leader = BNB;
+- 60d/90d momentum leader = TWT;
+- TRX was already the lowest-volatility asset by a very large margin.
+
+At the first 200d-SMA breadth stress trigger on 2025-11-01:
+- 3 of 8 assets were above SMA200;
+- momentum still favored BNB/TWT;
+- TRX again had the lowest realized volatility across 30d, 60d and 90d windows.
+
+Interpretation:
+For defensive-token selection, low realized volatility was a more useful causal feature than recent momentum in this failure regime.
+
+## 25. DEFENSIVE_LOW_VOL_CRYPTO candidate
+
+Architecture:
+
+1. The original relative router continues to choose a shadow target among the existing 8 tokens.
+2. Compute market breadth = count of the 8 tokens trading above their own causal SMA200.
+3. Enter defensive mode after 3 consecutive daily closes with breadth <= 3.
+4. Defensive asset = token with the lowest realized daily-close volatility over the prior 30 days.
+5. Remain fully invested in that token; no USDT.
+6. Continue relative routing in the background.
+7. Exit defensive mode after 3 consecutive daily closes with breadth >= 5, then return to the current shadow router target.
+8. Apply 0.1% transition cost to each actual defensive transition.
+
+Reference label:
+`DEFENSIVE_LOW_VOL_CRYPTO_SMA200_BREADTH_3_5_CONFIRM3_VOL30`
+
+This is a research candidate, not a frozen production rule.
+
+### 25.1 Same highlighted one-year OOS window
+
+Period: 2025-03-29 -> 2026-03-28
+
+| Variant | Median return | Median max DD | Median defensive transitions |
+|---|---:|---:|---:|
+| Base 8-node rotation | +41.6% | -62.2% | 0 |
+| Low-vol defensive crypto | **+49.4%** | **-47.1%** | 3 |
+
+All 8 starting assets remained positive under this defensive candidate.
+
+### 25.2 Sequential 180-day windows
+
+| Window | Base 8-node | Low-vol defensive crypto |
+|---|---:|---:|
+| 2023-10-31 -> 2024-04-27 | +374.2% | **+423.9%** |
+| 2024-04-28 -> 2024-10-24 | -29.2% | **+13.2%** |
+| 2024-10-25 -> 2025-04-22 | +138.3% | +106.3% |
+| 2025-04-23 -> 2025-10-19 | +20.1% | **+39.7%** |
+| 2025-10-20 -> 2026-03-28 | -44.9% | **-0.8%** |
+
+Median max DD for the final weak regime fell from approximately -54.0% in the base network window to approximately -16.3% under the defensive low-vol layer.
+
+Important trade-off:
+- the protection can reduce upside in some strong periods;
+- it is not uniformly return-enhancing.
+
+### 25.3 120-day sequential robustness
+
+Base 8-node median returns from the earlier stress test:
+- +405.9%
+- -32.1%
+- -30.4%
+- +132.7%
+- +9.5%
+- +54.1%
+- -30.8%
+
+Low-vol defensive candidate:
+- +405.9%
+- -10.9%
+- -13.6%
+- +95.7%
+- +6.0%
+- +35.7%
+- -11.1%
+
+Interpretation:
+- the defensive layer reduced all three major negative 120-day windows materially;
+- it also trimmed upside in several positive windows;
+- this looks more like an actual risk-control trade-off than a free-return artifact.
+
+### 25.4 Parameter sensitivity
+
+Neighboring rules were tested rather than selecting only one visible optimum.
+
+Selected same-year results:
+
+| Breadth enter / exit | Confirmation | Median 1Y return | Median 1Y DD | Final weak 180d return |
+|---|---:|---:|---:|---:|
+| 3 / 5 | 3d | +49.4% | -47.1% | -0.8% |
+| 4 / 5 | 3d | +49.4% | -47.1% | -1.8% |
+| 3 / 4 | 3d | +51.4% | -47.1% | -0.8% |
+| 3 / 6 | 3d | +55.9% | -47.1% | -0.8% |
+| 2 / 5 | 3d | +35.4% | -52.1% | -10.6% |
+| 3 / 5 | 5d | +24.5% | -53.7% | -11.8% |
+
+30d vs 60d realized-volatility selection produced very similar results in the main candidate configuration.
+
+Interpretation:
+- the effect is not confined to one exact breadth threshold;
+- enter thresholds around 3–4 and 3-day confirmation formed a useful local plateau;
+- stricter entry (2/8) or slower confirmation (5d) degraded protection;
+- do NOT select 3/6 or any other row simply because it has the highest visible historical return.
+
+### 25.5 Current status
+
+`DEFENSIVE_LOW_VOL_CRYPTO` = **PROMISING_RESEARCH_CANDIDATE / NOT_PRODUCTION_APPROVED**
+
+Reasons for caution:
+1. this layer was designed after diagnosing the two weak regimes, so hindsight bias remains possible;
+2. the common PEPE-era history is short;
+3. 120d and 180d sequential tests are robustness checks, not a new independent market history;
+4. no live/current signal use is authorized from this research result;
+5. real trades still require manual approval.
+
+Current conceptual stack:
+
+- RELATIVE ROTATION GRAPH = which crypto asset is preferred in normal conditions;
+- DEFENSIVE_LOW_VOL_CRYPTO = which token to hold when the whole approved universe enters stress;
+- NEW_NODE_PROBATION = which new edges/nodes are allowed to influence routing;
+- USDT / true RISK_OFF remains a separate optional research layer, not a baseline assumption.
