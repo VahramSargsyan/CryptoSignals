@@ -174,6 +174,54 @@ Therefore the current research picture is:
 - FIL/HBAR materially alter the route;
 - selection leakage around the choice of FIL/HBAR remains unresolved.
 
+## 20% cash-out after first 10x capital milestone
+
+Research files:
+
+- [Prereg](../../research/relative_rotation/2026-09-27_U10_20PCT_CASH_REENTRY_V1_PREREG.md)
+- [Evidence](../../research/relative_rotation/2026-09-27_U10_20PCT_CASH_REENTRY_V1_EVIDENCE.md)
+- runner: `scripts/research_u10_20pct_cash_reentry_v1.py`
+- workflow: `.github/workflows/u10-20pct-cash-reentry-v1.yml`
+- GitHub Actions run: `36333838940`
+- result: PASS
+- test level: `GITHUB_ACTIONS_LIVE_PUBLIC_DATA_BACKTEST`
+
+Rule tested:
+
+- when U10 first closes at or above 10x the original 10,000 USDT capital, sell 20% into USDT on the next daily open;
+- keep the remaining 80% following frozen U10;
+- compare keeping cash forever versus re-entering after 6 or 12 months;
+- cash and re-entry each pay 0.1% modeled transaction cost.
+
+Observed trigger:
+
+- first close >= 100,000 USDT: 2025-09-19;
+- cash-out execution: 2025-09-20;
+- pre-sale portfolio: 104,451.46 USDT;
+- gross 20% sleeve: 20,890.29 USDT;
+- net parked cash after cost: 20,869.40 USDT.
+
+| Scenario | Post-cashout minimum | Post-cashout max DD | Final equity | Delta vs no-cash baseline |
+|---|---:|---:|---:|---:|
+| No cash-out | about 70,805.10 | -53.73% | 219,485.20 | baseline |
+| Cash forever | 77,513.48 | -47.41% | 196,457.56 | -10.49% |
+| Re-enter after 6 months | 77,513.48 | -51.66% | 207,891.85 | -5.28% |
+| Re-enter after 12 months | 77,513.48 | -47.41% | 197,881.52 | -9.84% |
+
+Current interpretation:
+
+- locking 20% after the first 10x milestone materially improved the observed capital floor during the next decline;
+- keeping the cash through the drawdown reduced peak-to-trough damage from about -53.73% to -47.41%;
+- the protection cost some later upside;
+- in this single historical path, six-month re-entry recovered more upside than twelve-month re-entry or permanent cash;
+- this does **not** establish 6 months as a generally optimal waiting period.
+
+Next robustness step should sweep:
+- profit-lock threshold;
+- cash percentage;
+- re-entry delay;
+- repeated/rolling historical trigger paths.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
