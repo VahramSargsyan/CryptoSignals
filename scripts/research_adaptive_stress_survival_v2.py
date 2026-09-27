@@ -127,10 +127,11 @@ def fit_survival_forecast(
             f"Need at least {MIN_PRIOR_COMPLETED} prior completed episodes"
         )
 
-    durations = [float(x) for x in prior_completed_durations] + [
-        float(current_age_days)
-    ]
-    events = [1] * len(prior_completed_durations) + [0]
+    durations = [float(x) for x in prior_completed_durations]
+    events = [1] * len(prior_completed_durations)
+    if current_age_days > 0:
+        durations.append(float(current_age_days))
+        events.append(0)
 
     support_status, max_duration = duration_support_status(
         current_age_days,
