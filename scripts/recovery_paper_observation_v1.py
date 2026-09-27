@@ -378,9 +378,10 @@ def build_observation(
         return row, episodes
 
     prior = _prior_completed(episodes, before=active.start)
+    active_latest = active.states.iloc[-1]
     row["stress_episode_id"] = active.episode_id
     row["stress_start"] = active.start.isoformat()
-    row["episode_age_days"] = int(latest_row["episode_age_days"])
+    row["episode_age_days"] = int(active_latest["episode_age_days"])
     row["completed_training_episodes"] = len(prior)
 
     if len(prior) < MIN_PRIOR_COMPLETED:
@@ -390,7 +391,7 @@ def build_observation(
     for horizon in STATE_HORIZONS:
         fitted = fit_state_recovery_model(prior, horizon=horizon)
         row[f"state_p_recovery_le_{horizon}d"] = (
-            predict_state_recovery_probability(fitted, latest_row)
+            predict_state_recovery_probability(fitted, active_latest)
         )
 
     durations = [
@@ -400,7 +401,7 @@ def build_observation(
     ]
     survival = fit_survival_forecast(
         durations,
-        current_age_days=int(latest_row["episode_age_days"]),
+        current_age_days=int(active_latest["episode_age_days"]),
     )
     row["support_status"] = survival.support_status
     row["max_prior_completed_duration"] = (
