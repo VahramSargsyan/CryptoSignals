@@ -310,64 +310,43 @@ def evaluate_case(panel, events_by_date, confirmed, cfg, run_dir, name):
     sets=list(combinations_u8())
     basic=pd.DataFrame([{"key":key(s),"assets":"|".join(s),"niches":niche_count(s)} for s in sets])
     max_niches=int(basic["niches"].max())
-    max_keys=set(basic[basic["niches"]==max_niches]["key"])
+    max_sets=[s for s in sets if niche_count(s)==max_niches]
 
     rows=[]
-    all_returns=[]
-    for i,assets in enumerate(sets):
-        k=key(assets)
+    for assets in max_sets:
         train=graph_summary(panel,events_by_date,assets,train_start,train_end)
         future=graph_summary(panel,events_by_date,assets,fut_start,fut_end)
-        all_returns.append({
-            "key":k,
+        features=structural_features(
+            panel,events_by_date,confirmed,assets,train_start,train_end
+        )
+        rows.append({
+            "key":key(assets),
             "assets":"|".join(assets),
             "niches":niche_count(assets),
             "train_median":train["median_return"],
             "future_median":future["median_return"],
             "future_atom":future["atom_return"],
             "future_dd":future["median_max_dd"],
+            **features,
         })
-        if k in max_keys:
-            f=structural_features(panel,events_by_date,confirmed,assets,train_start,train_end)
-            rows.append({
-                "key":k,
-                "assets":"|".join(assets),
-                "niches":niche_count(assets),
-                "train_median":train["median_return"],
-                "future_median":future["median_return"],
-                "future_atom":future["atom_return"],
-                "future_dd":future["median_max_dd"],
-                **f,
-            })
-
-    all_df=pd.DataFrame(all_returns)
-    all_df["future_rank_all"]=all_df["future_median"].rank(method="min",ascending=False).astype(int)
-    all_df["train_rank_all"]=all_df["train_median"].rank(method="min",ascending=False).astype(int)
-    all_df.to_csv(run_dir/f"{name.lower()}_all_sets.csv",index=False)
 
     struct=rank_structural(pd.DataFrame(rows))
     struct["structural_rank"]=range(1,len(struct)+1)
-    struct["future_rank_max_niche"]=struct["future_median"].rank(method="min",ascending=False).astype(int)
+    struct["future_rank_max_niche"]=struct["future_median"].rank(
+        method="min",ascending=False
+    ).astype(int)
     struct.to_csv(run_dir/f"{name.lower()}_max_niche_structural.csv",index=False)
 
     chosen=struct.iloc[0].to_dict()
-    chosen_all=all_df[all_df["key"]==chosen["key"]].iloc[0].to_dict()
-    original=all_df[all_df["key"]==key(ORIGINAL_U8)].iloc[0].to_dict()
-    train_top=all_df.sort_values(["train_rank_all","key"]).iloc[0].to_dict()
-    hindsight=all_df.sort_values(["future_rank_all","key"]).iloc[0].to_dict()
-    max_future=struct.sort_values(["future_rank_max_niche","key"]).iloc[0].to_dict()
-
-    chosen["future_rank_all"]=int(chosen_all["future_rank_all"])
-    chosen["train_rank_all"]=int(chosen_all["train_rank_all"])
+    original=struct[struct["key"]==key(ORIGINAL_U8)].iloc[0].to_dict()
+    hindsight=struct.sort_values(["future_rank_max_niche","key"]).iloc[0].to_dict()
 
     return {
         "max_niches":max_niches,
         "max_niche_set_count":len(struct),
         "structural_selection":chosen,
         "historical_u8":original,
-        "training_return_selection":train_top,
-        "future_best_hindsight_only":hindsight,
-        "max_niche_future_best_hindsight_only":max_future,
+        "max_niche_future_best_hindsight_only":hindsight,
         "max_niche_future_median":float(struct["future_median"].median()),
         "max_niche_future_positive_rate":float((struct["future_median"]>0).mean()),
         "structural_score_future_spearman":float(
@@ -376,12 +355,12 @@ def evaluate_case(panel, events_by_date, confirmed, cfg, run_dir, name):
             )
         ),
         "feature_future_spearman":{
-            c:float(
-                struct[c].rank(method="average").corr(
+            col:float(
+                struct[col].rank(method="average").corr(
                     struct["future_median"].rank(method="average")
                 )
             )
-            for c in (
+            for col in (
                 "mean_abs_corr","pca1_share","mean_relative_vol",
                 "signal_edge_entropy","occupancy_entropy",
                 "route_edge_entropy","conflict_dependence",
@@ -423,16 +402,14 @@ def main():
     for name,res in payload["cases"].items():
         s=res["structural_selection"]
         o=res["historical_u8"]
-        t=res["training_return_selection"]
         lines += [
             f"## {name}","",
             f"Max niches: {res['max_niches']}; candidate sets: {res['max_niche_set_count']}",
             "",
-            "| Selection | Assets | Future median | Future ATOM | Future rank/all |",
+            "| Selection | Assets | Future median | Future ATOM | Future rank/max-niche |",
             "|---|---|---:|---:|---:|",
-            f"| Structural | {s['assets']} | {100*s['future_median']:+.2f}% | {100*s['future_atom']:+.2f}% | {int(s['future_rank_all'])}/1716 |",
-            f"| Historical U8 | {o['assets']} | {100*o['future_median']:+.2f}% | {100*o['future_atom']:+.2f}% | {int(o['future_rank_all'])}/1716 |",
-            f"| Top trailing return | {t['assets']} | {100*t['future_median']:+.2f}% | {100*t['future_atom']:+.2f}% | {int(t['future_rank_all'])}/1716 |",
+            f"| Structural | {s['assets']} | {100*s['future_median']:+.2f}% | {100*s['future_atom']:+.2f}% | {int(s['future_rank_max_niche'])}/{res['max_niche_set_count']} |",
+            f"| Historical U8 | {o['assets']} | {100*o['future_median']:+.2f}% | {100*o['future_atom']:+.2f}% | {int(o['future_rank_max_niche'])}/{res['max_niche_set_count']} |",
             "",
             f"Median future return among max-niche sets: {100*res['max_niche_future_median']:+.2f}%",
             f"Structural-score Spearman vs future among max-niche sets: {res['structural_score_future_spearman']:+.3f}",
@@ -446,9 +423,9 @@ def main():
         o=res["historical_u8"]
         print(name+"_selected="+s["assets"])
         print(name+"_selected_future=%.6f" % s["future_median"])
-        print(name+"_selected_rank="+str(int(s["future_rank_all"])))
+        print(name+"_selected_rank_max_niche="+str(int(s["future_rank_max_niche"])))
         print(name+"_historical_future=%.6f" % o["future_median"])
-        print(name+"_historical_rank="+str(int(o["future_rank_all"])))
+        print(name+"_historical_rank_max_niche="+str(int(o["future_rank_max_niche"])))
         print(name+"_score_corr=%.6f" % res["structural_score_future_spearman"])
     return 0
 
