@@ -1,0 +1,378 @@
+from __future__ import annotations
+
+import itertools
+from dataclasses import dataclass
+from typing import Iterable, Sequence
+
+import pandas as pd
+
+ASSETS = ("ATOM", "TWT", "PEPE", "BNB", "SOL", "TRX", "AAVE", "LINK")
+LOOKBACK = 180
+ARM_THRESHOLD = 0.15
+REVERSAL = 0.03
+
+DEFENSIVE_SMA_LOOKBACK = 200
+DEFENSIVE_ENTER_BREADTH = 3
+DEFENSIVE_EXIT_BREADTH = 5
+DEFENSIVE_CONFIRM_DAYS = 3
+DEFENSIVE_VOL_LOOKBACK = 30
+
+
+@dataclass
+class PairState:
+    mode: str = "NONE"
+    extreme: float | None = None
+    max_dislocation: float = 0.0
+    armed_at: pd.Timestamp | None = None
+
+
+def _iso(ts: pd.Timestamp | None) -> str | None:
+    return None if ts is None else pd.Timestamp(ts).isoformat()
+
+
+def _validate_panel(panel: pd.DataFrame, assets: Sequence[str]) -> pd.DataFrame:
+    required = {"timestamp", *(f"{asset}_close" for asset in assets)}
+    missing = required.difference(panel.columns)
+    if missing:
+        raise ValueError(f"Panel is missing columns: {sorted(missing)}")
+
+    frame = panel[list(required)].copy()
+    frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True)
+    frame = frame.sort_values("timestamp", kind="stable").reset_index(drop=True)
+    if frame["timestamp"].duplicated().any():
+        raise ValueError("Panel contains duplicate timestamps")
+    if frame.empty:
+        raise ValueError("Panel is empty")
+    if frame[[f"{asset}_close" for asset in assets]].isna().any().any():
+        raise ValueError("Panel contains missing close values")
+    if (frame[[f"{asset}_close" for asset in assets]] <= 0).any().any():
+        raise ValueError("Panel contains non-positive close values")
+    return frame
+
+
+def build_pair_monitor(
+    panel: pd.DataFrame,
+    *,
+    assets: Sequence[str] = ASSETS,
+    lookback: int = LOOKBACK,
+    arm_threshold: float = ARM_THRESHOLD,
+    reversal: float = REVERSAL,
+) -> tuple[list[dict], list[dict]]:
+    """Recompute the frozen ARM -> extreme -> reversal engine from closed candles.
+
+    Returns all transition events plus a latest-state snapshot for every pair.
+    No orders are created and no forward prices are used.
+    """
+    if lookback < 2:
+        raise ValueError("lookback must be >= 2")
+    if not 0 < arm_threshold < 1:
+        raise ValueError("arm_threshold must be between 0 and 1")
+    if not 0 < reversal < 1:
+        raise ValueError("reversal must be between 0 and 1")
+
+    frame = _validate_panel(panel, assets)
+    events: list[dict] = []
+    latest_states: list[dict] = []
+
+    for left, right in itertools.combinations(assets, 2):
+        ratio_series = frame[f"{right}_close"] / frame[f"{left}_close"]
+        median_series = ratio_series.rolling(lookback, min_periods=lookback).median()
+        deviation_series = ratio_series / median_series - 1.0
+        state = PairState()
+
+        for idx, ts in enumerate(frame["timestamp"]):
+            median = median_series.iloc[idx]
+            deviation = deviation_series.iloc[idx]
+            if pd.isna(median) or pd.isna(deviation):
+                continue
+
+            ratio = float(ratio_series.iloc[idx])
+            median = float(median)
+            deviation = float(deviation)
+
+            if state.mode == "NONE":
+                if deviation >= arm_threshold:
+                    state = PairState(
+                        mode="HIGH",
+                        extreme=ratio,
+                        max_dislocation=abs(deviation),
+                        armed_at=ts,
+                    )
+                    events.append(
+                        {
+                            "date": ts.isoformat(),
+                            "event": "ARMED",
+                            "pair": f"{left}/{right}",
+                            "from_asset": right,
+                            "to_asset": left,
+                            "ratio": ratio,
+                            "median": median,
+                            "deviation": deviation,
+                            "max_dislocation": abs(deviation),
+                            "reversal_from_extreme": 0.0,
+                        }
+                    )
+                elif deviation <= -arm_threshold:
+                    state = PairState(
+                        mode="LOW",
+                        extreme=ratio,
+                        max_dislocation=abs(deviation),
+                        armed_at=ts,
+                    )
+                    events.append(
+                        {
+                            "date": ts.isoformat(),
+                            "event": "ARMED",
+                            "pair": f"{left}/{right}",
+                            "from_asset": left,
+                            "to_asset": right,
+                            "ratio": ratio,
+                            "median": median,
+                            "deviation": deviation,
+                            "max_dislocation": abs(deviation),
+                            "reversal_from_extreme": 0.0,
+                        }
+                    )
+                continue
+
+            if state.mode == "HIGH":
+                assert state.extreme is not None
+                if ratio > state.extreme:
+                    state.extreme = ratio
+                    state.max_dislocation = max(state.max_dislocation, abs(deviation))
+                retracement = 1.0 - ratio / state.extreme
+                if retracement >= reversal:
+                    events.append(
+                        {
+                            "date": ts.isoformat(),
+                            "event": "CONFIRMED",
+                            "pair": f"{left}/{right}",
+                            "from_asset": right,
+                            "to_asset": left,
+                            "ratio": ratio,
+                            "median": median,
+                            "deviation": deviation,
+                            "max_dislocation": state.max_dislocation,
+                            "reversal_from_extreme": retracement,
+                        }
+                    )
+                    state = PairState()
+                continue
+
+            if state.mode == "LOW":
+                assert state.extreme is not None
+                if ratio < state.extreme:
+                    state.extreme = ratio
+                    state.max_dislocation = max(state.max_dislocation, abs(deviation))
+                retracement = ratio / state.extreme - 1.0
+                if retracement >= reversal:
+                    events.append(
+                        {
+                            "date": ts.isoformat(),
+                            "event": "CONFIRMED",
+                            "pair": f"{left}/{right}",
+                            "from_asset": left,
+                            "to_asset": right,
+                            "ratio": ratio,
+                            "median": median,
+                            "deviation": deviation,
+                            "max_dislocation": state.max_dislocation,
+                            "reversal_from_extreme": retracement,
+                        }
+                    )
+                    state = PairState()
+
+        latest_idx = len(frame) - 1
+        latest_ratio = float(ratio_series.iloc[latest_idx])
+        latest_median_raw = median_series.iloc[latest_idx]
+        latest_deviation_raw = deviation_series.iloc[latest_idx]
+        latest_median = None if pd.isna(latest_median_raw) else float(latest_median_raw)
+        latest_deviation = None if pd.isna(latest_deviation_raw) else float(latest_deviation_raw)
+
+        prospective_from: str | None = None
+        prospective_to: str | None = None
+        retracement: float | None = None
+        if state.mode == "HIGH" and state.extreme is not None:
+            prospective_from, prospective_to = right, left
+            retracement = max(0.0, 1.0 - latest_ratio / state.extreme)
+        elif state.mode == "LOW" and state.extreme is not None:
+            prospective_from, prospective_to = left, right
+            retracement = max(0.0, latest_ratio / state.extreme - 1.0)
+
+        latest_states.append(
+            {
+                "pair": f"{left}/{right}",
+                "mode": state.mode,
+                "from_asset": prospective_from,
+                "to_asset": prospective_to,
+                "armed_at": _iso(state.armed_at),
+                "ratio": latest_ratio,
+                "median": latest_median,
+                "deviation": latest_deviation,
+                "extreme": state.extreme,
+                "max_dislocation": state.max_dislocation,
+                "reversal_from_extreme": retracement,
+            }
+        )
+
+    return events, latest_states
+
+
+def choose_held_events(
+    events: Iterable[dict],
+    *,
+    held_asset: str,
+    latest_date: pd.Timestamp | str,
+) -> dict:
+    """Filter latest-candle events for the currently held asset.
+
+    When several CONFIRMED transitions exist, preserve the frozen baseline router:
+    strongest max dislocation first, then target asset, then pair name.
+    """
+    held_asset = held_asset.upper()
+    latest_iso = pd.Timestamp(latest_date).tz_convert("UTC").isoformat() if pd.Timestamp(latest_date).tzinfo else pd.Timestamp(latest_date).tz_localize("UTC").isoformat()
+    latest = [
+        dict(event)
+        for event in events
+        if event.get("date") == latest_iso and event.get("from_asset") == held_asset
+    ]
+    armed = sorted(
+        (event for event in latest if event.get("event") == "ARMED"),
+        key=lambda x: (-float(x["max_dislocation"]), str(x["to_asset"]), str(x["pair"])),
+    )
+    confirmed = sorted(
+        (event for event in latest if event.get("event") == "CONFIRMED"),
+        key=lambda x: (-float(x["max_dislocation"]), str(x["to_asset"]), str(x["pair"])),
+    )
+    return {
+        "armed": armed,
+        "confirmed": confirmed,
+        "primary_confirmed": confirmed[0] if confirmed else None,
+    }
+
+
+def _defensive_state_machine(
+    dates: Sequence[pd.Timestamp],
+    breadth_values: Sequence[int | None],
+    low_vol_assets: Sequence[str | None],
+    *,
+    enter_breadth: int = DEFENSIVE_ENTER_BREADTH,
+    exit_breadth: int = DEFENSIVE_EXIT_BREADTH,
+    confirm_days: int = DEFENSIVE_CONFIRM_DAYS,
+) -> tuple[list[dict], dict]:
+    defensive = False
+    defensive_asset: str | None = None
+    low_streak = 0
+    high_streak = 0
+    events: list[dict] = []
+
+    for ts, breadth, low_vol_asset in zip(dates, breadth_values, low_vol_assets):
+        if breadth is None:
+            continue
+
+        low_streak = low_streak + 1 if breadth <= enter_breadth else 0
+        high_streak = high_streak + 1 if breadth >= exit_breadth else 0
+
+        if not defensive and low_streak >= confirm_days:
+            if low_vol_asset is None:
+                continue
+            defensive = True
+            defensive_asset = low_vol_asset
+            events.append(
+                {
+                    "date": pd.Timestamp(ts).isoformat(),
+                    "event": "DEFENSIVE_ENTER",
+                    "breadth": int(breadth),
+                    "defensive_asset": defensive_asset,
+                }
+            )
+            high_streak = 0
+            continue
+
+        if defensive and high_streak >= confirm_days:
+            events.append(
+                {
+                    "date": pd.Timestamp(ts).isoformat(),
+                    "event": "DEFENSIVE_EXIT",
+                    "breadth": int(breadth),
+                    "defensive_asset": defensive_asset,
+                }
+            )
+            defensive = False
+            defensive_asset = None
+            low_streak = 0
+
+    snapshot = {
+        "active": defensive,
+        "defensive_asset": defensive_asset,
+        "low_streak": low_streak,
+        "high_streak": high_streak,
+    }
+    return events, snapshot
+
+
+def evaluate_defensive_mode(
+    panel: pd.DataFrame,
+    *,
+    assets: Sequence[str] = ASSETS,
+    sma_lookback: int = DEFENSIVE_SMA_LOOKBACK,
+    enter_breadth: int = DEFENSIVE_ENTER_BREADTH,
+    exit_breadth: int = DEFENSIVE_EXIT_BREADTH,
+    confirm_days: int = DEFENSIVE_CONFIRM_DAYS,
+    vol_lookback: int = DEFENSIVE_VOL_LOOKBACK,
+) -> tuple[list[dict], dict, pd.DataFrame]:
+    """Evaluate the documented low-vol crypto defensive candidate.
+
+    This is an alert-only research overlay. It does not place orders and does not
+    change the frozen relative-rotation rules.
+    """
+    frame = _validate_panel(panel, assets)
+    closes = frame.set_index("timestamp")[[f"{asset}_close" for asset in assets]].copy()
+    closes.columns = list(assets)
+    sma = closes.rolling(sma_lookback, min_periods=sma_lookback).mean()
+    valid = sma.notna().all(axis=1)
+    breadth = (closes > sma).sum(axis=1).where(valid)
+
+    returns = closes.pct_change(fill_method=None)
+    volatility = returns.rolling(vol_lookback, min_periods=vol_lookback).std()
+    low_vol_asset = volatility.idxmin(axis=1).where(volatility.notna().all(axis=1))
+
+    breadth_values: list[int | None] = [
+        None if pd.isna(value) else int(value) for value in breadth.tolist()
+    ]
+    low_vol_values: list[str | None] = [
+        None if pd.isna(value) else str(value) for value in low_vol_asset.tolist()
+    ]
+
+    events, state = _defensive_state_machine(
+        list(closes.index),
+        breadth_values,
+        low_vol_values,
+        enter_breadth=enter_breadth,
+        exit_breadth=exit_breadth,
+        confirm_days=confirm_days,
+    )
+
+    latest_breadth_raw = breadth.iloc[-1]
+    latest_low_vol_raw = low_vol_asset.iloc[-1]
+    state.update(
+        {
+            "breadth": None if pd.isna(latest_breadth_raw) else int(latest_breadth_raw),
+            "lowest_vol_asset_now": None if pd.isna(latest_low_vol_raw) else str(latest_low_vol_raw),
+            "sma_lookback": sma_lookback,
+            "enter_breadth": enter_breadth,
+            "exit_breadth": exit_breadth,
+            "confirm_days": confirm_days,
+            "vol_lookback": vol_lookback,
+            "status": "PROMISING_RESEARCH_CANDIDATE / NOT_PRODUCTION_APPROVED",
+        }
+    )
+
+    diagnostics = pd.DataFrame(
+        {
+            "timestamp": closes.index,
+            "breadth": breadth.values,
+            "lowest_vol_asset": low_vol_asset.values,
+        }
+    )
+    return events, state, diagnostics
