@@ -37,6 +37,8 @@ YEAR_END=pd.Timestamp("2026-09-26",tz="UTC")
 TWO_YEAR_START=pd.Timestamp("2024-09-27",tz="UTC")
 TWO_YEAR_END=pd.Timestamp("2026-09-26",tz="UTC")
 
+WINDOW_CACHE={}
+
 
 def utc(x):
     t=pd.Timestamp(x)
@@ -94,13 +96,21 @@ def build_events(panel):
     return by_date
 
 
+def cached_rows(panel,start,end):
+    cache_key=(start.isoformat(),end.isoformat())
+    if cache_key not in WINDOW_CACHE:
+        w=panel[(panel["timestamp"]>=start)&(panel["timestamp"]<=end)]
+        if w.empty:
+            raise ValueError("empty window")
+        WINDOW_CACHE[cache_key]=list(w.itertuples(index=False,name="MarketRow"))
+    return WINDOW_CACHE[cache_key]
+
+
 def run_one(panel,events,assets,start,end,start_asset,collect=False):
     aset=set(assets)
-    w=panel[(panel["timestamp"]>=start)&(panel["timestamp"]<=end)].copy()
-    if w.empty:
-        raise ValueError("empty window")
+    rows=cached_rows(panel,start,end)
     current=start_asset
-    qty=1.0/float(w.iloc[0][current+"_open"])
+    qty=1.0/float(getattr(rows[0],current+"_open"))
     pending=None
     equity=[]
     transitions=0
@@ -108,21 +118,22 @@ def run_one(panel,events,assets,start,end,start_asset,collect=False):
     holdings=Counter()
     route=[current]
 
-    for pos,(_,row) in enumerate(w.iterrows()):
-        ts=utc(row["timestamp"])
+    last_pos=len(rows)-1
+    for pos,row in enumerate(rows):
+        ts=utc(row.timestamp)
 
         if pending is not None:
-            value=qty*float(row[current+"_open"])
+            value=qty*float(getattr(row,current+"_open"))
             current=pending["to_asset"]
-            qty=value*(1.0-COST)/float(row[current+"_open"])
+            qty=value*(1.0-COST)/float(getattr(row,current+"_open"))
             transitions+=1
             route.append(current)
             pending=None
 
         holdings[current]+=1
-        equity.append(qty*float(row[current+"_close"]))
+        equity.append(qty*float(getattr(row,current+"_close")))
 
-        if pos==len(w)-1:
+        if pos==last_pos:
             continue
 
         candidates=[
@@ -138,11 +149,19 @@ def run_one(panel,events,assets,start,end,start_asset,collect=False):
             key=lambda e:(-float(e["max_dislocation"]),e["to_asset"],e["pair"])
         )[0])
 
-    s=pd.Series(equity,dtype=float)
+    peak=equity[0]
+    worst_dd=0.0
+    for value in equity:
+        if value>peak:
+            peak=value
+        dd=value/peak-1.0
+        if dd<worst_dd:
+            worst_dd=dd
+
     out={
         "start_asset":start_asset,
-        "return":float(s.iloc[-1]/s.iloc[0]-1.0),
-        "max_dd":float((s/s.cummax()-1.0).min()),
+        "return":float(equity[-1]/equity[0]-1.0),
+        "max_dd":float(worst_dd),
         "transitions":transitions,
         "conflicts":conflicts,
     }
