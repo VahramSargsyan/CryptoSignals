@@ -1,0 +1,54 @@
+name: One TRX Defense Per Crisis V4
+
+on:
+  push:
+    branches:
+      - research/one-trx-defense-per-crisis-v4
+    paths:
+      - research_requests/run_one_trx_defense_per_crisis_v4.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  one-trx-defense-per-crisis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned research dependencies
+        run: |
+          python -m pip install "pandas==2.2.3" "evalica==0.4.2" "choix==0.4.1"
+
+      - name: Compile research runners
+        run: |
+          python -m py_compile scripts/research_one_trx_defense_per_crisis_v4.py
+          python -m py_compile tests/test_one_trx_defense_per_crisis_v4.py
+
+      - name: Run unit tests
+        run: |
+          python -m unittest tests.test_relative_rotation_graph_intelligence -v
+          python -m unittest tests.test_one_trx_defense_per_crisis_v4 -v
+
+      - name: Run V4 stress test
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_one_trx_defense_per_crisis_v4
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: one-trx-defense-per-crisis-v4
+          path: research_artifacts/one_trx_defense_per_crisis_v4/**
+          if-no-files-found: warn
+          retention-days: 30
