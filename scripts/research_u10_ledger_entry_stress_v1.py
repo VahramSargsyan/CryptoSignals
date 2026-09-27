@@ -162,6 +162,55 @@ def analyze_equity(eq, initial_usdt):
     }
 
 
+def find_one_year_eligible_drawdown(eq, mature_start):
+    values = eq["equity_usdt"].astype(float)
+    threshold = utc(mature_start) + pd.DateOffset(years=1)
+
+    all_time_high = float("-inf")
+    peak_idx = None
+    episodes = []
+
+    for idx, value in values.items():
+        if value > all_time_high:
+            if peak_idx is not None and idx - 1 >= peak_idx:
+                segment = values.loc[peak_idx : idx - 1]
+                trough_idx = int(segment.idxmin())
+                dd = float(values.loc[trough_idx] / values.loc[peak_idx] - 1.0)
+                episodes.append((peak_idx, trough_idx, dd))
+
+            all_time_high = float(value)
+            peak_idx = int(idx)
+
+    if peak_idx is not None:
+        segment = values.loc[peak_idx:]
+        trough_idx = int(segment.idxmin())
+        dd = float(values.loc[trough_idx] / values.loc[peak_idx] - 1.0)
+        episodes.append((peak_idx, trough_idx, dd))
+
+    eligible = []
+    for peak_idx, trough_idx, dd in episodes:
+        peak_date = utc(eq.loc[peak_idx, "timestamp"])
+        if peak_date >= threshold and dd < 0:
+            eligible.append((dd, peak_idx, trough_idx))
+
+    if not eligible:
+        raise RuntimeError(
+            "no U10 drawdown episode has a full mature year before its peak"
+        )
+
+    dd, peak_idx, trough_idx = sorted(eligible, key=lambda row: row[0])[0]
+    return {
+        "eligibility_threshold": threshold.isoformat(),
+        "max_drawdown": float(dd),
+        "peak_date": str(eq.loc[peak_idx, "timestamp"]),
+        "peak_equity_usdt": float(values.loc[peak_idx]),
+        "peak_asset": str(eq.loc[peak_idx, "asset"]),
+        "trough_date": str(eq.loc[trough_idx, "timestamp"]),
+        "trough_equity_usdt": float(values.loc[trough_idx]),
+        "trough_asset": str(eq.loc[trough_idx, "asset"]),
+    }
+
+
 def run_window(
     panel,
     event_map,
@@ -356,9 +405,9 @@ def run_window(
     return result, ledger, eq
 
 
-def scenario_start_dates(long_result, mature_start):
-    peak = utc(long_result["max_drawdown_peak_date"])
-    trough = utc(long_result["max_drawdown_trough_date"])
+def scenario_start_dates(anchor, mature_start):
+    peak = utc(anchor["peak_date"])
+    trough = utc(anchor["trough_date"])
 
     candidates = [
         (
@@ -380,8 +429,13 @@ def scenario_start_dates(long_result, mature_start):
     ]
 
     out = []
+    seen_actual = set()
     for name, requested in candidates:
         actual = max(utc(requested), utc(mature_start))
+        key = actual.isoformat()
+        if key in seen_actual:
+            continue
+        seen_actual.add(key)
         out.append((name, utc(requested), actual))
     return out
 
@@ -426,7 +480,14 @@ def write_report(payload, run_dir):
         f"- Accounting identity actual/no-cost: {long_result['fee_multiplier_actual_vs_no_cost']:.12f}",
         f"- Expected (1-cost)^N: {long_result['expected_fee_multiplier']:.12f}",
         "",
-        "## Fresh-entry stress around U10's own strongest drawdown",
+        "## Strongest drawdown with a full mature year available before the peak",
+        "",
+        f"- Eligibility threshold: {pd.Timestamp(payload['one_year_eligible_drawdown_anchor']['eligibility_threshold']).date()}",
+        f"- Peak: {payload['one_year_eligible_drawdown_anchor']['peak_equity_usdt']:,.2f} USDT on {pd.Timestamp(payload['one_year_eligible_drawdown_anchor']['peak_date']).date()} while holding {payload['one_year_eligible_drawdown_anchor']['peak_asset']}",
+        f"- Trough: {payload['one_year_eligible_drawdown_anchor']['trough_equity_usdt']:,.2f} USDT on {pd.Timestamp(payload['one_year_eligible_drawdown_anchor']['trough_date']).date()} while holding {payload['one_year_eligible_drawdown_anchor']['trough_asset']}",
+        f"- Peak-to-trough drawdown: {pct(payload['one_year_eligible_drawdown_anchor']['max_drawdown'])}",
+        "",
+        "## Fresh-entry stress around that one-year-eligible U10 drawdown",
         "",
         "| Scenario | Start | Final equity | Return | Minimum equity | Min vs initial | Days below 10k | Max DD | DD trough vs initial | Transitions |",
         "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -488,12 +549,16 @@ def main():
         shadow_cost=True,
     )
 
+    one_year_eligible_anchor = find_one_year_eligible_drawdown(
+        long_equity, mature_start
+    )
+
     scenarios = []
     scenario_equities = []
     scenario_transitions = []
 
     for name, requested_start, actual_start in scenario_start_dates(
-        long_result, mature_start
+        one_year_eligible_anchor, mature_start
     ):
         result, transitions, equity = run_window(
             panel,
@@ -580,6 +645,7 @@ def main():
         "common_end": utc(panel.iloc[-1]["timestamp"]).isoformat(),
         "mature_start": mature_start.isoformat(),
         "long_path": long_result,
+        "one_year_eligible_drawdown_anchor": one_year_eligible_anchor,
         "fresh_entry_scenarios": scenarios,
     }
 
@@ -605,6 +671,13 @@ def main():
         % long_result["terminal_fee_drag_pct_vs_no_cost"]
     )
     print("long_route=" + "->".join(long_result["route"]))
+    print(
+        "eligible_anchor="
+        + one_year_eligible_anchor["peak_date"]
+        + "->"
+        + one_year_eligible_anchor["trough_date"]
+        + " dd=%.8f" % one_year_eligible_anchor["max_drawdown"]
+    )
 
     for s in scenarios:
         print(
