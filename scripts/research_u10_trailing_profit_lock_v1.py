@@ -27,7 +27,7 @@ INITIAL_USDT = 10000.0
 ACTIVATION_MULTIPLE = 10.0
 TRAIL_DECLINE_MULTIPLE = 2.0
 CASH_FRACTIONS = (0.20, 0.30, 0.40, 0.50)
-REENTRY_DRAWDOWN = 0.50
+REENTRY_DRAWDOWNS = (0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45)
 
 
 def source_sha():
@@ -65,7 +65,7 @@ def analyze_from(eq: pd.DataFrame, start_date: str):
     }
 
 
-def run_trailing_overlay(panel, baseline_eq, mature_start, cash_fraction):
+def run_trailing_overlay(panel, baseline_eq, mature_start, cash_fraction, reentry_drawdown):
     w = panel[panel["timestamp"] >= utc(mature_start)].copy().reset_index(drop=True)
     ref = baseline_eq.copy().reset_index(drop=True)
 
@@ -237,7 +237,7 @@ def run_trailing_overlay(panel, baseline_eq, mature_start, cash_fraction):
             and reentry_record is None
             and not reentry_pending
             and ts > utc(cashout_record["execution_date"])
-            and reference_close <= locked_peak_usdt * (1.0 - REENTRY_DRAWDOWN)
+            and reference_close <= locked_peak_usdt * (1.0 - reentry_drawdown)
             and pos < len(w) - 1
         ):
             reentry_trigger = {
@@ -267,7 +267,7 @@ def run_trailing_overlay(panel, baseline_eq, mature_start, cash_fraction):
         "activation_date": activation_date,
         "trail_decline_usdt": INITIAL_USDT * TRAIL_DECLINE_MULTIPLE,
         "cash_fraction": cash_fraction,
-        "reentry_drawdown": REENTRY_DRAWDOWN,
+        "reentry_drawdown": reentry_drawdown,
         "cashout": cashout_record,
         "reentry": reentry_record,
         "final_asset": current,
@@ -302,9 +302,9 @@ def write_report(payload, run_dir):
         "",
         "- 10x original capital (100,000 USDT) only activates trailing monitoring.",
         "- Keep updating the frozen-U10 running peak after activation.",
-        "- When frozen-U10 equity closes at least 20,000 USDT below that peak, sell 20%, 30%, 40%, or 50% on the next open in independent scenarios.",
+        "- When frozen-U10 equity closes at least 20,000 USDT below that peak, sell 20%, 30%, 40%, or 50% on the next open.",
         "- Lock that peak.",
-        "- Re-enter parked cash only after frozen-U10 equity closes 50% below the locked peak; buy on the next open.",
+        "- Re-enter parked cash independently at drawdowns of 5%, 10%, 15%, 20%, 25%, 30%, 35%, 40%, or 45% from the locked peak.",
         "- Cash-out and re-entry each pay 0.1% modeled transaction cost.",
         "",
         "## Shared observed trigger path",
@@ -315,25 +315,28 @@ def write_report(payload, run_dir):
         f"- Decline at trigger: {anchor['cashout']['absolute_decline_at_trigger_usdt']:,.2f} USDT ({pct(anchor['cashout']['decline_pct_from_locked_peak'])})",
         f"- Cash-out execution: {pd.Timestamp(anchor['cashout']['execution_date']).date()} while holding {anchor['cashout']['asset']}",
         "",
-        "## Sweep",
+        "## 36-scenario sweep",
         "",
-        "| Cash-out | Net cash parked | Re-entry | Minimum after cash-out | Max DD after cash-out | Final equity | Delta vs baseline |",
+        "| Cash-out | Re-entry DD | Re-entry execution | Min equity | Max DD | Final equity | Delta vs baseline |",
         "|---:|---:|---|---:|---:|---:|---:|",
     ]
 
-    for s in scenarios:
+    for s in sorted(scenarios, key=lambda x: (x["cash_fraction"], x["reentry_drawdown"])):
         reentry = (
             pd.Timestamp(s["reentry"]["execution_date"]).date()
             if s["reentry"] is not None
             else "not reached"
         )
         lines.append(
-            f"| {100*s['cash_fraction']:.0f}% | "
-            f"{s['cashout']['net_cash_parked_usdt']:,.2f} | {reentry} | "
-            f"{s['minimum_total_equity_usdt']:,.2f} | {pct(s['max_drawdown'])} | "
-            f"{s['final_total_equity_usdt']:,.2f} | "
+            f"| {100*s['cash_fraction']:.0f}% | {100*s['reentry_drawdown']:.0f}% | "
+            f"{reentry} | {s['minimum_total_equity_usdt']:,.2f} | "
+            f"{pct(s['max_drawdown'])} | {s['final_total_equity_usdt']:,.2f} | "
             f"{s['terminal_delta_vs_baseline_usdt']:+,.2f} ({pct(s['terminal_delta_vs_baseline_pct'])}) |"
         )
+
+    best_terminal = max(scenarios, key=lambda s: s["final_total_equity_usdt"])
+    best_floor = max(scenarios, key=lambda s: s["minimum_total_equity_usdt"])
+    shallowest_dd = max(scenarios, key=lambda s: s["max_drawdown"])
 
     lines += [
         "",
@@ -342,45 +345,18 @@ def write_report(payload, run_dir):
         f"- NO_OVERLAY final equity: {baseline['final_equity_usdt']:,.2f} USDT ({pct(baseline['total_return'])})",
         f"- IMMEDIATE 20% AT 10X / cash forever final equity: {immediate['final_total_equity_usdt']:,.2f} USDT ({pct(immediate['total_return'])})",
         "",
-    ]
-
-    for s in scenarios:
-        lines += [
-            f"### Trailing cash-out {100*s['cash_fraction']:.0f}%",
-            "",
-            f"- Actual overlay equity at execution open: {s['cashout']['pre_cashout_total_usdt']:,.2f} USDT",
-            f"- Gross sleeve sold: {s['cashout']['gross_cash_usdt']:,.2f} USDT",
-            f"- Cash-out cost: {s['cashout']['cashout_fee_usdt']:,.2f} USDT",
-            f"- Net cash parked: {s['cashout']['net_cash_parked_usdt']:,.2f} USDT",
-        ]
-        if s["reentry"] is None:
-            lines += [
-                "- 50%-from-locked-peak re-entry trigger was not reached before the test ended.",
-                f"- Cash still parked at end: {s['final_cash_usdt']:,.2f} USDT",
-            ]
-        else:
-            lines += [
-                f"- Re-entry trigger close: {s['reentry']['reference_equity_at_trigger_usdt']:,.2f} USDT on {pd.Timestamp(s['reentry']['trigger_date']).date()}",
-                f"- Reference drawdown from locked peak: {pct(s['reentry']['reference_drawdown_from_locked_peak'])}",
-                f"- Re-entry execution: {pd.Timestamp(s['reentry']['execution_date']).date()} into {s['reentry']['asset']}",
-                f"- Gross cash re-entered: {s['reentry']['gross_cash_usdt']:,.2f} USDT",
-                f"- Re-entry cost: {s['reentry']['reentry_fee_usdt']:,.2f} USDT",
-            ]
-        lines += [
-            f"- Minimum total equity after cash-out: {s['minimum_total_equity_usdt']:,.2f} USDT",
-            f"- Max drawdown after cash-out: {pct(s['max_drawdown'])}",
-            f"- Final total equity: {s['final_total_equity_usdt']:,.2f} USDT ({pct(s['total_return'])})",
-            f"- Delta vs no-overlay baseline: {s['terminal_delta_vs_baseline_usdt']:+,.2f} USDT ({pct(s['terminal_delta_vs_baseline_pct'])})",
-            "",
-        ]
-
-    lines += [
+        "## Extremes within the sweep",
+        "",
+        f"- Highest terminal equity: cash-out {100*best_terminal['cash_fraction']:.0f}%, re-entry {100*best_terminal['reentry_drawdown']:.0f}% -> {best_terminal['final_total_equity_usdt']:,.2f} USDT",
+        f"- Highest post-cashout floor: cash-out {100*best_floor['cash_fraction']:.0f}%, re-entry {100*best_floor['reentry_drawdown']:.0f}% -> {best_floor['minimum_total_equity_usdt']:,.2f} USDT",
+        f"- Shallowest post-cashout max DD: cash-out {100*shallowest_dd['cash_fraction']:.0f}%, re-entry {100*shallowest_dd['reentry_drawdown']:.0f}% -> {pct(shallowest_dd['max_drawdown'])}",
+        "",
         "## Interpretation boundary",
         "",
-        "- The frozen U10 reference equity controls activation, peak tracking, cash-out trigger and re-entry trigger.",
-        "- All 20/30/40/50% scenarios use the exact same trigger dates; only protected fraction changes.",
-        "- The parked cash sleeve cannot move its own trigger thresholds.",
-        "- This is one historical path and does not establish an optimal cash-out percentage.",
+        "- Frozen U10 reference equity controls activation, peak tracking, cash-out and re-entry triggers.",
+        "- All scenarios share the same cash-out trigger path; only protected fraction and re-entry depth change.",
+        "- Parked cash cannot move its own trigger thresholds.",
+        "- This single historical path does not establish an optimal cash-out or re-entry setting.",
         "- Additional spread/slippage and stablecoin risk are not separately modeled.",
         "",
         "TEST_LEVEL: GITHUB_ACTIONS_LIVE_PUBLIC_DATA_BACKTEST",
@@ -398,68 +374,66 @@ def main():
     mature_start = utc(panel.iloc[LOOKBACK - 1]["timestamp"])
 
     baseline, _, baseline_eq = run_window(
-        panel,
-        event_map,
-        mature_start,
-        INITIAL_USDT,
-        collect_ledger=False,
-        shadow_cost=False,
+        panel, event_map, mature_start, INITIAL_USDT,
+        collect_ledger=False, shadow_cost=False,
     )
 
     immediate, _ = run_immediate_overlay(
-        panel,
-        event_map,
-        mature_start,
-        INITIAL_USDT,
-        scenario="CASH_FOREVER",
-        reentry_months=None,
+        panel, event_map, mature_start, INITIAL_USDT,
+        scenario="CASH_FOREVER", reentry_months=None,
     )
 
     scenarios = []
     equity_frames = []
     for cash_fraction in CASH_FRACTIONS:
-        trailing, eq = run_trailing_overlay(
-            panel, baseline_eq, mature_start, cash_fraction
-        )
-        trailing["terminal_delta_vs_baseline_usdt"] = (
-            trailing["final_total_equity_usdt"] - baseline["final_equity_usdt"]
-        )
-        trailing["terminal_delta_vs_baseline_pct"] = (
-            trailing["final_total_equity_usdt"] / baseline["final_equity_usdt"] - 1.0
-        )
-        trailing["terminal_delta_vs_immediate_usdt"] = (
-            trailing["final_total_equity_usdt"] - immediate["final_total_equity_usdt"]
-        )
-        trailing["terminal_delta_vs_immediate_pct"] = (
-            trailing["final_total_equity_usdt"]
-            / immediate["final_total_equity_usdt"]
-            - 1.0
-        )
-        scenarios.append(trailing)
-        frame = eq.copy()
-        frame.insert(0, "cash_fraction", cash_fraction)
-        equity_frames.append(frame)
+        for reentry_drawdown in REENTRY_DRAWDOWNS:
+            trailing, eq = run_trailing_overlay(
+                panel, baseline_eq, mature_start, cash_fraction, reentry_drawdown
+            )
+            trailing["terminal_delta_vs_baseline_usdt"] = (
+                trailing["final_total_equity_usdt"] - baseline["final_equity_usdt"]
+            )
+            trailing["terminal_delta_vs_baseline_pct"] = (
+                trailing["final_total_equity_usdt"] / baseline["final_equity_usdt"] - 1.0
+            )
+            trailing["terminal_delta_vs_immediate_usdt"] = (
+                trailing["final_total_equity_usdt"] - immediate["final_total_equity_usdt"]
+            )
+            trailing["terminal_delta_vs_immediate_pct"] = (
+                trailing["final_total_equity_usdt"] / immediate["final_total_equity_usdt"] - 1.0
+            )
+            scenarios.append(trailing)
+
+            frame = eq.copy()
+            frame.insert(0, "reentry_drawdown", reentry_drawdown)
+            frame.insert(0, "cash_fraction", cash_fraction)
+            equity_frames.append(frame)
 
     first = scenarios[0]
     for s in scenarios[1:]:
-        keys = [
+        shared = [
             ("activation_date", s["activation_date"], first["activation_date"]),
             ("locked_peak_date", s["cashout"]["locked_peak_date"], first["cashout"]["locked_peak_date"]),
             ("cashout_trigger_date", s["cashout"]["trigger_date"], first["cashout"]["trigger_date"]),
             ("cashout_execution_date", s["cashout"]["execution_date"], first["cashout"]["execution_date"]),
         ]
-        for label, actual, expected in keys:
+        for label, actual, expected in shared:
             if actual != expected:
                 raise AssertionError(
-                    f"trigger path differs across cash fractions for {label}: {actual} != {expected}"
+                    f"shared trigger path differs for {label}: {actual} != {expected}"
                 )
-        if (s["reentry"] is None) != (first["reentry"] is None):
-            raise AssertionError("re-entry reachability differs across cash fractions")
-        if s["reentry"] is not None:
-            if s["reentry"]["trigger_date"] != first["reentry"]["trigger_date"]:
-                raise AssertionError("re-entry trigger date differs across cash fractions")
-            if s["reentry"]["execution_date"] != first["reentry"]["execution_date"]:
-                raise AssertionError("re-entry execution date differs across cash fractions")
+
+    for reentry_drawdown in REENTRY_DRAWDOWNS:
+        same_depth = [s for s in scenarios if s["reentry_drawdown"] == reentry_drawdown]
+        anchor = same_depth[0]
+        for s in same_depth[1:]:
+            if (s["reentry"] is None) != (anchor["reentry"] is None):
+                raise AssertionError("re-entry reachability differs by cash fraction at same depth")
+            if s["reentry"] is not None:
+                if s["reentry"]["trigger_date"] != anchor["reentry"]["trigger_date"]:
+                    raise AssertionError("re-entry trigger date differs by cash fraction")
+                if s["reentry"]["execution_date"] != anchor["reentry"]["execution_date"]:
+                    raise AssertionError("re-entry execution date differs by cash fraction")
 
     run_dir = OUT / pd.Timestamp.now(tz="UTC").strftime("%Y%m%dT%H%M%SZ")
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -468,30 +442,27 @@ def main():
         run_dir / "equity_sweep.csv", index=False
     )
 
-    pd.DataFrame(
-        [
-            {
-                "cash_fraction": s["cash_fraction"],
-                "activation_date": s["activation_date"],
-                "locked_peak_usdt": s["cashout"]["locked_peak_usdt"],
-                "locked_peak_date": s["cashout"]["locked_peak_date"],
-                "cashout_trigger_date": s["cashout"]["trigger_date"],
-                "cashout_execution_date": s["cashout"]["execution_date"],
-                "reference_equity_at_trigger_usdt": s["cashout"]["reference_equity_at_trigger_usdt"],
-                "absolute_decline_at_trigger_usdt": s["cashout"]["absolute_decline_at_trigger_usdt"],
-                "gross_cash_usdt": s["cashout"]["gross_cash_usdt"],
-                "net_cash_parked_usdt": s["cashout"]["net_cash_parked_usdt"],
-                "reentry_trigger_date": s["reentry"]["trigger_date"] if s["reentry"] else None,
-                "reentry_execution_date": s["reentry"]["execution_date"] if s["reentry"] else None,
-                "minimum_total_equity_usdt": s["minimum_total_equity_usdt"],
-                "max_drawdown": s["max_drawdown"],
-                "final_total_equity_usdt": s["final_total_equity_usdt"],
-                "terminal_delta_vs_baseline_usdt": s["terminal_delta_vs_baseline_usdt"],
-                "terminal_delta_vs_baseline_pct": s["terminal_delta_vs_baseline_pct"],
-            }
-            for s in scenarios
-        ]
-    ).to_csv(run_dir / "summary.csv", index=False)
+    summary_rows = []
+    for s in scenarios:
+        summary_rows.append({
+            "cash_fraction": s["cash_fraction"],
+            "reentry_drawdown": s["reentry_drawdown"],
+            "activation_date": s["activation_date"],
+            "locked_peak_usdt": s["cashout"]["locked_peak_usdt"],
+            "locked_peak_date": s["cashout"]["locked_peak_date"],
+            "cashout_trigger_date": s["cashout"]["trigger_date"],
+            "cashout_execution_date": s["cashout"]["execution_date"],
+            "net_cash_parked_usdt": s["cashout"]["net_cash_parked_usdt"],
+            "reentry_trigger_date": s["reentry"]["trigger_date"] if s["reentry"] else None,
+            "reentry_execution_date": s["reentry"]["execution_date"] if s["reentry"] else None,
+            "reentry_asset": s["reentry"]["asset"] if s["reentry"] else None,
+            "minimum_total_equity_usdt": s["minimum_total_equity_usdt"],
+            "max_drawdown": s["max_drawdown"],
+            "final_total_equity_usdt": s["final_total_equity_usdt"],
+            "terminal_delta_vs_baseline_usdt": s["terminal_delta_vs_baseline_usdt"],
+            "terminal_delta_vs_baseline_pct": s["terminal_delta_vs_baseline_pct"],
+        })
+    pd.DataFrame(summary_rows).to_csv(run_dir / "summary.csv", index=False)
 
     payload = {
         "generated_at": pd.Timestamp.now(tz="UTC").isoformat(),
@@ -503,7 +474,7 @@ def main():
             "trail_decline_multiple": TRAIL_DECLINE_MULTIPLE,
             "trail_decline_usdt": INITIAL_USDT * TRAIL_DECLINE_MULTIPLE,
             "cash_fractions": list(CASH_FRACTIONS),
-            "reentry_drawdown": REENTRY_DRAWDOWN,
+            "reentry_drawdowns": list(REENTRY_DRAWDOWNS),
             "transaction_cost": COST,
         },
         "data_metadata": metadata,
@@ -523,43 +494,21 @@ def main():
     print("activation=" + first["activation_date"])
     print(
         "locked_peak=%.8f %s"
-        % (
-            first["cashout"]["locked_peak_usdt"],
-            first["cashout"]["locked_peak_date"],
-        )
+        % (first["cashout"]["locked_peak_usdt"], first["cashout"]["locked_peak_date"])
     )
-    print(
-        "cashout_trigger=%.8f %s decline=%.8f"
-        % (
-            first["cashout"]["reference_equity_at_trigger_usdt"],
-            first["cashout"]["trigger_date"],
-            first["cashout"]["absolute_decline_at_trigger_usdt"],
-        )
-    )
-    print("cashout_execution=" + first["cashout"]["execution_date"])
-    if first["reentry"] is None:
-        print("reentry=NOT_REACHED")
-    else:
-        print(
-            "reentry_trigger=%.8f %s"
-            % (
-                first["reentry"]["reference_equity_at_trigger_usdt"],
-                first["reentry"]["trigger_date"],
-            )
-        )
-        print("reentry_execution=" + first["reentry"]["execution_date"])
-
     print("baseline_final=%.8f" % baseline["final_equity_usdt"])
     print("immediate_final=%.8f" % immediate["final_total_equity_usdt"])
-    for s in scenarios:
+
+    for s in sorted(scenarios, key=lambda x: (x["cash_fraction"], x["reentry_drawdown"])):
         print(
-            "cash_%02d final=%.8f min=%.8f maxdd=%.8f delta=%.8f"
+            "cash_%02d reentry_%02d final=%.8f min=%.8f maxdd=%.8f reentered=%s"
             % (
                 int(round(100*s["cash_fraction"])),
+                int(round(100*s["reentry_drawdown"])),
                 s["final_total_equity_usdt"],
                 s["minimum_total_equity_usdt"],
                 s["max_drawdown"],
-                s["terminal_delta_vs_baseline_usdt"],
+                "yes" if s["reentry"] is not None else "no",
             )
         )
     return 0
