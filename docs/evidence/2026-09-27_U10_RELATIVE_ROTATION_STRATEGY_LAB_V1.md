@@ -311,6 +311,56 @@ Required robustness before accepting any rule:
 - more than one market cycle where data permit;
 - sensitivity to daily-close threshold clustering.
 
+## Grid vs U10 portfolio comparison
+
+Research:
+
+- prereg: `research/relative_rotation/2026-09-27_GRID_VS_U10_UNIVERSE_PORTFOLIOS_V1_PREREG.md`
+- runner: `scripts/research_grid_vs_u10_universe_portfolios_v1.py`
+- workflow: `.github/workflows/grid-vs-u10-universe-portfolios-v1.yml`
+- evidence: [Grid vs U10 Universe Portfolios v1](2026-09-27_GRID_VS_U10_UNIVERSE_PORTFOLIOS_V1.md)
+- GitHub Actions run: `36338060414`
+- result: PASS
+- test level: `GITHUB_ACTIONS_LIVE_PUBLIC_DATA_STRESS_TEST`
+
+Primary common window:
+
+2023-10-31 -> 2026-09-26
+
+All portfolios started from 10,000 USDT.
+
+| Portfolio | Final equity | Return | Max DD |
+|---|---:|---:|---:|
+| U10 | 219,485.20 | +2,094.85% | -71.04% |
+| Grid Tier A+B 10 BASE | 35,613.98 | +256.14% | -44.97% |
+| Grid Tier A 5 BASE | 33,530.59 | +235.31% | -43.48% |
+| Grid Full 15 BASE | 29,674.06 | +196.74% | -41.26% |
+| Grid U10 Mature-8 WIDE | 29,453.57 | +194.54% | -41.38% |
+
+Interpretation:
+
+- U10 produced much higher terminal growth in this history.
+- Grid portfolios produced materially shallower peak-to-trough drawdowns.
+- Grid universe selection materially changed results.
+- adding every mature U10 token to Grid was not beneficial: ATOM and FIL were severe negative Grid sleeves;
+- U10 and Grid should be treated as different portfolio architectures rather than assuming that a token useful for rotation is automatically useful for permanent Grid allocation.
+
+Exact-U10 short diagnostic:
+
+2026-05-04 -> 2026-09-26
+
+- U10: +83.27%, max DD -36.68%
+- Grid BASE: +21.59%, max DD -20.74%
+- Grid WIDE: +23.07%, max DD -20.96%
+
+This exact-token window is only 145 days and is secondary evidence.
+
+Potential next research:
+
+`U10 + GRID BLEND PORTFOLIO`
+
+Test fixed, preregistered allocations such as 80/20, 70/30, 60/40, and 50/50 to see whether Grid can reduce U10 drawdown without destroying most of its terminal growth.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
