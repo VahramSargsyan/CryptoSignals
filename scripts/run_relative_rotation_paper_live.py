@@ -206,7 +206,7 @@ def build_notification(payload: dict) -> str:
                 )
             elif event["event"] == "DEFENSIVE_EXIT":
                 lines.append(
-                    f"DEFENSIVE EXIT candidate: breadth {event['breadth']}/8; "
+                    f"DEFENSIVE EXIT candidate: breadth {event['breadth']}/{len(ASSETS)}; "
                     "return-to-shadow routing remains manual."
                 )
 
