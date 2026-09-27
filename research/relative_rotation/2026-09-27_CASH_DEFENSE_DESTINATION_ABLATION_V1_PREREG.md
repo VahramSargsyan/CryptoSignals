@@ -3,7 +3,7 @@
 Date: 2026-09-27  
 Branch: `research/global-macro-risk-regime-v1`  
 Mode: ECOSYSTEM_PLANNING + STRESS_TEST_ONLY  
-Status: PREREGISTRATION_CANDIDATE / NO PRODUCTION CHANGE
+Status: PREREGISTERED / FROZEN_BEFORE_EXECUTION / NO PRODUCTION CHANGE
 
 ## Research question
 
@@ -79,6 +79,20 @@ Variant B — `CASH_PROXY`
 
 The research model deliberately separates destination from implementation.
 USDT, USDC, fiat cash, money-market exposure, custody venue and counterparty/depeg risk are implementation questions for a later decision.
+
+## Robustness-window contract
+
+Before execution, the robustness windows are frozen as follows:
+- build the same feature panel through 2026-09-26;
+- find the first date on which every asset has a valid own SMA200 and the frozen LOW_VOL selector is valid;
+- that first fully eligible date is the robustness anchor;
+- generate consecutive, non-overlapping complete 180-calendar-day windows from that anchor;
+- separately generate consecutive, non-overlapping complete 120-calendar-day windows from the same anchor;
+- discard only the terminal incomplete remainder;
+- reset portfolio/defensive state at each robustness-window start;
+- do not shift the anchor or choose a subset after seeing results.
+
+The full-history comparison is also reported once, with one state reset at the same first fully eligible date.
 
 ## Required metrics
 
