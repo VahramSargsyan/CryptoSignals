@@ -349,3 +349,33 @@ Current 2026 sequence:
 - 2026-08-27 SMA50 > SMA100 / BULL_BUILDING
 
 Do not rerun unchanged on the same cached history. Use the persistent repository TOTAL cache.
+
+
+## Relative Rotation U10 BTC/ETH ratio crossover memory — 2026-09-28
+
+Before using BTC/ETH (or inverse ETH/BTC) as an altseason or U10 timing signal, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_U10_BTC_ETH_RATIO_SMA_CROSS_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_BTC_ETH_RATIO_SMA_CROSS_V1_EVIDENCE.md`
+
+Frozen interpretation:
+- BTC/ETH falling = ETH outperforming BTC; this is a rotation proxy, not the formal definition of altseason.
+- Fast/medium ETH-strength crosses can be useful attention signals:
+  - persistent below SMA25: 30d U10 median +14.6%;
+  - raw below SMA50: 30d U10 median +14.9%, 75.9% positive events.
+- Longer ETH-strength crosses below SMA100/SMA200 were not consistently bullish for U10.
+- The strongest U10 risk warning was BTC/ETH crossing above SMA200:
+  - persistent 60d U10 median -11.3%;
+  - persistent 90d U10 median -18.4%;
+  - only 16.7% positive at 90d;
+  - sample is small (6-7 full-horizon events).
+
+Frozen labels:
+- `FAST_ETH_STRENGTH = ALT_ROTATION_ATTENTION`
+- `BTC_ETH_ABOVE_SMA200 = U10_RISK_ATTENTION`
+- neither is production-approved or an automatic trade rule.
+
+Do not rerun unchanged on the same history. A combined TOTAL-regime + BTC/ETH-regime study is a distinct future hypothesis and requires preregistration.
