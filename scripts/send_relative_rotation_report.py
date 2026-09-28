@@ -42,7 +42,8 @@ def main(argv: list[str] | None = None) -> int:
         print("notification=SKIPPED_POLICY")
         return 0
 
-    text = args.notification_text.read_text(encoding="utf-8").strip()
+    legacy_text = args.notification_text.read_text(encoding="utf-8").strip()
+    text = str(report.get("telegram_text_ru") or legacy_text).strip()
     if not text:
         raise RuntimeError("notification text is empty")
 

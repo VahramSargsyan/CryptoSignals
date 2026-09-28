@@ -354,6 +354,42 @@ def _notification_text(payload: dict) -> str:
     return "\n".join(lines)
 
 
+def _notification_text_ru(payload: dict) -> str:
+    latest = payload.get("latest_closed_candle") or "ожидание"
+    lines = [
+        "Сетка — бумажный монитор v1",
+        f"Закрытая свеча: {latest}",
+        f"Дней бумажного наблюдения: {payload['completed_paper_candles']}",
+    ]
+
+    active_rows = [
+        row for row in payload.get("rows", [])
+        if int(row.get("today_events", 0)) > 0
+    ]
+    if active_rows:
+        lines.append("Сигналы:")
+        for row in active_rows:
+            lines.append(
+                f"{row['profile']} {row['symbol']}: "
+                f"ПОКУПКА {row['today_buys']}, ПРОДАЖА {row['today_sells']}"
+            )
+
+    active_profiles = {row["profile"] for row in active_rows}
+    if active_profiles or payload.get("milestone"):
+        lines.append("Снимок профилей:")
+        for row in payload.get("portfolio", []):
+            if payload.get("milestone") or row["profile"] in active_profiles:
+                lines.append(
+                    f"{row['profile']}: {_pct(row['return'])}, "
+                    f"ПОКУПКА {row['today_buys']}, ПРОДАЖА {row['today_sells']}"
+                )
+
+    if payload.get("milestone"):
+        lines.append(f"Контрольная точка: {payload['milestone']}")
+    lines.append("ТОЛЬКО БУМАЖНЫЙ РЕЖИМ — реальные ордера не отправляются.")
+    return "\n".join(lines)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Forward paper replay for the level-grid strategy.")
     parser.add_argument("--symbols", default=",".join(DEFAULT_SYMBOLS))
@@ -557,6 +593,7 @@ def main(argv: list[str] | None = None) -> int:
         "milestone": milestone,
         "should_notify": should_notify,
         "notification_text": "",
+        "telegram_text_ru": "",
         "research_assumptions": {
             "range_lookback_candles": 1095,
             "range_refresh_candles": 30,
@@ -578,6 +615,7 @@ def main(argv: list[str] | None = None) -> int:
         },
     }
     payload["notification_text"] = _notification_text(payload)
+    payload["telegram_text_ru"] = _notification_text_ru(payload)
 
     run_key = cutoff.strftime("%Y%m%d")
     run_dir = args.output_root / run_key

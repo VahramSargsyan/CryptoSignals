@@ -4,6 +4,7 @@ import unittest
 
 import pandas as pd
 
+from scripts.run_relative_rotation_paper_live import build_notification_ru
 from strategies.crypto.relative_rotation.paper_live import (
     ASSETS,
     _defensive_state_machine,
@@ -132,6 +133,69 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
 
         self.assertEqual(held["primary_confirmed"]["to_asset"], "HBAR")
         self.assertEqual(atom_watch["primary_confirmed"]["to_asset"], "FIL")
+
+
+    def test_russian_telegram_notification_for_initialization(self):
+        payload = {
+            "held_asset": "ATOM",
+            "latest_closed_candle": "2026-09-26T00:00:00+00:00",
+            "held_events": {
+                "primary_confirmed": None,
+                "confirmed": [],
+                "armed": [],
+            },
+            "watch_events": {},
+            "defensive": {
+                "active": False,
+                "defensive_asset": None,
+                "breadth": 8,
+            },
+            "latest_defensive_events": [],
+            "force_notify": True,
+        }
+
+        text = build_notification_ru(payload)
+
+        self.assertIn("Закрытая свеча: 2026-09-26T00:00:00+00:00", text)
+        self.assertIn("Текущий актив: ATOM", text)
+        self.assertIn("нет подтверждённой ротации", text)
+        self.assertIn("Защитный режим: ВЫКЛ; ширина рынка=8/10", text)
+        self.assertNotIn("Closed candle:", text)
+        self.assertNotIn("Held asset:", text)
+
+    def test_russian_telegram_notification_for_confirmed_rotation(self):
+        event = {
+            "from_asset": "ATOM",
+            "to_asset": "TWT",
+            "pair": "ATOM/TWT",
+            "max_dislocation": 0.21,
+            "reversal_from_extreme": 0.04,
+        }
+        payload = {
+            "held_asset": "ATOM",
+            "latest_closed_candle": "2026-09-27T00:00:00+00:00",
+            "held_events": {
+                "primary_confirmed": event,
+                "confirmed": [event],
+                "armed": [],
+            },
+            "watch_events": {},
+            "defensive": {
+                "active": False,
+                "defensive_asset": None,
+                "breadth": 7,
+            },
+            "latest_defensive_events": [],
+            "force_notify": False,
+        }
+
+        text = build_notification_ru(payload)
+
+        self.assertIn("РОТАЦИЯ ПОДТВЕРЖДЕНА", text)
+        self.assertIn("ATOM -> TWT", text)
+        self.assertIn("отклонение +21.00%", text)
+        self.assertIn("разворот от экстремума +4.00%", text)
+        self.assertIn("требуется ручное подтверждение", text)
 
     def test_defensive_state_machine_enters_and_exits_after_three_closes(self):
         dates = list(pd.date_range("2026-01-01", periods=8, freq="D", tz="UTC"))
