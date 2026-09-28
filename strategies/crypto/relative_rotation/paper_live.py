@@ -6,8 +6,8 @@ from typing import Iterable, Sequence
 
 import pandas as pd
 
-TARGET_ASSETS = ("TWT", "PEPE", "BNB", "TRX", "AAVE", "AVAX", "FIL", "ALGO", "XRP")
-SUNSET_ASSETS = ("ATOM", "SOL", "LINK", "HBAR")
+TARGET_ASSETS = ("TWT", "PEPE", "BNB", "TRX", "AAVE", "AVAX", "FIL", "ALGO", "XRP", "HBAR")
+SUNSET_ASSETS = ("ATOM", "SOL", "LINK")
 ASSETS = TARGET_ASSETS + SUNSET_ASSETS
 LOOKBACK = 180
 ARM_THRESHOLD = 0.15
