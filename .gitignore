@@ -24,6 +24,8 @@ Thumbs.db
 /data/*.bak
 /data/*.tmp
 /data/*_old.csv
+/data/historical/
+/build/
 
 # Logs
 *.log
