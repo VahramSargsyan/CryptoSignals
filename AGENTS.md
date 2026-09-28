@@ -120,3 +120,22 @@ Current evidence: Micro and Mid are independent engines with no nonlinear capita
 ### Expanded Micro / Mid universe evidence
 
 The Micro/Mid redundancy log now includes a 15-asset common-window test. Across all 15, Micro-only had higher aggregate return (+170.91% vs +147.17%) but Mid used far fewer exits. On the Tier A quality/Grid subset (LINK/SOL/ETH/ADA/XLM), Micro and Mid were effectively tied (+244.93% vs +245.61%), Mid had slightly lower median DD, and Mid used 68.6% fewer exits. Read the evidence before proposing layer deletion.
+
+
+## Relative Rotation U9/U10 universe research memory — 2026-09-28
+
+Before any new ATOM replacement, U9/U10 universe-selection, HBAR-addition, or "find the tenth token" experiment for the relative-rotation strategy, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_U9_U10_UNIVERSE_DECISION_LOG_V1.md`
+
+and the underlying canonical evidence:
+
+`research/relative_rotation/2026-09-28_ROBUST_EXHAUSTIVE_U9_U10_ATOM_REPLACEMENT_V1_EVIDENCE.md`
+
+Frozen research candidate:
+
+`RR_TARGET_U10_CANDIDATE_HBAR_V1 = CURRENT_TARGET_U9 + HBAR`
+
+Do not repeat the completed 15-token exhaustive U9/U10 search merely to rediscover the same result. A rerun requires materially new unseen data, a documented engine/semantic correction, materially changed cost assumptions, a materially changed token pool/mechanism, or an explicitly separate confirmatory/forward-validation protocol. Any future run must state what is materially new.
+
+The candidate is not production-approved. Current production/paper-live U9 remains unchanged until a separate promotion gate is satisfied.
