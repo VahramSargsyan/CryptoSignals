@@ -40,6 +40,9 @@ HBAR is now TARGET and must not be treated as sunset/watch in this universe vers
 5. If a watch asset has both a confirmed route and other armed routes, both are
    displayed so the stronger confirmed router decision is visible without hiding
    the secondary prewatch.
+6. Repository push runs do not send Telegram; they only verify/write evidence.
+   Scheduled/manual runs remain the notification channel, preventing code pushes
+   from replaying a same-candle alert.
 
 ## LINK observation at freeze verification
 
