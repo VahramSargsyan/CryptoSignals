@@ -676,13 +676,26 @@ def main(argv: list[str] | None = None) -> int:
     panel, data_metadata = download_panel(start=history_start, cutoff=cutoff)
     latest = pd.Timestamp(panel.iloc[-1]["timestamp"])
     events, pair_states = build_pair_monitor(panel)
-    held_events = choose_held_events(
-        events,
-        held_asset=config["held_asset"],
-        latest_date=latest,
-        allowed_to_assets=config["target_assets"],
-    )
-    independent_watch_assets = [asset for asset in config["watch_assets"] if asset != config["held_asset"]]
+
+    book_events = {}
+    for book in config["position_books"]:
+        book_events[book["book_id"]] = {
+            "book": _book_payload(book),
+            "events": choose_held_events(
+                events,
+                held_asset=book["held_asset"],
+                latest_date=latest,
+                allowed_to_assets=config["target_assets"],
+            ),
+        }
+
+    primary_book_id = config["position_books"][0]["book_id"]
+    held_events = book_events[primary_book_id]["events"]
+
+    held_assets = {book["held_asset"] for book in config["position_books"]}
+    independent_watch_assets = [
+        asset for asset in config["watch_assets"] if asset not in held_assets
+    ]
     watch_events = {
         asset: choose_held_events(
             events,
@@ -711,23 +724,31 @@ def main(argv: list[str] | None = None) -> int:
 
     latest_iso = latest.isoformat()
     latest_defensive_events = [event for event in defensive_events if event["date"] == latest_iso]
-    held_pair_states = []
     target_set = set(config["target_assets"])
-    for row in pair_states:
-        parts = row["pair"].split("/")
-        if config["held_asset"] not in parts:
-            continue
-        other = parts[1] if parts[0] == config["held_asset"] else parts[0]
-        if other in target_set:
-            held_pair_states.append(row)
+    book_pair_states = {}
+    for book in config["position_books"]:
+        rows = []
+        for row in pair_states:
+            parts = row["pair"].split("/")
+            if book["held_asset"] not in parts:
+                continue
+            other = parts[1] if parts[0] == book["held_asset"] else parts[0]
+            if other in target_set:
+                rows.append(row)
+        book_pair_states[book["book_id"]] = rows
+
+    held_pair_states = book_pair_states[primary_book_id]
 
     after_monitor_start = latest >= config["monitor_start"]
-    held_signal = bool(held_events["armed"] or held_events["confirmed"])
+    book_signal = any(
+        details["events"]["armed"] or details["events"]["confirmed"]
+        for details in book_events.values()
+    )
     watch_signal = any(
         watched["armed"] or watched["confirmed"]
         for watched in watch_events.values()
     )
-    new_signal = bool(held_signal or watch_signal or latest_defensive_events)
+    new_signal = bool(book_signal or watch_signal or latest_defensive_events)
     should_notify = bool(args.force_notify or (after_monitor_start and new_signal))
 
     generated_at = pd.Timestamp.now(tz="UTC")
@@ -738,7 +759,7 @@ def main(argv: list[str] | None = None) -> int:
     payload = {
         "schema_version": 1,
         "strategy": config.get("strategy", "RELATIVE_ROTATION_TARGET_U10_FORWARD_V1"),
-        "status": "FROZEN_U10_FORWARD_PAPER_LIVE / MANUAL_EXECUTION_ONLY",
+        "status": "FROZEN_U10_FORWARD_MULTIBOOK_PAPER_LIVE / MANUAL_EXECUTION_ONLY",
         "universe_version": config.get("universe_version", ""),
         "forward_validation_enabled": config.get("forward_validation_enabled", False),
         "forward_validation_start": (
@@ -749,6 +770,9 @@ def main(argv: list[str] | None = None) -> int:
         "generated_at": generated_at.isoformat(),
         "source_commit_sha": _source_commit(),
         "held_asset": config["held_asset"],
+        "position_books": [_book_payload(book) for book in config["position_books"]],
+        "book_events": book_events,
+        "book_pair_states": book_pair_states,
         "migration_mode": config["migration_mode"],
         "defensive_overlay_enabled": config["defensive_overlay_enabled"],
         "target_assets": list(config["target_assets"]),
@@ -762,6 +786,14 @@ def main(argv: list[str] | None = None) -> int:
             "after_monitor_start": after_monitor_start,
             "held_armed": len(held_events["armed"]),
             "held_confirmed": len(held_events["confirmed"]),
+            "book_events": {
+                book_id: {
+                    "held_asset": details["book"]["held_asset"],
+                    "armed": len(details["events"]["armed"]),
+                    "confirmed": len(details["events"]["confirmed"]),
+                }
+                for book_id, details in book_events.items()
+            },
             "watch_events": {
                 asset: {
                     "armed": len(watched["armed"]),
@@ -786,8 +818,10 @@ def main(argv: list[str] | None = None) -> int:
             "destination_guard": "TARGET_ONLY",
         },
         "held_events": held_events,
+        "book_events": book_events,
         "watch_events": watch_events,
         "held_pair_states": held_pair_states,
+        "book_pair_states": book_pair_states,
         "latest_pair_states": pair_states,
         "defensive": defensive,
         "latest_defensive_events": latest_defensive_events,
@@ -806,6 +840,14 @@ def main(argv: list[str] | None = None) -> int:
     print(f"run_dir={run_dir}")
     print(f"latest_closed_candle={latest_iso}")
     print(f"held_asset={config['held_asset']}")
+    for book_id, details in book_events.items():
+        book = details["book"]
+        print(
+            f"book_{book_id}_held={book['held_asset']};"
+            f"quantity={book.get('quantity')};"
+            f"armed={len(details['events']['armed'])};"
+            f"confirmed={len(details['events']['confirmed'])}"
+        )
     print(f"target_assets={','.join(config['target_assets'])}")
     print(f"sunset_assets={','.join(config['sunset_assets'])}")
     print(f"held_armed={len(held_events['armed'])}")
