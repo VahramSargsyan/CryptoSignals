@@ -81,3 +81,36 @@ See:
 - manual execution delay/spread/slippage may differ from the model;
 - future convergence of two books into the same TARGET token is allowed unless a
   separately approved multibook diversification rule is introduced.
+
+
+## Verification
+
+Verification run:
+
+`36484445720`
+
+Source commit:
+
+`5733f6f33affbfef2c65ce93e42760e2dcc5ecfc`
+
+Artifact:
+
+`10998840292`
+
+Artifact SHA256:
+
+`6b06fce36c8e9c2278900707f69b261e6276b4cb379f9537f04b252f62dc404e`
+
+Result:
+- Python compile: PASS
+- unit regressions: PASS
+- Telegram sender policy tests: PASS
+- Binance historical/rest tests: PASS
+- live Binance D1 dry run: PASS
+- BOOK_1 = ATOM / no latest-candle confirmed event
+- BOOK_2 = 100 LINK / primary confirmed LINK -> HBAR
+- BOOK_2 secondary ARM/prewatch = LINK -> FIL
+- runtime independent watch assets = SOL only
+- LINK is not duplicated as an independent watch
+
+`TEST_LEVEL: UNIT_REGRESSION + GITHUB_ACTIONS_LIVE_PUBLIC_DATA_DRY_RUN`
