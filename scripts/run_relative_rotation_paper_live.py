@@ -394,96 +394,193 @@ def _observation_candidates(
     )
 
 
+def _book_position_ru(book: dict) -> str:
+    quantity = book.get("quantity")
+    asset = str(book.get("held_asset") or "")
+    if quantity is None:
+        return asset
+    value = float(quantity)
+    quantity_text = str(int(value)) if value.is_integer() else f"{value:g}"
+    return f"{quantity_text} {asset}"
+
+
 def build_notification_ru(payload: dict) -> str:
-    held = payload["held_asset"]
     latest = payload["latest_closed_candle"]
-    selected = payload["held_events"]
     watch_events = payload.get("watch_events", {})
     defensive = payload["defensive"]
     latest_defensive_events = payload["latest_defensive_events"]
-    observations = _observation_candidates(
-        payload,
-        held,
-        threshold=0.10,
-        allowed_to_assets=payload.get("target_assets"),
-    )
 
-    primary = selected.get("primary_confirmed")
-    held_armed = selected.get("armed", [])
+    raw_book_events = payload.get("book_events")
+    legacy_mode = not bool(raw_book_events)
+    if raw_book_events:
+        book_events = raw_book_events
+    else:
+        held = payload["held_asset"]
+        book_events = {
+            "BOOK_1": {
+                "book": {
+                    "book_id": "BOOK_1",
+                    "label": "LEGACY_PRIMARY",
+                    "held_asset": held,
+                    "quantity": None,
+                },
+                "events": payload["held_events"],
+            }
+        }
+
+    per_book_observations = {
+        book_id: _observation_candidates(
+            payload,
+            details["book"]["held_asset"],
+            threshold=0.10,
+            allowed_to_assets=payload.get("target_assets"),
+        )
+        for book_id, details in book_events.items()
+    }
+
+    book_has_signal = any(
+        details["events"].get("primary_confirmed")
+        or details["events"].get("armed")
+        or per_book_observations.get(book_id)
+        for book_id, details in book_events.items()
+    )
     watch_has_signal = any(
         watched.get("primary_confirmed") or watched.get("armed")
         for watched in watch_events.values()
     )
-    detailed = bool(primary or held_armed or observations or watch_has_signal or latest_defensive_events)
+    detailed = bool(book_has_signal or watch_has_signal or latest_defensive_events)
 
     if not detailed:
-        return (
-            "Relative Rotation: сигналов нет.\n"
-            f"Закрытая свеча: {latest}\n"
-            f"Текущий актив: {held}\n"
-            "Наблюдение 10%+: нет."
-        )
+        if legacy_mode:
+            held = payload["held_asset"]
+            return (
+                "Relative Rotation: сигналов нет.\n"
+                f"Закрытая свеча: {latest}\n"
+                f"Текущий актив: {held}\n"
+                "Наблюдение 10%+: нет."
+            )
+
+        lines = [
+            "Relative Rotation: сигналов нет.",
+            f"Закрытая свеча: {latest}",
+            "Реальные ветки:",
+        ]
+        for book_id, details in book_events.items():
+            book = details["book"]
+            lines.append(f"- {book_id}: {_book_position_ru(book)}")
+        lines.append("Наблюдение 10%+: нет.")
+        return "\n".join(lines)
 
     lines = [
         "Relative Rotation — бумажный монитор v1",
         f"Закрытая свеча: {latest}",
-        f"Текущий актив: {held}",
     ]
-
-    if primary:
-        lines.extend(
-            [
-                "🚨 РОТАЦИЯ ПОДТВЕРЖДЕНА",
-                _event_line_ru(primary),
-                "Сигнал модели — требуется ручное подтверждение.",
-            ]
+    if not legacy_mode:
+        books_summary = "; ".join(
+            f"{book_id}={_book_position_ru(details['book'])}"
+            for book_id, details in book_events.items()
         )
-        extra = [event for event in selected.get("confirmed", []) if event is not primary]
-        if extra:
-            lines.append("Другие подтверждённые кандидаты на выход:")
-            lines.extend(f"- {_event_line_ru(event)}" for event in extra)
-    elif held_armed:
-        lines.append("⚠️ ARM 15% — ЖДЁМ ПОДТВЕРЖДЕНИЯ")
-        lines.extend(f"- {_event_line_ru(event)}" for event in held_armed)
-        lines.append("Порог 15% достигнут; ротации пока нет. Ждём разворот 3%.")
-    elif observations:
-        strongest = observations[0]
-        if strongest["mode"] == "NONE":
-            lines.extend(
-                [
-                    "👀 НАБЛЮДЕНИЕ 10%+",
-                    (
-                        f"Расхождение между {held} и {strongest['to_asset']} составляет "
-                        f"{strongest['dislocation'] * 100:.2f}%."
-                    ),
-                    (
-                        f"Возможное направление при дальнейшем подтверждении: "
-                        f"{held} -> {strongest['to_asset']}."
-                    ),
-                    "Порог наблюдения 10% достигнут. Торгового сигнала пока нет; ARM включается с 15%.",
-                ]
-            )
-        else:
-            lines.extend(
-                [
-                    "⚠️ ARM 15% АКТИВЕН",
-                    (
-                        f"Пара {held}/{strongest['to_asset']}: текущее расхождение "
-                        f"{strongest['dislocation'] * 100:.2f}%, максимум после ARM "
-                        f"{strongest['max_dislocation'] * 100:.2f}%."
-                    ),
-                    f"Ожидаем направление {held} -> {strongest['to_asset']} после подтверждения.",
-                    "Ждём разворот от экстремума минимум 3%.",
-                ]
-            )
+        lines.append(f"Реальные ветки: {books_summary}")
+    else:
+        lines.append(f"Текущий актив: {payload['held_asset']}")
 
-        if len(observations) > 1:
-            lines.append("Другие наблюдаемые пары:")
-            for event in observations[1:4]:
-                suffix = " (ARM активен)" if event["mode"] != "NONE" else ""
-                lines.append(
-                    f"- {held}/{event['to_asset']}: {event['dislocation'] * 100:.2f}%{suffix}"
+    for book_id, details in book_events.items():
+        book = details["book"]
+        selected = details["events"]
+        observations = per_book_observations.get(book_id, [])
+        primary = selected.get("primary_confirmed")
+        armed = selected.get("armed", [])
+
+        if not legacy_mode:
+            lines.append("")
+            lines.append(f"{book_id} — текущая позиция: {_book_position_ru(book)}")
+
+        if primary:
+            heading = (
+                "🚨 РОТАЦИЯ ПОДТВЕРЖДЕНА"
+                if legacy_mode
+                else f"🚨 {book_id} — РОТАЦИЯ ПОДТВЕРЖДЕНА"
+            )
+            lines.extend(
+                [
+                    heading,
+                    _event_line_ru(primary),
+                    (
+                        "Сигнал модели — требуется ручное подтверждение."
+                        if legacy_mode
+                        else f"Сигнал относится к {book_id}; требуется ручное подтверждение исполнения."
+                    ),
+                ]
+            )
+            extra = [event for event in selected.get("confirmed", []) if event is not primary]
+            if extra:
+                lines.append("Другие подтверждённые кандидаты на выход:")
+                lines.extend(f"- {_event_line_ru(event)}" for event in extra)
+            if armed:
+                lines.append("Другие ARM / PREWATCH по этой ветке (ещё НЕ подтверждены):")
+                lines.extend(f"- {_event_line_ru(event)}" for event in armed)
+            continue
+
+        if armed:
+            heading = (
+                "⚠️ ARM 15% — ЖДЁМ ПОДТВЕРЖДЕНИЯ"
+                if legacy_mode
+                else f"⚠️ {book_id} — ARM 15% / PREWATCH"
+            )
+            lines.append(heading)
+            lines.extend(f"- {_event_line_ru(event)}" for event in armed)
+            lines.append("Порог 15% достигнут; ротации пока нет. Ждём разворот от экстремума минимум 3%.")
+            continue
+
+        if observations:
+            strongest = observations[0]
+            if strongest["mode"] == "NONE":
+                lines.extend(
+                    [
+                        (
+                            "👀 НАБЛЮДЕНИЕ 10%+"
+                            if legacy_mode
+                            else f"👀 {book_id} — НАБЛЮДЕНИЕ 10%+"
+                        ),
+                        (
+                            f"Расхождение между {book['held_asset']} и {strongest['to_asset']} составляет "
+                            f"{strongest['dislocation'] * 100:.2f}%."
+                        ),
+                        (
+                            f"Возможное направление при дальнейшем подтверждении: "
+                            f"{book['held_asset']} -> {strongest['to_asset']}."
+                        ),
+                        "Порог наблюдения 10% достигнут. Торгового сигнала пока нет; ARM включается с 15%.",
+                    ]
                 )
+            else:
+                lines.extend(
+                    [
+                        (
+                            "⚠️ ARM 15% АКТИВЕН"
+                            if legacy_mode
+                            else f"⚠️ {book_id} — ARM 15% АКТИВЕН"
+                        ),
+                        (
+                            f"Пара {book['held_asset']}/{strongest['to_asset']}: текущее расхождение "
+                            f"{strongest['dislocation'] * 100:.2f}%, максимум после ARM "
+                            f"{strongest['max_dislocation'] * 100:.2f}%."
+                        ),
+                        f"Ожидаем направление {book['held_asset']} -> {strongest['to_asset']} после подтверждения.",
+                        "Ждём разворот от экстремума минимум 3%.",
+                    ]
+                )
+
+            if len(observations) > 1:
+                lines.append("Другие наблюдаемые пары:")
+                for event in observations[1:4]:
+                    suffix = " (ARM активен)" if event["mode"] != "NONE" else ""
+                    lines.append(
+                        f"- {book['held_asset']}/{event['to_asset']}: "
+                        f"{event['dislocation'] * 100:.2f}%{suffix}"
+                    )
+        elif not legacy_mode:
+            lines.append("Новых ARMED/CONFIRMED событий по этой ветке нет.")
 
     for asset, watched in watch_events.items():
         primary_watch = watched.get("primary_confirmed")
@@ -492,10 +589,15 @@ def build_notification_ru(payload: dict) -> str:
                 [
                     f"🚨 WATCH {asset} — ВЫХОД ПОДТВЕРЖДЁН ДЛЯ {asset}",
                     _event_line_ru(primary_watch),
-                    f"Это НЕ сигнал для текущего актива {held}; это независимый sunset-watch.",
-                    "Только ручная проверка — наблюдение не размещает ордера.",
                 ]
             )
+            if legacy_mode:
+                lines.append(
+                    f"Это НЕ сигнал для текущего актива {payload['held_asset']}; это независимый sunset-watch."
+                )
+            else:
+                lines.append("Это независимый sunset-watch, не сигнал ни для одной активной BOOK-ветки.")
+            lines.append("Только ручная проверка — наблюдение не размещает ордера.")
             extra_watch = [event for event in watched.get("confirmed", []) if event is not primary_watch]
             if extra_watch:
                 lines.append(f"Другие подтверждённые кандидаты на выход для {asset}:")
@@ -507,9 +609,15 @@ def build_notification_ru(payload: dict) -> str:
         elif watched.get("armed"):
             lines.append(f"⚠️ WATCH {asset} — ARM / PREWATCH, ЭТО НЕ СИГНАЛ НА ОБМЕН")
             lines.extend(f"- {_event_line_ru(event)}" for event in watched["armed"])
-            lines.append(
-                f"Текущий актив {held} не меняется. Для {asset} ждём разворот от экстремума минимум 3%."
-            )
+            if legacy_mode:
+                lines.append(
+                    f"Текущий актив {payload['held_asset']} не меняется. "
+                    f"Для {asset} ждём разворот от экстремума минимум 3%."
+                )
+            else:
+                lines.append(
+                    f"Активные BOOK-ветки не меняются. Для {asset} ждём разворот от экстремума минимум 3%."
+                )
 
     for event in latest_defensive_events:
         if event["event"] == "DEFENSIVE_ENTER":
