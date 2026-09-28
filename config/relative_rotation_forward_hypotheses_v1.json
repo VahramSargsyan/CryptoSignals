@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "status": "BLOCKED_UNIVERSE_NOT_FROZEN",
+  "enabled": false,
+  "target_universe_required": "TARGET_U10",
+  "forward_validation_start": null,
+  "frozen_universe_version": null,
+  "hypotheses": [
+    {
+      "id": "HYP-RR-001",
+      "name": "SINGLE_MONTH_SURGE95_P1_FRACTAL",
+      "status": "NEEDS_FORWARD_EVIDENCE",
+      "telegram_enabled_after_activation": true,
+      "trade_rule": false
+    },
+    {
+      "id": "HYP-RR-002",
+      "name": "MULTIMONTH_STREAK95_PULLBACK",
+      "status": "NEEDS_FORWARD_EVIDENCE_DIAGNOSTIC_ONLY",
+      "telegram_enabled_after_activation": true,
+      "trade_rule": false
+    },
+    {
+      "id": "HYP-RR-003",
+      "name": "DEFENSIVE_LOW_VOL_BREADTH",
+      "status": "NEEDS_REVALIDATION_AFTER_TARGET_U10_FREEZE",
+      "telegram_enabled_after_activation": false,
+      "trade_rule": false
+    }
+  ],
+  "rejected": [
+    "HYP-RR-R01",
+    "HYP-RR-R02",
+    "HYP-RR-R03",
+    "HYP-RR-R04",
+    "HYP-RR-R05"
+  ]
+}
