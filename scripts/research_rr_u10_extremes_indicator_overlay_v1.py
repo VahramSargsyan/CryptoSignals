@@ -189,3 +189,5 @@ def main():
 
 if __name__=="__main__":
     main()
+
+# workflow trigger: canonical extreme-month overlay v1
