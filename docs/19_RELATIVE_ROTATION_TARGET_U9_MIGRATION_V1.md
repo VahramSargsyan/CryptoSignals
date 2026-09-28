@@ -89,3 +89,29 @@ Rollback is operationally simple because execution is manual:
 - revert target/sunset config and routing guard in Git if the monitoring logic proves defective.
 
 No exchange API keys or automatic order placement are introduced.
+
+## Forward-hypothesis activation gate
+
+The current TARGET U9 is transitional and is expected to become TARGET U10 after a tenth candidate is selected.
+
+Research hypotheses that depend on portfolio-level U10 reference behavior must not start forward validation during this changing-membership phase.
+
+Canonical registry:
+
+`research/relative_rotation/FORWARD_HYPOTHESIS_REGISTRY_V1.md`
+
+Activation config:
+
+`config/relative_rotation_forward_hypotheses_v1.json`
+
+Current status:
+
+`BLOCKED_UNIVERSE_NOT_FROZEN`
+
+After the tenth candidate is selected:
+
+1. freeze and version the final TARGET U10 membership;
+2. record a forward-validation start date;
+3. activate eligible hypothesis tracking without backfilling old candles as forward evidence;
+4. allow Telegram research reminders only for causal future matches;
+5. keep research reminders separate from accepted strategy signals.
