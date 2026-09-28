@@ -1,0 +1,2 @@
+triggered_at_utc=2026-09-28T09:40:00Z
+purpose=build_relative_rotation_historical_dataset_cache_v1
