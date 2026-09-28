@@ -311,6 +311,102 @@ Required robustness before accepting any rule:
 - more than one market cycle where data permit;
 - sensitivity to daily-close threshold clustering.
 
+## Monthly surge -> pullback overlay stress
+
+Research:
+
+- prereg: `research/relative_rotation/2026-09-27_U10_MONTHLY_SURGE_PULLBACK_V1_PREREG.md`
+- runner: `scripts/research_u10_monthly_surge_pullback_v1.py`
+- workflow: `.github/workflows/u10-monthly-surge-pullback-v1.yml`
+- evidence: [U10 Monthly Surge -> Pullback Overlay v1](2026-09-27_U10_MONTHLY_SURGE_PULLBACK_V1.md)
+- GitHub Actions run: `36343997067`
+- result: PASS
+- test level: `GITHUB_ACTIONS_LIVE_PUBLIC_DATA_STRESS_TEST`
+
+Hypothesis:
+
+after an unusually large monthly U10 equity surge, a substantial pullback may occur within roughly the next one to two months often enough to justify testing a partial profit-lock and lower re-entry overlay.
+
+Canonical direct event study:
+
+- +100% selected-month surge events: 3;
+- -25% running-pullback hit within 31 days: 3/3;
+- -25% hit within 62 days: 3/3;
+- median worst 31d pullback: -38.03%;
+- median worst 62d pullback: -40.66%.
+
+Primary P1:
+
+- arm after +100% monthly surge;
+- wait for 5% pullback from running post-arm peak;
+- sell 30%;
+- re-enter at -25% from locked peak.
+
+Canonical result:
+
+- baseline final: 219,485.20 USDT;
+- P1 final: 270,653.52 USDT;
+- delta: +23.31%;
+- max DD: -66.36% vs baseline -71.04%;
+- 3 cash-outs / 3 re-entries;
+- 66 daily closes with cash parked.
+
+Primary P2:
+
+- same but sell after 10% pullback;
+- final: 265,751.95 USDT;
+- delta: +21.08%;
+- max DD: -66.36%;
+- 63 daily closes with cash parked.
+
+Exhaustive topology robustness:
+
+- candidate pool: 15 assets;
+- mandatory ATOM/TWT/PEPE;
+- choose 7 of remaining 12;
+- total U10 universes: 792;
+- non-canonical alternatives: 791.
+
+Across 2,227 +100%-surge events in the 791 alternatives:
+
+- -25% running pullback within 31 days: 88.86%;
+- within 62 days: 88.95%;
+- median worst 31d DD: -38.03%;
+- median worst 62d DD: -40.66%.
+
+P1 across 791 alternatives:
+
+- terminal equity improved: 761/791 = 96.21%;
+- max DD improved: 715/791 = 90.39%;
+- both improved: 685/791 = 86.60%;
+- median terminal delta: +23.44%;
+- q25/q75 terminal delta: +18.97% / +25.81%;
+- median max-DD improvement: +4.68 pp.
+
+P2 across 791 alternatives:
+
+- terminal equity improved: 761/791 = 96.21%;
+- max DD improved: 713/791 = 90.14%;
+- both improved: 683/791 = 86.35%;
+- median terminal delta: +20.10%;
+- median max-DD improvement: +3.41 pp.
+
+Important counterexample / regime dependence:
+
+- July 2025 produced 120 alternative-U10 +100% surge events;
+- none reached a -25% running pullback within 31 or 62 days.
+
+Therefore:
+
+- the effect is strong enough for continued research;
+- it is not deterministic;
+- 792 topologies share the same market dates and are not 792 independent OOS histories;
+- no overlay is promoted to live or paper-live.
+
+Next validation priority:
+
+**temporal holdout / rolling-start validation of frozen P1 and P2**, not further parameter hunting.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
