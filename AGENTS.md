@@ -184,4 +184,26 @@ Frozen shadow result:
 
 Do not rerun this exact shadow/defensive experiment on the same history unless there is materially new data, a semantic correction, changed costs/universe/portfolio rules, or a separately preregistered confirmation/forward protocol.
 
-`MAX_2_OF_3_BOOKS_PER_ASSET` remains a separate `IDEA_NOT_TESTED`, not an automatic replacement for the viable shadow architecture.
+`MAX_2_OF_3_BOOKS_PER_ASSET` has now been tested separately as `V4_MAX2_SHADOW_FALLBACK`; read the MAX2 decision log below before proposing or rerunning it.
+
+
+## Relative Rotation MAX2 multibook memory — 2026-09-28
+
+Before proposing or rerunning a two-books-per-asset architecture for `RR_TARGET_U10_CANDIDATE_HBAR_V1`, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_MULTIBOOK_MAX2_SHADOW_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_MULTIBOOK_MAX2_SHADOW_FALLBACK_V1_EVIDENCE.md`
+
+Frozen result for `V4_MAX2_SHADOW_FALLBACK`:
+- MATURE median return +2223.8%;
+- MATURE median max DD -57.1%;
+- median daily largest-asset share 80.5%;
+- median peak concentration 95.1%;
+- full 3-in-1 physical convergence 0%;
+- 2+1 structure 98.7% of MATURE days;
+- TRX represented about 96.6% of aggregate MATURE defensive parking book-days.
+
+Interpretation: MAX2 is a viable research compromise that preserves much more upside than MAX1 shadow while blocking literal 3-in-1 occupancy, but it does not create strong value diversification. Do not rerun unchanged on the same data.
