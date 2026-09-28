@@ -206,6 +206,42 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertIn("ARM включается с 15%", text)
         self.assertNotIn("ATOM и SOL", text)
 
+    def test_russian_telegram_keeps_existing_arm_visible_below_ten_percent(self):
+        payload = {
+            "held_asset": "ATOM",
+            "latest_closed_candle": "2026-09-28T00:00:00+00:00",
+            "held_events": {
+                "primary_confirmed": None,
+                "confirmed": [],
+                "armed": [],
+            },
+            "watch_events": {},
+            "defensive": {
+                "active": False,
+                "defensive_asset": None,
+                "breadth": 7,
+            },
+            "latest_defensive_events": [],
+            "latest_pair_states": [
+                {
+                    "pair": "ATOM/TWT",
+                    "mode": "LOW",
+                    "deviation": -0.09,
+                    "max_dislocation": 0.17,
+                    "reversal_from_extreme": 0.02,
+                }
+            ],
+            "force_notify": False,
+        }
+
+        text = build_notification_ru(payload)
+
+        self.assertIn("ARM 15% АКТИВЕН", text)
+        self.assertIn("текущее расхождение 9.00%", text)
+        self.assertIn("максимум после ARM 17.00%", text)
+        self.assertIn("Ждём разворот от экстремума минимум 3%.", text)
+        self.assertNotIn("сигналов нет", text)
+
     def test_russian_telegram_notification_for_confirmed_rotation(self):
         event = {
             "from_asset": "ATOM",
