@@ -138,7 +138,7 @@ It was tested separately as:
 
 Canonical decision:
 
-`docs/evidence/2026-09-28_RELATIVE_ROTATION_MULTIBOOK_MAX2_SHADOW_DECISION_LOG_V1.md`
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_MULTIBOOK_MAX2_DECISION_LOG_V1.md`
 
 MATURE historical result:
 - median return: +2223.8%
