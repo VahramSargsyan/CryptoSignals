@@ -83,6 +83,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     report = json.loads(args.report_json.read_text(encoding="utf-8"))
     text = args.notification_text.read_text(encoding="utf-8").strip()
+    telegram_text = str(report.get("telegram_text_ru") or text).strip()
 
     if not report.get("should_notify", False):
         print("notification=SKIPPED_POLICY")
@@ -105,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
     if telegram_configured:
         configured += 1
         try:
-            _send_telegram(text)
+            _send_telegram(telegram_text)
         except Exception as exc:
             failures.append(f"telegram: {exc}")
             print(f"telegram=FAILED {exc}")
