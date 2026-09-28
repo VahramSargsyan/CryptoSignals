@@ -20,6 +20,8 @@ from strategies.crypto.relative_rotation.paper_live import (
     DEFENSIVE_VOL_LOOKBACK,
     LOOKBACK,
     REVERSAL,
+    TARGET_ASSETS,
+    SUNSET_ASSETS,
     build_pair_monitor,
     choose_held_events,
     evaluate_defensive_mode,
@@ -60,6 +62,18 @@ def _read_config(path: Path) -> dict:
     held_asset = str(payload.get("held_asset", "")).upper()
     if held_asset not in ASSETS:
         raise ValueError(f"held_asset must be one of {ASSETS}; got {held_asset!r}")
+
+    target_assets = tuple(str(value).upper() for value in payload.get("target_assets", TARGET_ASSETS))
+    sunset_assets = tuple(str(value).upper() for value in payload.get("sunset_assets", SUNSET_ASSETS))
+    unknown = sorted((set(target_assets) | set(sunset_assets)).difference(ASSETS))
+    if unknown:
+        raise ValueError(f"target/sunset assets outside monitor universe: {unknown}")
+    overlap = sorted(set(target_assets).intersection(sunset_assets))
+    if overlap:
+        raise ValueError(f"target_assets and sunset_assets must be disjoint; overlap={overlap}")
+    if not target_assets:
+        raise ValueError("target_assets cannot be empty")
+
     monitor_start = _utc(payload.get("monitor_start", "2026-09-27T00:00:00Z"))
     watch_assets = []
     for value in payload.get("watch_assets", []):
@@ -71,7 +85,11 @@ def _read_config(path: Path) -> dict:
     return {
         **payload,
         "held_asset": held_asset,
+        "target_assets": target_assets,
+        "sunset_assets": sunset_assets,
         "watch_assets": watch_assets,
+        "migration_mode": bool(payload.get("migration_mode", False)),
+        "defensive_overlay_enabled": bool(payload.get("defensive_overlay_enabled", True)),
         "monitor_start": monitor_start,
     }
 
@@ -164,6 +182,8 @@ def build_notification(payload: dict) -> str:
         "Relative Rotation Paper Live v1",
         f"Closed candle: {latest}",
         f"Held asset: {held}",
+        f"Target universe: {', '.join(payload.get('target_assets', []))}",
+        f"Sunset/exit-only: {', '.join(payload.get('sunset_assets', []))}",
     ]
 
     primary = selected.get("primary_confirmed")
@@ -227,12 +247,18 @@ def build_notification(payload: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _observation_candidates(payload: dict, asset: str, threshold: float = 0.10) -> list[dict]:
+def _observation_candidates(
+    payload: dict,
+    asset: str,
+    threshold: float = 0.10,
+    allowed_to_assets: tuple[str, ...] | list[str] | None = None,
+) -> list[dict]:
     """Return current outbound pair dislocations for an asset at/above alert threshold.
 
     This is notification-only. It does not change the frozen 15% ARM threshold.
     """
     candidates: list[dict] = []
+    allowed_to = None if allowed_to_assets is None else {str(value).upper() for value in allowed_to_assets}
     for row in payload.get("latest_pair_states", []):
         pair = str(row.get("pair") or "")
         deviation = row.get("deviation")
@@ -258,6 +284,8 @@ def _observation_candidates(payload: dict, asset: str, threshold: float = 0.10) 
             from_asset, to_asset = left, right
 
         if from_asset != asset:
+            continue
+        if allowed_to is not None and to_asset not in allowed_to:
             continue
 
         max_dislocation = row.get("max_dislocation")
@@ -295,7 +323,12 @@ def build_notification_ru(payload: dict) -> str:
     watch_events = payload.get("watch_events", {})
     defensive = payload["defensive"]
     latest_defensive_events = payload["latest_defensive_events"]
-    observations = _observation_candidates(payload, held, threshold=0.10)
+    observations = _observation_candidates(
+        payload,
+        held,
+        threshold=0.10,
+        allowed_to_assets=payload.get("target_assets"),
+    )
 
     primary = selected.get("primary_confirmed")
     held_armed = selected.get("armed", [])
@@ -428,14 +461,18 @@ def build_report_markdown(payload: dict) -> str:
         f"Source commit: `{payload['source_commit_sha']}`",
         f"Latest closed candle: **{payload['latest_closed_candle']}**",
         f"Current configured held asset: **{payload['held_asset']}**",
+        f"Target universe: **{', '.join(payload.get('target_assets', []))}**",
+        f"Sunset / exit-only assets: **{', '.join(payload.get('sunset_assets', []))}**",
         f"Persistent watch assets: **{', '.join(payload.get('watch_assets', [])) or '-'}**",
         f"Monitor start: **{payload['monitor_start']}**",
         f"Status: **{payload['status']}**",
         "",
         "## Frozen relative-rotation engine",
         "",
-        f"- Assets: {', '.join(ASSETS)}",
-        f"- Pair graph: {len(ASSETS)} assets / {len(ASSETS) * (len(ASSETS) - 1) // 2} undirected pairs",
+        f"- Monitor union: {', '.join(ASSETS)}",
+        f"- Monitor pair graph: {len(ASSETS)} assets / {len(ASSETS) * (len(ASSETS) - 1) // 2} undirected pairs",
+        f"- Active TARGET graph: {len(payload.get('target_assets', []))} assets / {len(payload.get('target_assets', [])) * (len(payload.get('target_assets', [])) - 1) // 2} undirected pairs",
+        "- Migration guard: every actionable destination must belong to TARGET; sunset re-entry is blocked",
         f"- Rolling median: {LOOKBACK} closed daily candles",
         f"- ARM threshold: {ARM_THRESHOLD:.0%}",
         f"- Reversal confirmation: {REVERSAL:.0%}",
@@ -505,7 +542,7 @@ def build_report_markdown(payload: dict) -> str:
             f"- Status: **{defensive['status']}**",
             f"- Current mode: **{'ON' if defensive['active'] else 'OFF'}**",
             f"- Defensive asset: **{defensive.get('defensive_asset') or '-'}**",
-            f"- Current breadth above SMA{DEFENSIVE_SMA_LOOKBACK}: **{defensive.get('breadth')}/{len(ASSETS)}**",
+            f"- Current breadth above SMA{DEFENSIVE_SMA_LOOKBACK}: **{defensive.get('breadth')}/{len(payload.get('target_assets', []))}**",
             f"- Enter: breadth <= {DEFENSIVE_ENTER_BREADTH} for {DEFENSIVE_CONFIRM_DAYS} closed days",
             f"- Exit: breadth >= {DEFENSIVE_EXIT_BREADTH} for {DEFENSIVE_CONFIRM_DAYS} closed days",
             f"- Defensive token: lowest {DEFENSIVE_VOL_LOOKBACK}-day realized close-to-close volatility at entry",
@@ -513,8 +550,9 @@ def build_report_markdown(payload: dict) -> str:
             "",
             "## Notification policy",
             "",
-            "Telegram is requested for a new latest-candle ARMED/CONFIRMED event from the configured held asset, "
-            "a new ARMED/CONFIRMED outbound event from any persistent watch asset (ATOM is configured), "
+            "Telegram is requested for a new latest-candle ARMED/CONFIRMED event from the configured held asset "
+            "only when the destination belongs to TARGET, "
+            "a new TARGET-bound ARMED/CONFIRMED outbound event from any persistent sunset watch asset, "
             "a latest-candle defensive ENTER/EXIT event, or an explicit force-notify run.",
             "",
             "## Safety boundary",
@@ -548,22 +586,50 @@ def main(argv: list[str] | None = None) -> int:
     panel, data_metadata = download_panel(start=history_start, cutoff=cutoff)
     latest = pd.Timestamp(panel.iloc[-1]["timestamp"])
     events, pair_states = build_pair_monitor(panel)
-    held_events = choose_held_events(events, held_asset=config["held_asset"], latest_date=latest)
+    held_events = choose_held_events(
+        events,
+        held_asset=config["held_asset"],
+        latest_date=latest,
+        allowed_to_assets=config["target_assets"],
+    )
     independent_watch_assets = [asset for asset in config["watch_assets"] if asset != config["held_asset"]]
     watch_events = {
-        asset: choose_held_events(events, held_asset=asset, latest_date=latest)
+        asset: choose_held_events(
+            events,
+            held_asset=asset,
+            latest_date=latest,
+            allowed_to_assets=config["target_assets"],
+        )
         for asset in independent_watch_assets
     }
-    defensive_events, defensive, defensive_diagnostics = evaluate_defensive_mode(panel)
+    if config["defensive_overlay_enabled"]:
+        defensive_events, defensive, defensive_diagnostics = evaluate_defensive_mode(
+            panel,
+            assets=config["target_assets"],
+        )
+    else:
+        defensive_events = []
+        defensive = {
+            "status": "DISABLED_DURING_MIGRATION",
+            "active": False,
+            "defensive_asset": None,
+            "breadth": None,
+            "low_streak": 0,
+            "high_streak": 0,
+        }
+        defensive_diagnostics = pd.DataFrame()
 
     latest_iso = latest.isoformat()
     latest_defensive_events = [event for event in defensive_events if event["date"] == latest_iso]
-    held_pair_states = [
-        row
-        for row in pair_states
-        if row.get("from_asset") == config["held_asset"]
-        or config["held_asset"] in row["pair"].split("/")
-    ]
+    held_pair_states = []
+    target_set = set(config["target_assets"])
+    for row in pair_states:
+        parts = row["pair"].split("/")
+        if config["held_asset"] not in parts:
+            continue
+        other = parts[1] if parts[0] == config["held_asset"] else parts[0]
+        if other in target_set:
+            held_pair_states.append(row)
 
     after_monitor_start = latest >= config["monitor_start"]
     held_signal = bool(held_events["armed"] or held_events["confirmed"])
@@ -581,11 +647,14 @@ def main(argv: list[str] | None = None) -> int:
 
     payload = {
         "schema_version": 1,
-        "strategy": config.get("strategy", "RELATIVE_ROTATION_GRAPH_10_V1"),
-        "status": "PAPER_LIVE_MONITOR / MANUAL_EXECUTION_ONLY",
+        "strategy": config.get("strategy", "RELATIVE_ROTATION_TARGET_U9_TRANSITION_V1"),
+        "status": "TRANSITION_PAPER_LIVE / MANUAL_EXECUTION_ONLY",
         "generated_at": generated_at.isoformat(),
         "source_commit_sha": _source_commit(),
         "held_asset": config["held_asset"],
+        "migration_mode": config["migration_mode"],
+        "target_assets": list(config["target_assets"]),
+        "sunset_assets": list(config["sunset_assets"]),
         "watch_assets": config["watch_assets"],
         "monitor_start": config["monitor_start"].isoformat(),
         "latest_closed_candle": latest_iso,
@@ -611,6 +680,12 @@ def main(argv: list[str] | None = None) -> int:
             "reversal": REVERSAL,
             "assets": list(ASSETS),
             "pair_count": len(ASSETS) * (len(ASSETS) - 1) // 2,
+            "monitor_assets": list(ASSETS),
+            "monitor_pair_count": len(ASSETS) * (len(ASSETS) - 1) // 2,
+            "target_assets": list(config["target_assets"]),
+            "target_pair_count": len(config["target_assets"]) * (len(config["target_assets"]) - 1) // 2,
+            "sunset_assets": list(config["sunset_assets"]),
+            "destination_guard": "TARGET_ONLY",
         },
         "held_events": held_events,
         "watch_events": watch_events,
@@ -633,6 +708,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"run_dir={run_dir}")
     print(f"latest_closed_candle={latest_iso}")
     print(f"held_asset={config['held_asset']}")
+    print(f"target_assets={','.join(config['target_assets'])}")
+    print(f"sunset_assets={','.join(config['sunset_assets'])}")
     print(f"held_armed={len(held_events['armed'])}")
     print(f"held_confirmed={len(held_events['confirmed'])}")
     for asset, watched in watch_events.items():
