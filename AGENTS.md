@@ -379,3 +379,42 @@ Frozen labels:
 - neither is production-approved or an automatic trade rule.
 
 Do not rerun unchanged on the same history. A combined TOTAL-regime + BTC/ETH-regime study is a distinct future hypothesis and requires preregistration.
+
+
+## Relative Rotation U10 combined TOTAL + BTC/ETH memory — 2026-09-28
+
+Before proposing a combined market-cap + BTC/ETH timing rule, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_U10_COMBINED_TOTAL_BTCETH_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_COMBINED_TOTAL_BTCETH_REGIME_V1_EVIDENCE.md`
+
+Frozen classification:
+
+`PARTIAL_COMBINATION_BENEFIT / BULLISH_LONG_HORIZON_ONLY`
+
+Key findings:
+- TOTAL bullish + BTC/ETH persistently below SMA25:
+  - 60d U10 median +23.0%, positive 80.0%
+  - 90d +18.1%, positive 73.3%
+- TOTAL bullish + BTC/ETH persistently below SMA50:
+  - 30d +13.8%
+  - 60d +13.7%
+  - 90d +13.9%
+- TOTAL bearish + BTC/ETH persistently above SMA200:
+  - 14d -8.3%
+  - but 90d +38.6%
+  - therefore it is a short-term risk alert, not a long-term exit signal.
+- Standalone BTC/ETH above SMA200 remains cleaner for 60/90d U10 risk monitoring.
+
+Current cutoff state 2026-09-26:
+- TOTAL BULL_BUILDING
+- BTC/ETH below SMA25 and SMA50 persistently
+- COMBO_BULL_25 = TRUE
+- COMBO_BULL_50 = TRUE
+- COMBO_RISK_200 = FALSE
+- descriptive label: `BULLISH_ROTATION_COMBO_ACTIVE`
+
+Do not rerun unchanged. No production rule is authorized.
