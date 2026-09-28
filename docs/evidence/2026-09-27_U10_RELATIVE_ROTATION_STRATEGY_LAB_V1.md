@@ -625,6 +625,66 @@ Research disposition:
 - do not sweep intermediate thresholds;
 - no live/paper promotion without future temporal evidence.
 
+## SURGE95 15-day recovery fallback stress
+
+Research:
+
+- prereg: `research/relative_rotation/2026-09-28_U10_SURGE95_RECOVERY15_V1_PREREG.md`
+- runner: `scripts/research_u10_surge95_recovery15_v1.py`
+- evidence: [U10 SURGE95 15-Day Recovery-Stop Fallback v1](2026-09-28_U10_SURGE95_RECOVERY15_V1.md)
+- primary run: `36381191106` — PASS
+- canonical verification: `36381317013` — PASS
+
+CONTROL:
+- SURGE95 >=95%;
+- P1 5% cash-out;
+- 30% cash;
+- 5-bar fractal buy-stop re-entry.
+
+CANDIDATE:
+- same CONTROL;
+- after 15 calendar days in cash, recovery level = 98% of U10 reference open equity at cash-out;
+- if reference close is already >=98%, re-enter next open;
+- otherwise wait for a close crossing upward through 98%.
+
+Canonical:
+- CONTROL final: 262,340.46;
+- candidate final: 253,070.51;
+- candidate -3.53% vs CONTROL;
+- CONTROL max DD: -68.36%;
+- candidate max DD: -69.48%;
+- cash days: 154 -> 105;
+- fallback used once; 3 cycles still re-entered via fractal.
+
+Across 791 alternative U10s:
+- candidate > CONTROL: 13.27%;
+- equal: 30.97%;
+- candidate < CONTROL: 55.75%;
+- fallback used in at least one cycle: 69.03%;
+- candidate > ordinary U10 baseline: 100%;
+- both final and DD better than ordinary baseline: 91.66%;
+- unfinished cash cycles: 0%;
+- median candidate delta vs CONTROL: -3.53%;
+- median cash-day change: -49 days.
+
+Critical behavior:
+- 2,764 completed candidate cycles;
+- FRACTAL re-entry: 2,210;
+- recovery fallback: 554;
+- every one of the 554 fallback cycles was RECOVERY_IMMEDIATE;
+- RECOVERY_CROSS count: 0;
+- all fallback cash cycles lasted exactly 16 days.
+
+Thus 15d/98% did not operate as a conditional recovery stop.
+At first eligibility, reference equity was already above the 98% level in every fallback-eligible historical cycle.
+
+The rule therefore collapsed into a forced roughly-16-day re-entry and usually interrupted a better later fractal entry.
+
+Decision:
+- reject 15d/98% fallback;
+- retain SURGE95 + P1 + 5-bar fractal with no timeout as the stronger research baseline;
+- no live/paper change.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
