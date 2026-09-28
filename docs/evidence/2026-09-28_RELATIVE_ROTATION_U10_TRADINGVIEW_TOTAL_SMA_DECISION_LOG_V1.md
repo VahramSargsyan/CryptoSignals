@@ -209,3 +209,33 @@ This is descriptive research only, not yet a production timing rule.
 Do not rerun the same corrected TOTAL/SMA study on identical history without materially new data or a changed hypothesis.
 
 No paper/live, Telegram, exchange, universe, or allocation behavior changed.
+
+
+## Persistent daily TOTAL cache
+
+The exact daily `CRYPTOCAP:TOTAL` dataset from successful run `36436522995`
+is persisted in the repository:
+
+- `data/market/cryptocap_total_d1.csv`
+- `data/market/cryptocap_total_d1.meta.json`
+
+Frozen cache identity:
+- rows: 1,398
+- start: 2022-11-29
+- end: 2026-09-26
+- dataset SHA256:
+  `d0c9b3bac915e484069c6302ddce1a0b050abbb8de155e4106e39cf6e519d3ee`
+
+Bootstrap import validation:
+- run `36439066214`: PASS
+
+Cache-first validation without `tvdatafeed` installed:
+- run `36439261228`: PASS
+
+Policy:
+
+`CACHE_FIRST`
+
+Do not re-download historical TOTAL data for analysis fully covered by the
+cached range. Refresh externally only for new dates beyond 2026-09-26, a
+documented semantic correction, or failed cache/hash validation.
