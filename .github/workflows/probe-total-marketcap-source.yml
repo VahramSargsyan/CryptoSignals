@@ -1,0 +1,51 @@
+name: Probe Public Total Market Cap Source
+
+on:
+  push:
+    branches:
+      - research/total-marketcap-regime-sma200-v1
+    paths:
+      - ".github/workflows/probe-total-marketcap-source.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Probe Newhedge and CoinGecko public pages
+        run: |
+          python - <<'PY'
+          import re, requests, json
+          urls = [
+              "https://newhedge.io/bitcoin/total-crypto-marketcap",
+              "https://www.coingecko.com/en/charts",
+          ]
+          headers={"User-Agent":"Mozilla/5.0"}
+          for url in urls:
+              print("\n=== URL", url)
+              r=requests.get(url,headers=headers,timeout=30)
+              print("status",r.status_code,"len",len(r.text),"ctype",r.headers.get("content-type"))
+              text=r.text
+              pats=["total-crypto-marketcap","marketcap","market_cap","Download CSV","download","csv","__NEXT_DATA__","api/v2","series"]
+              for pat in pats:
+                  print("\n--",pat)
+                  hits=[]
+                  for m in re.finditer(re.escape(pat), text, flags=re.I):
+                      a=max(0,m.start()-300); b=min(len(text),m.end()+500)
+                      s=re.sub(r"\s+"," ",text[a:b])
+                      hits.append(s)
+                      if len(hits)>=5: break
+                  for h in hits: print(h[:1200])
+              print("\nALL URL-like fragments:")
+              vals=set(re.findall(r'https?://[^"\'<> ]+',text))
+              for v in sorted(vals):
+                  if any(k in v.lower() for k in ["market","csv","json","api","chart"]):
+                      print(v[:1000])
+          PY
