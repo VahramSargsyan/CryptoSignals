@@ -46,7 +46,7 @@ jobs:
                       if len(hits)>=5: break
                   for h in hits: print(h[:1200])
               print("\nALL URL-like fragments:")
-              vals=set(re.findall(r'https?://[^"\\'<> ]+',text))
+              vals=set(re.findall(r"https?://[^\\\"'<> ]+",text))
               for v in sorted(vals):
                   if any(k in v.lower() for k in ["market","csv","json","api","chart"]):
                       print(v[:1000])
