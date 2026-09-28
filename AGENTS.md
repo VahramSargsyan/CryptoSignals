@@ -139,3 +139,24 @@ Frozen research candidate:
 Do not repeat the completed 15-token exhaustive U9/U10 search merely to rediscover the same result. A rerun requires materially new unseen data, a documented engine/semantic correction, materially changed cost assumptions, a materially changed token pool/mechanism, or an explicitly separate confirmatory/forward-validation protocol. Any future run must state what is materially new.
 
 The candidate is not production-approved. Current production/paper-live U9 remains unchanged until a separate promotion gate is satisfied.
+
+
+## Relative Rotation multibook diversification research memory — 2026-09-28
+
+Before proposing or rerunning a three-book diversification architecture for `RR_TARGET_U10_CANDIDATE_HBAR_V1`, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_MULTIBOOK_DIVERSIFICATION_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_MULTIBOOK_DIVERSIFICATION_V1_EVIDENCE.md`
+
+Already tested:
+- V2_FREE: three independent books with collisions allowed;
+- V3_COLLISION_GUARD: three independent books forced to end in three distinct assets.
+
+Frozen findings:
+- V2 is rejected as a diversification mechanism because independent paths rapidly converge into the same asset;
+- V3 is rejected in its current strict form because concentration falls but historical return collapses and long-window drawdown does not consistently improve.
+
+Do not rerun the same V2/V3 experiment without a materially new reason. A future distinct hypothesis may test `MAX_2_OF_3_BOOKS_PER_ASSET`, but that hypothesis is currently `IDEA_NOT_TESTED` and requires its own preregistration.
