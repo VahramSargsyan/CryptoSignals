@@ -235,3 +235,23 @@ Important nuance:
 - prior bull-neutral evidence only showed the strategy was not dependent on a narrow set of extreme bull days; it did not prove bear-market profitability.
 
 Do not rerun unchanged on the same history. The next materially distinct research question is a preregistered defensive-overlay test, potentially using the existing research candidate `DEFENSIVE_LOW_VOL_CRYPTO_SMA200_BREADTH_3_5_CONFIRM3_VOL30`. That candidate remains not production-approved.
+
+
+## Relative Rotation U10 pure BTC SMA200 regime memory — 2026-09-28
+
+Before claiming the frozen U10 is all-weather or before rerunning a pure BTC SMA200 split, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_U10_PURE_BTC_SMA200_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_PURE_BTC_SMA200_REGIME_V1_EVIDENCE.md`
+
+Frozen result:
+- BTC above SMA200: U10 +4454.9% conditioned MATURE return; 100% positive starts;
+- BTC below SMA200: U10 -28.3%; 0% positive starts;
+- BTC itself on below-SMA200 days: -55.9%.
+
+This independently confirms the H8 50/200 classification that the base U10 is bull-dependent in absolute-return terms. Below SMA200 the strategy shows relative resilience, not positive bear-market profitability.
+
+Do not rerun unchanged on the same history.
