@@ -22,7 +22,7 @@ jobs:
       - name: Probe Newhedge and CoinGecko public pages
         run: |
           python - <<'PY'
-          import re, requests, json
+          import re, json, urllib.request
           urls = [
               "https://newhedge.io/bitcoin/total-crypto-marketcap",
               "https://www.coingecko.com/en/charts",
