@@ -1,5 +1,7 @@
 # Relative Rotation Multibook Diversification Decision Log V1
 
+> **Scope correction — 2026-09-28:** The V3 rejection in this file applies only to the exact `V3_COLLISION_GUARD / STRICT_STAY` implementation tested here. It must not be generalized to a dual-state shadow/defensive architecture. A later materially different test, `V3_SHADOW_DEFENSIVE_FALLBACK`, keeps the U10 core route alive in `shadow_core_asset` while physical capital parks in low-volatility crypto. That later architecture is classified `VIABLE_RESEARCH_ARCHITECTURE / NOT_PRODUCTION_APPROVED`. Read `docs/evidence/2026-09-28_RELATIVE_ROTATION_MULTIBOOK_SHADOW_DEFENSIVE_DECISION_LOG_V1.md` before making any multibook conclusion.
+
 Date: 2026-09-28  
 Status: ACTIVE RESEARCH MEMORY  
 Production change: NONE
