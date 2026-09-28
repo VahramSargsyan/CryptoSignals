@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 import pandas as pd
 
-from scripts.run_relative_rotation_paper_live import build_notification_ru
+from scripts.run_relative_rotation_paper_live import _read_config, build_notification_ru
 from strategies.crypto.relative_rotation.paper_live import (
     ASSETS,
     TARGET_ASSETS,
@@ -433,6 +436,146 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertIn("Другие LINK ARM / PREWATCH (ещё НЕ подтверждены)", text)
         self.assertIn("LINK -> FIL", text)
         self.assertIn("Это НЕ сигнал для текущего актива ATOM", text)
+
+
+    def test_multibook_config_parses_atom_and_100_link(self):
+        payload = {
+            "schema_version": 4,
+            "held_asset": "ATOM",
+            "monitor_start": "2026-09-27T00:00:00Z",
+            "target_assets": list(TARGET_ASSETS),
+            "sunset_assets": list(SUNSET_ASSETS),
+            "watch_assets": list(SUNSET_ASSETS),
+            "position_books": [
+                {
+                    "book_id": "BOOK_1",
+                    "held_asset": "ATOM",
+                    "tracking_start": "2026-09-29T00:00:00Z",
+                },
+                {
+                    "book_id": "BOOK_2",
+                    "held_asset": "LINK",
+                    "quantity": 100,
+                    "initial_quantity": 100,
+                    "tracking_start": "2026-09-29T00:00:00Z",
+                },
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            config = _read_config(path)
+
+        self.assertEqual(config["position_books"][0]["book_id"], "BOOK_1")
+        self.assertEqual(config["position_books"][0]["held_asset"], "ATOM")
+        self.assertEqual(config["position_books"][1]["book_id"], "BOOK_2")
+        self.assertEqual(config["position_books"][1]["held_asset"], "LINK")
+        self.assertEqual(config["position_books"][1]["quantity"], 100.0)
+        self.assertEqual(config["position_books"][1]["initial_quantity"], 100.0)
+
+    def test_multibook_notification_treats_link_as_book2_not_watch(self):
+        link_confirmed = {
+            "from_asset": "LINK",
+            "to_asset": "HBAR",
+            "pair": "HBAR/LINK",
+            "max_dislocation": 0.3840,
+            "reversal_from_extreme": 0.0330,
+        }
+        link_armed = {
+            "from_asset": "LINK",
+            "to_asset": "FIL",
+            "pair": "FIL/LINK",
+            "max_dislocation": 0.1968,
+            "reversal_from_extreme": 0.0,
+        }
+        payload = {
+            "held_asset": "ATOM",
+            "latest_closed_candle": "2026-09-27T00:00:00+00:00",
+            "target_assets": list(TARGET_ASSETS),
+            "sunset_assets": list(SUNSET_ASSETS),
+            "position_books": [
+                {
+                    "book_id": "BOOK_1",
+                    "held_asset": "ATOM",
+                    "quantity": None,
+                },
+                {
+                    "book_id": "BOOK_2",
+                    "held_asset": "LINK",
+                    "quantity": 100.0,
+                },
+            ],
+            "book_events": {
+                "BOOK_1": {
+                    "book": {
+                        "book_id": "BOOK_1",
+                        "held_asset": "ATOM",
+                        "quantity": None,
+                    },
+                    "events": {
+                        "primary_confirmed": None,
+                        "confirmed": [],
+                        "armed": [],
+                    },
+                },
+                "BOOK_2": {
+                    "book": {
+                        "book_id": "BOOK_2",
+                        "held_asset": "LINK",
+                        "quantity": 100.0,
+                    },
+                    "events": {
+                        "primary_confirmed": link_confirmed,
+                        "confirmed": [link_confirmed],
+                        "armed": [link_armed],
+                    },
+                },
+            },
+            "held_events": {
+                "primary_confirmed": None,
+                "confirmed": [],
+                "armed": [],
+            },
+            "watch_events": {},
+            "defensive": {
+                "active": False,
+                "defensive_asset": None,
+                "breadth": None,
+            },
+            "latest_defensive_events": [],
+            "latest_pair_states": [],
+            "defensive_overlay_enabled": False,
+            "force_notify": False,
+        }
+
+        text = build_notification_ru(payload)
+
+        self.assertIn("Реальные ветки: BOOK_1=ATOM; BOOK_2=100 LINK", text)
+        self.assertIn("BOOK_2 — текущая позиция: 100 LINK", text)
+        self.assertIn("BOOK_2 — РОТАЦИЯ ПОДТВЕРЖДЕНА", text)
+        self.assertIn("LINK -> HBAR", text)
+        self.assertIn("Другие ARM / PREWATCH по этой ветке", text)
+        self.assertIn("LINK -> FIL", text)
+        self.assertNotIn("WATCH LINK", text)
+
+    def test_multibook_legacy_alias_must_match_book1(self):
+        payload = {
+            "held_asset": "ATOM",
+            "monitor_start": "2026-09-27T00:00:00Z",
+            "target_assets": list(TARGET_ASSETS),
+            "sunset_assets": list(SUNSET_ASSETS),
+            "position_books": [
+                {
+                    "book_id": "BOOK_1",
+                    "held_asset": "LINK",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                _read_config(path)
 
 
     def test_defensive_state_machine_enters_and_exits_after_three_closes(self):

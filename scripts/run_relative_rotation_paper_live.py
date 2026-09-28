@@ -82,9 +82,70 @@ def _read_config(path: Path) -> dict:
             raise ValueError(f"watch_asset must be one of {ASSETS}; got {asset!r}")
         if asset not in watch_assets:
             watch_assets.append(asset)
+
+    raw_books = payload.get("position_books")
+    position_books = []
+    if raw_books:
+        seen_book_ids = set()
+        for index, raw in enumerate(raw_books, start=1):
+            book_id = str(raw.get("book_id") or f"BOOK_{index}").strip().upper()
+            if not book_id:
+                raise ValueError("position book_id cannot be empty")
+            if book_id in seen_book_ids:
+                raise ValueError(f"duplicate position book_id: {book_id}")
+            seen_book_ids.add(book_id)
+
+            asset = str(raw.get("held_asset", "")).upper()
+            if asset not in ASSETS:
+                raise ValueError(f"{book_id} held_asset must be one of {ASSETS}; got {asset!r}")
+
+            quantity = raw.get("quantity")
+            if quantity is not None:
+                quantity = float(quantity)
+                if quantity <= 0:
+                    raise ValueError(f"{book_id} quantity must be positive")
+
+            initial_quantity = raw.get("initial_quantity")
+            if initial_quantity is not None:
+                initial_quantity = float(initial_quantity)
+                if initial_quantity <= 0:
+                    raise ValueError(f"{book_id} initial_quantity must be positive")
+
+            tracking_start = _utc(raw.get("tracking_start", monitor_start))
+            position_books.append(
+                {
+                    **raw,
+                    "book_id": book_id,
+                    "label": str(raw.get("label") or book_id),
+                    "held_asset": asset,
+                    "quantity": quantity,
+                    "initial_quantity": initial_quantity,
+                    "tracking_start": tracking_start,
+                }
+            )
+    else:
+        position_books = [
+            {
+                "book_id": "BOOK_1",
+                "label": "LEGACY_PRIMARY",
+                "held_asset": held_asset,
+                "quantity": None,
+                "initial_quantity": None,
+                "tracking_start": monitor_start,
+                "quantity_source": "LEGACY_HELD_ASSET_ALIAS",
+            }
+        ]
+
+    if position_books[0]["held_asset"] != held_asset:
+        raise ValueError(
+            "legacy held_asset must match the first position book held_asset "
+            f"({held_asset} != {position_books[0]['held_asset']})"
+        )
+
     return {
         **payload,
         "held_asset": held_asset,
+        "position_books": position_books,
         "target_assets": target_assets,
         "sunset_assets": sunset_assets,
         "watch_assets": watch_assets,
@@ -94,6 +155,13 @@ def _read_config(path: Path) -> dict:
         "forward_validation_start": _utc(payload["forward_validation_start"]) if payload.get("forward_validation_start") else None,
         "universe_version": str(payload.get("universe_version", "")),
         "monitor_start": monitor_start,
+    }
+
+
+def _book_payload(book: dict) -> dict:
+    return {
+        **book,
+        "tracking_start": book["tracking_start"].isoformat(),
     }
 
 
@@ -174,40 +242,63 @@ def _event_line_ru(event: dict) -> str:
 
 
 def build_notification(payload: dict) -> str:
-    held = payload["held_asset"]
     latest = payload["latest_closed_candle"]
-    selected = payload["held_events"]
     watch_events = payload.get("watch_events", {})
     defensive = payload["defensive"]
     latest_defensive_events = payload["latest_defensive_events"]
 
+    raw_book_events = payload.get("book_events")
+    if raw_book_events:
+        book_events = raw_book_events
+    else:
+        book_events = {
+            "BOOK_1": {
+                "book": {
+                    "book_id": "BOOK_1",
+                    "held_asset": payload["held_asset"],
+                    "quantity": None,
+                },
+                "events": payload["held_events"],
+            }
+        }
+
     lines = [
         "Relative Rotation Paper Live v1",
         f"Closed candle: {latest}",
-        f"Held asset: {held}",
         f"Target universe: {', '.join(payload.get('target_assets', []))}",
         f"Sunset/exit-only: {', '.join(payload.get('sunset_assets', []))}",
     ]
 
-    primary = selected.get("primary_confirmed")
-    if primary:
-        lines.extend(
-            [
-                "ROTATION CONFIRMED",
-                _event_line(primary),
-                "Historical model action only — manual approval required.",
-            ]
-        )
-        extra = [event for event in selected.get("confirmed", []) if event is not primary]
-        if extra:
-            lines.append("Other confirmed outbound candidates:")
-            lines.extend(f"- {_event_line(event)}" for event in extra)
-    elif selected.get("armed"):
-        lines.append("ARMED / PREWATCH")
-        lines.extend(f"- {_event_line(event)}" for event in selected["armed"])
-        lines.append("15% threshold reached; no rotation until 3% reversal confirms.")
-    elif payload.get("force_notify"):
-        lines.append("Initialization snapshot — no confirmed rotation from held asset on this candle.")
+    for book_id, details in book_events.items():
+        book = details["book"]
+        quantity = book.get("quantity")
+        position = book["held_asset"] if quantity is None else f"{float(quantity):g} {book['held_asset']}"
+        selected = details["events"]
+        lines.append(f"{book_id} held: {position}")
+
+        primary = selected.get("primary_confirmed")
+        if primary:
+            lines.extend(
+                [
+                    f"{book_id} ROTATION CONFIRMED",
+                    _event_line(primary),
+                    "Historical model action only — manual approval required.",
+                ]
+            )
+            extra = [event for event in selected.get("confirmed", []) if event is not primary]
+            if extra:
+                lines.append(f"Other {book_id} confirmed outbound candidates:")
+                lines.extend(f"- {_event_line(event)}" for event in extra)
+            armed = selected.get("armed", [])
+            if armed:
+                lines.append(f"Other {book_id} ARMED / PREWATCH candidates (not confirmed):")
+                lines.extend(f"- {_event_line(event)}" for event in armed)
+        elif selected.get("armed"):
+            lines.append(f"{book_id} ARMED / PREWATCH")
+            lines.extend(f"- {_event_line(event)}" for event in selected["armed"])
+            lines.append("15% threshold reached; no rotation until 3% reversal confirms.")
+        elif payload.get("force_notify"):
+            lines.append(f"{book_id}: no confirmed rotation on this candle.")
 
     for asset, watched in watch_events.items():
         primary_watch = watched.get("primary_confirmed")
@@ -216,7 +307,7 @@ def build_notification(payload: dict) -> str:
                 [
                     f"{asset} WATCH — EXIT CONFIRMED",
                     _event_line(primary_watch),
-                    "Manual review only — this watch does not place an order.",
+                    "Independent sunset watch only — not a live-book position signal.",
                 ]
             )
             extra_watch = [event for event in watched.get("confirmed", []) if event is not primary_watch]
@@ -326,96 +417,193 @@ def _observation_candidates(
     )
 
 
+def _book_position_ru(book: dict) -> str:
+    quantity = book.get("quantity")
+    asset = str(book.get("held_asset") or "")
+    if quantity is None:
+        return asset
+    value = float(quantity)
+    quantity_text = str(int(value)) if value.is_integer() else f"{value:g}"
+    return f"{quantity_text} {asset}"
+
+
 def build_notification_ru(payload: dict) -> str:
-    held = payload["held_asset"]
     latest = payload["latest_closed_candle"]
-    selected = payload["held_events"]
     watch_events = payload.get("watch_events", {})
     defensive = payload["defensive"]
     latest_defensive_events = payload["latest_defensive_events"]
-    observations = _observation_candidates(
-        payload,
-        held,
-        threshold=0.10,
-        allowed_to_assets=payload.get("target_assets"),
-    )
 
-    primary = selected.get("primary_confirmed")
-    held_armed = selected.get("armed", [])
+    raw_book_events = payload.get("book_events")
+    legacy_mode = not bool(raw_book_events)
+    if raw_book_events:
+        book_events = raw_book_events
+    else:
+        held = payload["held_asset"]
+        book_events = {
+            "BOOK_1": {
+                "book": {
+                    "book_id": "BOOK_1",
+                    "label": "LEGACY_PRIMARY",
+                    "held_asset": held,
+                    "quantity": None,
+                },
+                "events": payload["held_events"],
+            }
+        }
+
+    per_book_observations = {
+        book_id: _observation_candidates(
+            payload,
+            details["book"]["held_asset"],
+            threshold=0.10,
+            allowed_to_assets=payload.get("target_assets"),
+        )
+        for book_id, details in book_events.items()
+    }
+
+    book_has_signal = any(
+        details["events"].get("primary_confirmed")
+        or details["events"].get("armed")
+        or per_book_observations.get(book_id)
+        for book_id, details in book_events.items()
+    )
     watch_has_signal = any(
         watched.get("primary_confirmed") or watched.get("armed")
         for watched in watch_events.values()
     )
-    detailed = bool(primary or held_armed or observations or watch_has_signal or latest_defensive_events)
+    detailed = bool(book_has_signal or watch_has_signal or latest_defensive_events)
 
     if not detailed:
-        return (
-            "Relative Rotation: сигналов нет.\n"
-            f"Закрытая свеча: {latest}\n"
-            f"Текущий актив: {held}\n"
-            "Наблюдение 10%+: нет."
-        )
+        if legacy_mode:
+            held = payload["held_asset"]
+            return (
+                "Relative Rotation: сигналов нет.\n"
+                f"Закрытая свеча: {latest}\n"
+                f"Текущий актив: {held}\n"
+                "Наблюдение 10%+: нет."
+            )
+
+        lines = [
+            "Relative Rotation: сигналов нет.",
+            f"Закрытая свеча: {latest}",
+            "Реальные ветки:",
+        ]
+        for book_id, details in book_events.items():
+            book = details["book"]
+            lines.append(f"- {book_id}: {_book_position_ru(book)}")
+        lines.append("Наблюдение 10%+: нет.")
+        return "\n".join(lines)
 
     lines = [
         "Relative Rotation — бумажный монитор v1",
         f"Закрытая свеча: {latest}",
-        f"Текущий актив: {held}",
     ]
-
-    if primary:
-        lines.extend(
-            [
-                "🚨 РОТАЦИЯ ПОДТВЕРЖДЕНА",
-                _event_line_ru(primary),
-                "Сигнал модели — требуется ручное подтверждение.",
-            ]
+    if not legacy_mode:
+        books_summary = "; ".join(
+            f"{book_id}={_book_position_ru(details['book'])}"
+            for book_id, details in book_events.items()
         )
-        extra = [event for event in selected.get("confirmed", []) if event is not primary]
-        if extra:
-            lines.append("Другие подтверждённые кандидаты на выход:")
-            lines.extend(f"- {_event_line_ru(event)}" for event in extra)
-    elif held_armed:
-        lines.append("⚠️ ARM 15% — ЖДЁМ ПОДТВЕРЖДЕНИЯ")
-        lines.extend(f"- {_event_line_ru(event)}" for event in held_armed)
-        lines.append("Порог 15% достигнут; ротации пока нет. Ждём разворот 3%.")
-    elif observations:
-        strongest = observations[0]
-        if strongest["mode"] == "NONE":
-            lines.extend(
-                [
-                    "👀 НАБЛЮДЕНИЕ 10%+",
-                    (
-                        f"Расхождение между {held} и {strongest['to_asset']} составляет "
-                        f"{strongest['dislocation'] * 100:.2f}%."
-                    ),
-                    (
-                        f"Возможное направление при дальнейшем подтверждении: "
-                        f"{held} -> {strongest['to_asset']}."
-                    ),
-                    "Порог наблюдения 10% достигнут. Торгового сигнала пока нет; ARM включается с 15%.",
-                ]
-            )
-        else:
-            lines.extend(
-                [
-                    "⚠️ ARM 15% АКТИВЕН",
-                    (
-                        f"Пара {held}/{strongest['to_asset']}: текущее расхождение "
-                        f"{strongest['dislocation'] * 100:.2f}%, максимум после ARM "
-                        f"{strongest['max_dislocation'] * 100:.2f}%."
-                    ),
-                    f"Ожидаем направление {held} -> {strongest['to_asset']} после подтверждения.",
-                    "Ждём разворот от экстремума минимум 3%.",
-                ]
-            )
+        lines.append(f"Реальные ветки: {books_summary}")
+    else:
+        lines.append(f"Текущий актив: {payload['held_asset']}")
 
-        if len(observations) > 1:
-            lines.append("Другие наблюдаемые пары:")
-            for event in observations[1:4]:
-                suffix = " (ARM активен)" if event["mode"] != "NONE" else ""
-                lines.append(
-                    f"- {held}/{event['to_asset']}: {event['dislocation'] * 100:.2f}%{suffix}"
+    for book_id, details in book_events.items():
+        book = details["book"]
+        selected = details["events"]
+        observations = per_book_observations.get(book_id, [])
+        primary = selected.get("primary_confirmed")
+        armed = selected.get("armed", [])
+
+        if not legacy_mode:
+            lines.append("")
+            lines.append(f"{book_id} — текущая позиция: {_book_position_ru(book)}")
+
+        if primary:
+            heading = (
+                "🚨 РОТАЦИЯ ПОДТВЕРЖДЕНА"
+                if legacy_mode
+                else f"🚨 {book_id} — РОТАЦИЯ ПОДТВЕРЖДЕНА"
+            )
+            lines.extend(
+                [
+                    heading,
+                    _event_line_ru(primary),
+                    (
+                        "Сигнал модели — требуется ручное подтверждение."
+                        if legacy_mode
+                        else f"Сигнал относится к {book_id}; требуется ручное подтверждение исполнения."
+                    ),
+                ]
+            )
+            extra = [event for event in selected.get("confirmed", []) if event is not primary]
+            if extra:
+                lines.append("Другие подтверждённые кандидаты на выход:")
+                lines.extend(f"- {_event_line_ru(event)}" for event in extra)
+            if armed:
+                lines.append("Другие ARM / PREWATCH по этой ветке (ещё НЕ подтверждены):")
+                lines.extend(f"- {_event_line_ru(event)}" for event in armed)
+            continue
+
+        if armed:
+            heading = (
+                "⚠️ ARM 15% — ЖДЁМ ПОДТВЕРЖДЕНИЯ"
+                if legacy_mode
+                else f"⚠️ {book_id} — ARM 15% / PREWATCH"
+            )
+            lines.append(heading)
+            lines.extend(f"- {_event_line_ru(event)}" for event in armed)
+            lines.append("Порог 15% достигнут; ротации пока нет. Ждём разворот от экстремума минимум 3%.")
+            continue
+
+        if observations:
+            strongest = observations[0]
+            if strongest["mode"] == "NONE":
+                lines.extend(
+                    [
+                        (
+                            "👀 НАБЛЮДЕНИЕ 10%+"
+                            if legacy_mode
+                            else f"👀 {book_id} — НАБЛЮДЕНИЕ 10%+"
+                        ),
+                        (
+                            f"Расхождение между {book['held_asset']} и {strongest['to_asset']} составляет "
+                            f"{strongest['dislocation'] * 100:.2f}%."
+                        ),
+                        (
+                            f"Возможное направление при дальнейшем подтверждении: "
+                            f"{book['held_asset']} -> {strongest['to_asset']}."
+                        ),
+                        "Порог наблюдения 10% достигнут. Торгового сигнала пока нет; ARM включается с 15%.",
+                    ]
                 )
+            else:
+                lines.extend(
+                    [
+                        (
+                            "⚠️ ARM 15% АКТИВЕН"
+                            if legacy_mode
+                            else f"⚠️ {book_id} — ARM 15% АКТИВЕН"
+                        ),
+                        (
+                            f"Пара {book['held_asset']}/{strongest['to_asset']}: текущее расхождение "
+                            f"{strongest['dislocation'] * 100:.2f}%, максимум после ARM "
+                            f"{strongest['max_dislocation'] * 100:.2f}%."
+                        ),
+                        f"Ожидаем направление {book['held_asset']} -> {strongest['to_asset']} после подтверждения.",
+                        "Ждём разворот от экстремума минимум 3%.",
+                    ]
+                )
+
+            if len(observations) > 1:
+                lines.append("Другие наблюдаемые пары:")
+                for event in observations[1:4]:
+                    suffix = " (ARM активен)" if event["mode"] != "NONE" else ""
+                    lines.append(
+                        f"- {book['held_asset']}/{event['to_asset']}: "
+                        f"{event['dislocation'] * 100:.2f}%{suffix}"
+                    )
+        elif not legacy_mode:
+            lines.append("Новых ARMED/CONFIRMED событий по этой ветке нет.")
 
     for asset, watched in watch_events.items():
         primary_watch = watched.get("primary_confirmed")
@@ -424,10 +612,15 @@ def build_notification_ru(payload: dict) -> str:
                 [
                     f"🚨 WATCH {asset} — ВЫХОД ПОДТВЕРЖДЁН ДЛЯ {asset}",
                     _event_line_ru(primary_watch),
-                    f"Это НЕ сигнал для текущего актива {held}; это независимый sunset-watch.",
-                    "Только ручная проверка — наблюдение не размещает ордера.",
                 ]
             )
+            if legacy_mode:
+                lines.append(
+                    f"Это НЕ сигнал для текущего актива {payload['held_asset']}; это независимый sunset-watch."
+                )
+            else:
+                lines.append("Это независимый sunset-watch, не сигнал ни для одной активной BOOK-ветки.")
+            lines.append("Только ручная проверка — наблюдение не размещает ордера.")
             extra_watch = [event for event in watched.get("confirmed", []) if event is not primary_watch]
             if extra_watch:
                 lines.append(f"Другие подтверждённые кандидаты на выход для {asset}:")
@@ -439,9 +632,15 @@ def build_notification_ru(payload: dict) -> str:
         elif watched.get("armed"):
             lines.append(f"⚠️ WATCH {asset} — ARM / PREWATCH, ЭТО НЕ СИГНАЛ НА ОБМЕН")
             lines.extend(f"- {_event_line_ru(event)}" for event in watched["armed"])
-            lines.append(
-                f"Текущий актив {held} не меняется. Для {asset} ждём разворот от экстремума минимум 3%."
-            )
+            if legacy_mode:
+                lines.append(
+                    f"Текущий актив {payload['held_asset']} не меняется. "
+                    f"Для {asset} ждём разворот от экстремума минимум 3%."
+                )
+            else:
+                lines.append(
+                    f"Активные BOOK-ветки не меняются. Для {asset} ждём разворот от экстремума минимум 3%."
+                )
 
     for event in latest_defensive_events:
         if event["event"] == "DEFENSIVE_ENTER":
@@ -489,6 +688,44 @@ def build_report_markdown(payload: dict) -> str:
         f"Universe version: **{payload.get('universe_version') or '-'}**",
         f"Forward validation start: **{payload.get('forward_validation_start') or '-'}**",
         "",
+        "## Live position books",
+        "",
+    ]
+
+    for book in payload.get("position_books", []):
+        quantity = book.get("quantity")
+        quantity_text = "-" if quantity is None else f"{float(quantity):g}"
+        lines.append(
+            f"- **{book['book_id']}**: held **{book['held_asset']}**; quantity **{quantity_text}**; "
+            f"tracking start **{book.get('tracking_start') or '-'}**"
+        )
+
+    lines.extend(
+        [
+        "",
+        "## Latest per-book events",
+        "",
+        ]
+    )
+    for book_id, details in payload.get("book_events", {}).items():
+        book = details["book"]
+        events = details["events"]
+        lines.append(f"### {book_id} — {book['held_asset']}")
+        lines.append("")
+        if events["confirmed"]:
+            lines.append("CONFIRMED:")
+            for event in events["confirmed"]:
+                lines.append(f"- {_event_line(event)}")
+        if events["armed"]:
+            lines.append("ARMED / PREWATCH:")
+            for event in events["armed"]:
+                lines.append(f"- {_event_line(event)}")
+        if not events["confirmed"] and not events["armed"]:
+            lines.append("- No new latest-candle ARMED/CONFIRMED event.")
+        lines.append("")
+
+    lines.extend(
+        [
         "## Frozen relative-rotation engine",
         "",
         f"- Monitor union: {', '.join(ASSETS)}",
@@ -501,9 +738,10 @@ def build_report_markdown(payload: dict) -> str:
         "- Router conflict rule: strongest confirmed max dislocation",
         "- Execution: MANUAL ONLY; monitor never places an order",
         "",
-        "## Latest held-asset events",
+        "## Legacy BOOK_1 compatibility view",
         "",
     ]
+    )
 
     if held_events["confirmed"]:
         lines.append("### CONFIRMED")
@@ -572,7 +810,7 @@ def build_report_markdown(payload: dict) -> str:
             "",
             "## Notification policy",
             "",
-            "Telegram is requested for a new latest-candle ARMED/CONFIRMED event from the configured held asset "
+            "Telegram is requested for a new latest-candle ARMED/CONFIRMED event from any configured live book "
             "only when the destination belongs to TARGET, "
             "a new TARGET-bound ARMED/CONFIRMED outbound event from any persistent sunset watch asset, "
             "a latest-candle defensive ENTER/EXIT event, or an explicit force-notify run.",
@@ -580,7 +818,7 @@ def build_report_markdown(payload: dict) -> str:
             "## Safety boundary",
             "",
             "No broker/exchange API keys are used. No order placement code exists in this monitor. "
-            "A real swap must be manually approved and executed by Vahram, then the configured held asset must be updated.",
+            "A real swap must be manually approved and executed by Vahram, then that book's held asset and quantity must be updated.",
             "",
         ]
     )
@@ -608,13 +846,26 @@ def main(argv: list[str] | None = None) -> int:
     panel, data_metadata = download_panel(start=history_start, cutoff=cutoff)
     latest = pd.Timestamp(panel.iloc[-1]["timestamp"])
     events, pair_states = build_pair_monitor(panel)
-    held_events = choose_held_events(
-        events,
-        held_asset=config["held_asset"],
-        latest_date=latest,
-        allowed_to_assets=config["target_assets"],
-    )
-    independent_watch_assets = [asset for asset in config["watch_assets"] if asset != config["held_asset"]]
+
+    book_events = {}
+    for book in config["position_books"]:
+        book_events[book["book_id"]] = {
+            "book": _book_payload(book),
+            "events": choose_held_events(
+                events,
+                held_asset=book["held_asset"],
+                latest_date=latest,
+                allowed_to_assets=config["target_assets"],
+            ),
+        }
+
+    primary_book_id = config["position_books"][0]["book_id"]
+    held_events = book_events[primary_book_id]["events"]
+
+    held_assets = {book["held_asset"] for book in config["position_books"]}
+    independent_watch_assets = [
+        asset for asset in config["watch_assets"] if asset not in held_assets
+    ]
     watch_events = {
         asset: choose_held_events(
             events,
@@ -643,23 +894,31 @@ def main(argv: list[str] | None = None) -> int:
 
     latest_iso = latest.isoformat()
     latest_defensive_events = [event for event in defensive_events if event["date"] == latest_iso]
-    held_pair_states = []
     target_set = set(config["target_assets"])
-    for row in pair_states:
-        parts = row["pair"].split("/")
-        if config["held_asset"] not in parts:
-            continue
-        other = parts[1] if parts[0] == config["held_asset"] else parts[0]
-        if other in target_set:
-            held_pair_states.append(row)
+    book_pair_states = {}
+    for book in config["position_books"]:
+        rows = []
+        for row in pair_states:
+            parts = row["pair"].split("/")
+            if book["held_asset"] not in parts:
+                continue
+            other = parts[1] if parts[0] == book["held_asset"] else parts[0]
+            if other in target_set:
+                rows.append(row)
+        book_pair_states[book["book_id"]] = rows
+
+    held_pair_states = book_pair_states[primary_book_id]
 
     after_monitor_start = latest >= config["monitor_start"]
-    held_signal = bool(held_events["armed"] or held_events["confirmed"])
+    book_signal = any(
+        details["events"]["armed"] or details["events"]["confirmed"]
+        for details in book_events.values()
+    )
     watch_signal = any(
         watched["armed"] or watched["confirmed"]
         for watched in watch_events.values()
     )
-    new_signal = bool(held_signal or watch_signal or latest_defensive_events)
+    new_signal = bool(book_signal or watch_signal or latest_defensive_events)
     should_notify = bool(args.force_notify or (after_monitor_start and new_signal))
 
     generated_at = pd.Timestamp.now(tz="UTC")
@@ -670,7 +929,7 @@ def main(argv: list[str] | None = None) -> int:
     payload = {
         "schema_version": 1,
         "strategy": config.get("strategy", "RELATIVE_ROTATION_TARGET_U10_FORWARD_V1"),
-        "status": "FROZEN_U10_FORWARD_PAPER_LIVE / MANUAL_EXECUTION_ONLY",
+        "status": "FROZEN_U10_FORWARD_MULTIBOOK_PAPER_LIVE / MANUAL_EXECUTION_ONLY",
         "universe_version": config.get("universe_version", ""),
         "forward_validation_enabled": config.get("forward_validation_enabled", False),
         "forward_validation_start": (
@@ -681,6 +940,9 @@ def main(argv: list[str] | None = None) -> int:
         "generated_at": generated_at.isoformat(),
         "source_commit_sha": _source_commit(),
         "held_asset": config["held_asset"],
+        "position_books": [_book_payload(book) for book in config["position_books"]],
+        "book_events": book_events,
+        "book_pair_states": book_pair_states,
         "migration_mode": config["migration_mode"],
         "defensive_overlay_enabled": config["defensive_overlay_enabled"],
         "target_assets": list(config["target_assets"]),
@@ -694,6 +956,14 @@ def main(argv: list[str] | None = None) -> int:
             "after_monitor_start": after_monitor_start,
             "held_armed": len(held_events["armed"]),
             "held_confirmed": len(held_events["confirmed"]),
+            "book_events": {
+                book_id: {
+                    "held_asset": details["book"]["held_asset"],
+                    "armed": len(details["events"]["armed"]),
+                    "confirmed": len(details["events"]["confirmed"]),
+                }
+                for book_id, details in book_events.items()
+            },
             "watch_events": {
                 asset: {
                     "armed": len(watched["armed"]),
@@ -718,8 +988,10 @@ def main(argv: list[str] | None = None) -> int:
             "destination_guard": "TARGET_ONLY",
         },
         "held_events": held_events,
+        "book_events": book_events,
         "watch_events": watch_events,
         "held_pair_states": held_pair_states,
+        "book_pair_states": book_pair_states,
         "latest_pair_states": pair_states,
         "defensive": defensive,
         "latest_defensive_events": latest_defensive_events,
@@ -738,6 +1010,14 @@ def main(argv: list[str] | None = None) -> int:
     print(f"run_dir={run_dir}")
     print(f"latest_closed_candle={latest_iso}")
     print(f"held_asset={config['held_asset']}")
+    for book_id, details in book_events.items():
+        book = details["book"]
+        print(
+            f"book_{book_id}_held={book['held_asset']};"
+            f"quantity={book.get('quantity')};"
+            f"armed={len(details['events']['armed'])};"
+            f"confirmed={len(details['events']['confirmed'])}"
+        )
     print(f"target_assets={','.join(config['target_assets'])}")
     print(f"sunset_assets={','.join(config['sunset_assets'])}")
     print(f"held_armed={len(held_events['armed'])}")

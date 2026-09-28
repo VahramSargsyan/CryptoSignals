@@ -101,3 +101,17 @@ See:
 - actual manual execution can differ through delay, spread and slippage;
 - defensive overlay remains unvalidated/disabled for the frozen U10;
 - real held asset ATOM remains outside TARGET until a future manual confirmed exit.
+
+
+## Operational state update — multi-book
+
+The original single-held-asset operational description above is superseded for
+current runtime state by:
+
+`docs/evidence/2026-09-29_RELATIVE_ROTATION_MULTIBOOK_LIVE_STATE_DECISION_LOG_V1.md`
+
+Current real forward branches:
+- BOOK_1: ATOM
+- BOOK_2: 100 LINK
+
+The frozen U10 universe and forward-validation start are unchanged.

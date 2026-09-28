@@ -230,3 +230,28 @@ not sent unless force-notify is explicitly requested.
 The meaningful D1 live cadence remains once after the Binance daily close.
 Repeated intraday runs would evaluate the same closed candle and are not treated
 as new forward evidence.
+
+
+## 2026-09-29 — Two real live books
+
+Canonical live state is now multi-book:
+
+- BOOK_1: ATOM
+- BOOK_2: 100 LINK at forward tracking start
+
+The top-level `held_asset=ATOM` remains only as a compatibility alias for
+BOOK_1.
+
+Each book is evaluated independently by the same frozen U10 signal engine.
+A held asset is not also emitted as an independent sunset watch during the same
+run.
+
+Therefore LINK signals are now BOOK_2 signals, not watch-only messages.
+
+Position quantities do not change automatically. After Vahram manually executes
+a confirmed rotation, update only the affected book with:
+- new held asset;
+- actual received quantity;
+- execution timestamp/details in the real rotation log.
+
+The monitor never infers that a Telegram signal was executed.
