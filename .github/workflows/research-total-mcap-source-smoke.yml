@@ -1,0 +1,51 @@
+name: Research Total Market Cap Source Smoke
+
+on:
+  push:
+    branches:
+      - research/total-mcap-sma-return-breakout-v1
+    paths:
+      - ".github/workflows/research-total-mcap-source-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch CoinDesk historical total market cap
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p research_artifacts/total_mcap_source_smoke
+          URL='https://data-api.coindesk.com/overview/v1/historical/marketcap/all/assets/days?limit=10&quote_asset=USD'
+          STATUS="$(curl -L -sS -o research_artifacts/total_mcap_source_smoke/coindesk.json -w '%{http_code}' "$URL")"
+          echo "coindesk_http_status=$STATUS"
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path("research_artifacts/total_mcap_source_smoke/coindesk.json")
+          raw=p.read_text(encoding="utf-8",errors="replace")
+          print("bytes=",len(raw))
+          print("preview=",raw[:1500])
+          try:
+              data=json.loads(raw)
+              print("top_level_type=",type(data).__name__)
+              if isinstance(data,dict):
+                  print("top_level_keys=",sorted(data.keys()))
+          except Exception as e:
+              print("json_parse_error=",repr(e))
+          PY
+          test "$STATUS" = "200"
+
+      - name: Upload source evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: total-mcap-source-smoke
+          path: research_artifacts/total_mcap_source_smoke/**
+          retention-days: 7
