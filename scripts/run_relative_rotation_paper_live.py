@@ -229,20 +229,23 @@ def build_notification(payload: dict) -> str:
         for event in latest_defensive_events:
             if event["event"] == "DEFENSIVE_ENTER":
                 lines.append(
-                    f"DEFENSIVE ENTER candidate: breadth {event['breadth']}/{len(ASSETS)}; "
+                    f"DEFENSIVE ENTER candidate: breadth {event['breadth']}/{len(payload.get('target_assets', []))}; "
                     f"low-vol token {event['defensive_asset']}."
                 )
             elif event["event"] == "DEFENSIVE_EXIT":
                 lines.append(
-                    f"DEFENSIVE EXIT candidate: breadth {event['breadth']}/{len(ASSETS)}; "
+                    f"DEFENSIVE EXIT candidate: breadth {event['breadth']}/{len(payload.get('target_assets', []))}; "
                     "return-to-shadow routing remains manual."
                 )
 
-    lines.append(
-        "Defensive status: "
-        + (f"ON ({defensive['defensive_asset']})" if defensive["active"] else "OFF")
-        + f"; breadth={defensive.get('breadth')}/{len(ASSETS)}"
-    )
+    if payload.get("defensive_overlay_enabled", True):
+        lines.append(
+            "Defensive status: "
+            + (f"ON ({defensive['defensive_asset']})" if defensive["active"] else "OFF")
+            + f"; breadth={defensive.get('breadth')}/{len(payload.get('target_assets', []))}"
+        )
+    else:
+        lines.append("Defensive overlay: DISABLED during target migration.")
     lines.append("PAPER/MANUAL ONLY — no exchange orders, no API trading keys.")
     return "\n".join(lines) + "\n"
 
@@ -430,23 +433,26 @@ def build_notification_ru(payload: dict) -> str:
         if event["event"] == "DEFENSIVE_ENTER":
             lines.append(
                 f"Кандидат на ВХОД В ЗАЩИТНЫЙ РЕЖИМ: ширина рынка "
-                f"{event['breadth']}/{len(ASSETS)}; токен с низкой волатильностью "
+                f"{event['breadth']}/{len(payload.get('target_assets', []))}; токен с низкой волатильностью "
                 f"{event['defensive_asset']}."
             )
         elif event["event"] == "DEFENSIVE_EXIT":
             lines.append(
                 f"Кандидат на ВЫХОД ИЗ ЗАЩИТНОГО РЕЖИМА: ширина рынка "
-                f"{event['breadth']}/{len(ASSETS)}; возврат по shadow-routing остаётся ручным."
+                f"{event['breadth']}/{len(payload.get('target_assets', []))}; возврат по shadow-routing остаётся ручным."
             )
 
-    status = (
-        f"ВКЛ ({defensive['defensive_asset']})"
-        if defensive["active"]
-        else "ВЫКЛ"
-    )
-    lines.append(
-        f"Защитный режим: {status}; ширина рынка={defensive.get('breadth')}/{len(ASSETS)}"
-    )
+    if payload.get("defensive_overlay_enabled", True):
+        status = (
+            f"ВКЛ ({defensive['defensive_asset']})"
+            if defensive["active"]
+            else "ВЫКЛ"
+        )
+        lines.append(
+            f"Защитный режим: {status}; ширина рынка={defensive.get('breadth')}/{len(payload.get('target_assets', []))}"
+        )
+    else:
+        lines.append("Защитный overlay отключён на время миграции.")
     lines.append("БУМАЖНЫЙ/РУЧНОЙ РЕЖИМ — реальные ордера не отправляются.")
     return "\n".join(lines) + "\n"
 
@@ -653,6 +659,7 @@ def main(argv: list[str] | None = None) -> int:
         "source_commit_sha": _source_commit(),
         "held_asset": config["held_asset"],
         "migration_mode": config["migration_mode"],
+        "defensive_overlay_enabled": config["defensive_overlay_enabled"],
         "target_assets": list(config["target_assets"]),
         "sunset_assets": list(config["sunset_assets"]),
         "watch_assets": config["watch_assets"],
