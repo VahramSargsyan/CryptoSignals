@@ -449,3 +449,40 @@ Frozen findings:
 
 Do not convert this research pattern into automatic cash exit/re-entry without a
 separate preregistered withdrawal/allocation validation.
+
+
+## Relative Rotation U10 rotation-price audit memory — 2026-09-28
+
+Before claiming that frozen U10 "always increases" or that its bear performance
+is explained only by market beta, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_U10_ROTATION_PRICE_SNAPSHOT_AUDIT_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_ROTATION_PRICE_SNAPSHOT_AUDIT_V1_EVIDENCE.md`
+
+Frozen classification:
+
+`REGIME_DEPENDENT_ROTATION_EDGE`
+
+Key facts:
+- 31 unique completed rotation legs;
+- 22 positive, 9 negative;
+- all-start transition capital is NOT monotonic;
+- normalized median full-period capital: 100 -> 3267.27 USDT;
+- BULL-entry legs: median +27.3%, conditioned compound +1427.5%;
+- BEAR-entry legs: median +11.6%, conditioned compound +142.2%;
+- MIXED-entry conditioned compound: -21.3%;
+- bear-entry held token median rank: 2.5 / 10;
+- bear-entry median excess versus contemporaneous U10 median: +15.6 pp.
+
+Frozen synthesis:
+
+`BULL_DEPENDENT_DAILY_ABSOLUTE_RETURNS + POSITIVE_BEAR_INITIATED_ROTATION_EDGE`
+
+The earlier bear-day attribution remains valid; complete bear-initiated holding
+legs can later finish profitably after regime transition.
+
+Do not rerun unchanged on the same history. Do not promote this research into
+live/paper execution rules without separate validation.
