@@ -527,3 +527,31 @@ Frozen classification:
 
 This is deliberately impossible stale-price execution. Never describe it as
 achievable P&L, arbitrage, or a production rule.
+
+
+## Relative Rotation real multi-book forward state — 2026-09-29
+
+Before changing paper-live held-position semantics, read:
+
+`docs/evidence/2026-09-29_RELATIVE_ROTATION_MULTIBOOK_LIVE_STATE_DECISION_LOG_V1.md`
+
+and:
+
+`docs/migrations/2026-09-29_RELATIVE_ROTATION_MULTIBOOK_LIVE_STATE_MIGRATION_PLAN_V1.md`
+
+Canonical live books at forward start:
+- BOOK_1: ATOM, quantity not recorded in this config patch;
+- BOOK_2: LINK, starting tracked quantity 100 LINK (user-confirmed).
+
+Top-level `held_asset=ATOM` is retained only as a backward-compatible BOOK_1
+alias. Canonical position state is `position_books`.
+
+Every book uses the same `RR_TARGET_U10_FROZEN_V1` engine and TARGET-only
+destination guard. Assets held by any live book must not also be emitted as
+independent sunset-watch signals in the same run.
+
+A signal does not mutate a book. After a real manual exchange, update that
+book's held asset and actual received quantity explicitly and record execution
+in `research/relative_rotation/REAL_ROTATION_LOG.md`.
+
+No automatic exchange execution is authorized.
