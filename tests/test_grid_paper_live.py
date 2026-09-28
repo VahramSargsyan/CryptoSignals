@@ -190,7 +190,7 @@ class GridPaperLiveTests(unittest.TestCase):
         text = _notification_text_ru(payload)
 
         self.assertIn("Закрытая свеча: 2026-09-26T00:00:00+00:00", text)
-        self.assertIn("Сигналы:", text)
+        self.assertIn("🚨 СИГНАЛЫ:", text)
         self.assertIn("MICRO_ONLY_WIDE LINKUSDT: ПОКУПКА 2, ПРОДАЖА 0", text)
         self.assertIn("MICRO_ONLY_WIDE: +1.00%, ПОКУПКА 2, ПРОДАЖА 0", text)
         self.assertNotIn("MID_ONLY_WIDE:", text)
