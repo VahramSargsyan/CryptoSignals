@@ -164,8 +164,11 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
 
         self.assertEqual(atom["primary_confirmed"]["to_asset"], "AVAX")
         self.assertEqual([e["to_asset"] for e in atom["confirmed"]], ["AVAX"])
-        self.assertEqual(twt["primary_confirmed"]["to_asset"], "XRP")
-        self.assertEqual([e["to_asset"] for e in twt["confirmed"]], ["XRP"])
+        self.assertEqual(twt["primary_confirmed"]["to_asset"], "HBAR")
+        self.assertEqual(
+            [e["to_asset"] for e in twt["confirmed"]],
+            ["HBAR", "XRP"],
+        )
 
     def test_atom_watch_can_be_evaluated_independently_of_held_asset(self):
         latest = pd.Timestamp("2026-09-27", tz="UTC")
