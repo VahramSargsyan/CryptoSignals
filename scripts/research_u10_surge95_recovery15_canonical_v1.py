@@ -26,10 +26,10 @@ def main():
       "source_commit":source_sha(),"baseline":baseline,"control":control,"candidate":candidate,
       "delta_candidate_vs_control_pct":candidate["final_equity_usdt"]/control["final_equity_usdt"]-1,
       "delta_candidate_vs_baseline_pct":candidate["final_equity_usdt"]/baseline["final_equity_usdt"]-1,
-      "cycles":cy.to_dict(orient="records")
+      "cycles":cy.where(pd.notna(cy), None).to_dict(orient="records")
     }
     run_dir=OUT/pd.Timestamp.now(tz="UTC").strftime("%Y%m%dT%H%M%SZ"); run_dir.mkdir(parents=True,exist_ok=True)
-    (run_dir/"results.json").write_text(json.dumps(out,indent=2,sort_keys=True,allow_nan=False),encoding="utf-8")
+    (run_dir/"results.json").write_text(json.dumps(out,indent=2,sort_keys=True,allow_nan=True),encoding="utf-8")
     if not cy.empty: cy.to_csv(run_dir/"candidate_cycles.csv",index=False)
     if not cc.empty: cc.to_csv(run_dir/"control_cycles.csv",index=False)
     print("run_dir="+str(run_dir))
