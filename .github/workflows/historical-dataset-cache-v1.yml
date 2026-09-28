@@ -1,0 +1,104 @@
+name: Relative Rotation Historical Dataset Cache v1
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: UTC history start
+        required: true
+        default: "2023-05-05T00:00:00Z"
+        type: string
+      as_of:
+        description: Optional frozen UTC cutoff; default is current closed 1H boundary
+        required: false
+        default: ""
+        type: string
+      publish_release:
+        description: Publish immutable GitHub prerelease
+        required: true
+        default: true
+        type: boolean
+  push:
+    branches:
+      - feature/historical-dataset-cache-v1
+    paths:
+      - "research_requests/run_rr_dataset_cache_v1.trigger"
+
+permissions:
+  contents: write
+
+jobs:
+  build-cache:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+
+      - name: Run targeted tests
+        run: |
+          python -m unittest tests.test_relative_rotation_dataset_cache -v
+          python -m unittest tests.test_binance_historical tests.test_download_historical_data_cli -v
+
+      - name: Build immutable cache
+        env:
+          START: ${{ inputs.start || '2023-05-05T00:00:00Z' }}
+          AS_OF: ${{ inputs.as_of || '' }}
+        run: |
+          args=(
+            --start "$START"
+            --output-root build/relative_rotation_dataset_cache_v1
+          )
+          if [[ -n "$AS_OF" ]]; then
+            args+=(--as-of "$AS_OF")
+          fi
+          python -m scripts.build_relative_rotation_dataset_cache "${args[@]}"
+
+      - name: Package and checksum
+        run: |
+          STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+          ARCHIVE="rr-monitor13-1h1d-${STAMP}-run${GITHUB_RUN_ID}.tar.gz"
+          CATALOG="rr-monitor13-catalog-run${GITHUB_RUN_ID}.json"
+          tar -C build -czf "$ARCHIVE" relative_rotation_dataset_cache_v1
+          sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+          cp build/relative_rotation_dataset_cache_v1/catalog.json "$CATALOG"
+          echo "ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
+          echo "ARCHIVE_SHA=$ARCHIVE.sha256" >> "$GITHUB_ENV"
+          echo "CATALOG=$CATALOG" >> "$GITHUB_ENV"
+
+      - name: Upload Actions backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: rr-dataset-cache-v1-${{ github.run_id }}
+          path: |
+            ${{ env.ARCHIVE }}
+            ${{ env.ARCHIVE_SHA }}
+            ${{ env.CATALOG }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish immutable GitHub prerelease
+        if: ${{ github.event_name == 'push' || inputs.publish_release == true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="rr-dataset-cache-v1-${GITHUB_RUN_ID}"
+          gh release create "$TAG"             "$ARCHIVE"             "$ARCHIVE_SHA"             "$CATALOG"             --target "$GITHUB_SHA"             --title "Relative Rotation Historical Dataset Cache v1 — run ${GITHUB_RUN_ID}"             --notes "Frozen Binance Spot cache for the 13-asset Relative Rotation monitor. Contains closed 1H and 1D candles from 2023-05-05, per-dataset manifests, bundle catalog, and SHA-256 evidence. Research/reproducibility data only; no trading behavior changed."             --prerelease
+
+      - name: Summary
+        run: |
+          echo "## Relative Rotation Historical Dataset Cache v1" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Archive: `$ARCHIVE`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Catalog: `$CATALOG`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Dataset count: 26 expected" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Storage: GitHub prerelease + 90-day Actions artifact" >> "$GITHUB_STEP_SUMMARY"
