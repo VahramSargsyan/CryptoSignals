@@ -120,3 +120,35 @@ Current evidence: Micro and Mid are independent engines with no nonlinear capita
 ### Expanded Micro / Mid universe evidence
 
 The Micro/Mid redundancy log now includes a 15-asset common-window test. Across all 15, Micro-only had higher aggregate return (+170.91% vs +147.17%) but Mid used far fewer exits. On the Tier A quality/Grid subset (LINK/SOL/ETH/ADA/XLM), Micro and Mid were effectively tied (+244.93% vs +245.61%), Mid had slightly lower median DD, and Mid used 68.6% fewer exits. Read the evidence before proposing layer deletion.
+
+
+## Relative Rotation U10 P1 cash-fraction comparison memory — 2026-09-29
+
+Before comparing 30% vs 50% protected cash sleeves for the frozen single-month
+surge overlay, read:
+
+`docs/evidence/2026-09-29_RELATIVE_ROTATION_U10_P1_CASH50_REENTRY25_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-29_U10_SURGE_P1_CASH50_REENTRY25_V1_EVIDENCE.md`
+
+Frozen mechanics:
+- surge >= +100%;
+- cash-out after >=5% pullback from post-surge running peak;
+- re-entry at -25% from locked peak;
+- 0.1% costs each way;
+- only cash fraction differs.
+
+Frozen result:
+- Cash30 canonical: 270,653.52 USDT, max DD -66.36%;
+- Cash50 canonical: 308,829.05 USDT, max DD -62.74%;
+- Cash50 vs Cash30: +14.10%;
+- Cash50 > Cash30 in 96.21% of 791 alternative U10s;
+- median delta: +14.18%.
+
+Frozen classification:
+`CASH50_DOMINATES_CASH30_ON_TESTED_HISTORY_BUT_IS_NOT_PROVEN_OPTIMAL`
+
+Do not infer that 50% is optimal and do not sweep new fractions without a new
+preregistered hypothesis. No live/paper promotion is authorized.
