@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "status": "BLOCKED_UNIVERSE_NOT_FROZEN",
+  "status": "U10_CANDIDATE_FROZEN_PENDING_CONFIRMATION",
   "enabled": false,
-  "target_universe_required": "TARGET_U10",
+  "target_universe_required": "RR_TARGET_U10_CANDIDATE_HBAR_V1",
   "forward_validation_start": null,
-  "frozen_universe_version": null,
+  "frozen_universe_version": "RR_TARGET_U10_CANDIDATE_HBAR_V1",
   "hypotheses": [
     {
       "id": "HYP-RR-001",
