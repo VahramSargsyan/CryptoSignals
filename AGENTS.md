@@ -160,3 +160,28 @@ Frozen findings:
 - V3 is rejected in its current strict form because concentration falls but historical return collapses and long-window drawdown does not consistently improve.
 
 Do not rerun the same V2/V3 experiment without a materially new reason. A future distinct hypothesis may test `MAX_2_OF_3_BOOKS_PER_ASSET`, but that hypothesis is currently `IDEA_NOT_TESTED` and requires its own preregistration.
+
+
+## Relative Rotation shadow/defensive multibook memory — 2026-09-28
+
+Before concluding that three-book diversification failed, or before proposing another TRX/USDT substitute, shadow-routing, low-vol parking, or actual-vs-shadow state experiment for `RR_TARGET_U10_CANDIDATE_HBAR_V1`, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_MULTIBOOK_SHADOW_DEFENSIVE_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_MULTIBOOK_SHADOW_DEFENSIVE_FALLBACK_V1_EVIDENCE.md`
+
+Important distinction:
+- the earlier `V3_COLLISION_GUARD` rejection applies only to the strict-stay implementation;
+- `V3_SHADOW_DEFENSIVE_FALLBACK` is a materially different dual-state architecture and is classified `VIABLE_RESEARCH_ARCHITECTURE / NOT_PRODUCTION_APPROVED`.
+
+Frozen shadow result:
+- `shadow_core_asset` continues ordinary U10 routing;
+- `actual_asset` may park in the lowest-volatility feasible U10 token;
+- TRX was not hardcoded but represented about 49.5% of MATURE parking book-days;
+- MATURE median return +673.9%, median max DD -45.3%, median daily largest-asset share 43.6%, actual collision days 0%.
+
+Do not rerun this exact shadow/defensive experiment on the same history unless there is materially new data, a semantic correction, changed costs/universe/portfolio rules, or a separately preregistered confirmation/forward protocol.
+
+`MAX_2_OF_3_BOOKS_PER_ASSET` remains a separate `IDEA_NOT_TESTED`, not an automatic replacement for the viable shadow architecture.
