@@ -159,7 +159,7 @@ Frozen findings:
 - V2 is rejected as a diversification mechanism because independent paths rapidly converge into the same asset;
 - V3 is rejected in its current strict form because concentration falls but historical return collapses and long-window drawdown does not consistently improve.
 
-Do not rerun the same V2/V3 experiment without a materially new reason. A future distinct hypothesis may test `MAX_2_OF_3_BOOKS_PER_ASSET`, but that hypothesis is currently `IDEA_NOT_TESTED` and requires its own preregistration.
+Do not rerun the same V2/V3 experiment without a materially new reason. `MAX_2_OF_3_BOOKS_PER_ASSET` has now been tested separately as `V4_MAX2_SHADOW_FALLBACK`; read `docs/evidence/2026-09-28_RELATIVE_ROTATION_MULTIBOOK_MAX2_DECISION_LOG_V1.md` before proposing or rerunning it.
 
 
 ## Relative Rotation shadow/defensive multibook memory — 2026-09-28
@@ -191,7 +191,7 @@ Do not rerun this exact shadow/defensive experiment on the same history unless t
 
 Before proposing or rerunning a two-books-per-asset architecture for `RR_TARGET_U10_CANDIDATE_HBAR_V1`, read:
 
-`docs/evidence/2026-09-28_RELATIVE_ROTATION_MULTIBOOK_MAX2_SHADOW_DECISION_LOG_V1.md`
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_MULTIBOOK_MAX2_DECISION_LOG_V1.md`
 
 and:
 
