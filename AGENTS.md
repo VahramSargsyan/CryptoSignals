@@ -323,3 +323,29 @@ a documented source/semantic correction, or failed cache validation.
 
 The monthly TOTAL research script is cache-first and was validated without
 `tvdatafeed` installed in run `36439261228`.
+
+
+## Relative Rotation U10 TOTAL SMA25/50/100 crossover memory — 2026-09-28
+
+Before proposing SMA25/50 or SMA25/100 market-cap crosses as U10 trading signals, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_U10_TOTAL_SMA25_50_100_CROSS_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_TOTAL_SMA25_50_100_CROSS_V1_EVIDENCE.md`
+
+Frozen interpretation:
+- `SMA25_CROSS_ABOVE_50` is an early attention trigger, not a supported standalone buy rule;
+- the strongest tested bullish confirmation was `SMA25 > SMA50`, followed by `SMA50 > SMA100`;
+- median confirmation lag for that sequence was ~29 days;
+- 60d U10 median after confirmation was +22.7% with 100% positive outcomes among only 4 full-horizon events;
+- sample size is small and not production-approved;
+- bearish crosses are risk-attention events, not automatic U10 exits.
+
+Current 2026 sequence:
+- 2026-07-22 SMA25 > SMA50
+- 2026-08-23 SMA25 > SMA100
+- 2026-08-27 SMA50 > SMA100 / BULL_BUILDING
+
+Do not rerun unchanged on the same cached history. Use the persistent repository TOTAL cache.
