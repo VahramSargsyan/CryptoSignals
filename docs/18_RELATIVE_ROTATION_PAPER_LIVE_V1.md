@@ -6,22 +6,18 @@ Status: PAPER_LIVE_MONITOR / MANUAL_EXECUTION_ONLY
 
 ## Purpose
 
-Move the promoted 10-token relative-rotation research engine into forward observation without changing its trading logic and without enabling automatic exchange execution.
+Operate the target-U9 transition monitor in forward observation without changing its trading logic and without enabling automatic exchange execution.
 
-Canonical monitored universe:
+Transition monitor union:
 
-- ATOM
-- TWT
-- PEPE
-- BNB
-- SOL
-- TRX
-- AAVE
-- LINK
-- FIL
-- HBAR
+- TARGET: TWT, PEPE, BNB, TRX, AAVE, AVAX, FIL, ALGO, XRP
+- SUNSET / EXIT-ONLY: ATOM, SOL, LINK, HBAR
 
-This is the promoted U10 graph: 10 nodes / 45 undirected pairs.
+The monitor downloads all 13 assets so a real legacy holding can still produce an outbound signal.
+Actionable destinations are filtered to TARGET only.
+
+Target graph: 9 nodes / 36 undirected target pairs.
+Monitor union: 13 nodes / 78 undirected observed pairs.
 The signal engine remains 180d median / 15% ARM / 3% reversal / strongest max-dislocation router.
 
 ## Frozen relative-rotation parameters
@@ -44,7 +40,7 @@ State path:
 
 `ARMED` is only a warning. It is not a rotation instruction. A historical-model rotation exists only after the 3% reversal confirmation.
 
-## Current held asset and persistent ATOM watch
+## Current held asset and persistent sunset watches
 
 The current configured held asset is stored in:
 
@@ -58,19 +54,26 @@ After Vahram manually executes a confirmed rotation, update this file to the ass
 
 The same config also contains:
 
-`"watch_assets": ["ATOM"]`
+`"watch_assets": ["ATOM", "SOL", "LINK", "HBAR"]`
 
-This watch is independent of `held_asset`. If the real held asset later becomes TWT, PEPE, FIL, HBAR, or another U10 token, the monitor still evaluates outbound ATOM ARMED/CONFIRMED events and can send Telegram alerts while any legacy ATOM position remains. This is alert-only; it does not block ATOM re-entry and does not execute a swap.
+All sunset assets remain independently monitored for outbound TARGET-bound ARMED/CONFIRMED events.
+
+Migration guard:
+- a sunset asset may remain held until a valid outbound signal appears;
+- every actionable destination must belong to TARGET;
+- once capital leaves a sunset asset, the monitor does not recommend re-entry into any sunset asset;
+- execution remains manual only.
 
 ## Telegram notification policy
 
 Telegram is sent only when at least one of these events happens on the latest closed daily candle:
 
-1. a new `ARMED` event exists from the configured held asset;
-2. a new `CONFIRMED` event exists from the configured held asset;
-3. a new outbound `ARMED` or `CONFIRMED` event exists from a persistent watch asset; ATOM is configured;
-4. the defensive low-vol research overlay enters or exits;
-5. a manual verification run uses `--force-notify`.
+1. a new TARGET-bound `ARMED` event exists from the configured held asset;
+2. a new TARGET-bound `CONFIRMED` event exists from the configured held asset;
+3. a new TARGET-bound outbound `ARMED` or `CONFIRMED` event exists from a persistent sunset watch asset;
+4. a manual verification run uses `--force-notify`.
+
+The defensive overlay is disabled during the membership migration so it cannot conflict with the target/sunset routing rules.
 
 No repeated daily warning is sent merely because a pair remains armed. The monitor recomputes the complete state from historical closed candles on every run, so it does not need hidden mutable workflow state for deduplication.
 
@@ -82,14 +85,14 @@ The monitor reports the documented candidate:
 
 Rules:
 
-- breadth = number of the 10 U10 tokens above their own causal SMA200;
+- defensive breadth is not active during migration; when re-enabled it must be evaluated on TARGET assets only;
 - enter defensive mode after 3 consecutive closes with breadth <= 3;
 - choose the token with the lowest 30-day realized close-to-close volatility at entry;
 - keep that defensive token fixed until exit;
 - exit after 3 consecutive closes with breadth >= 5;
 - no USDT is required by this overlay.
 
-Important: this remains `PROMISING_RESEARCH_CANDIDATE / NOT_PRODUCTION_APPROVED`. The existing 3/5 breadth thresholds were not retuned for U10 in this patch, so the overlay must not be interpreted as production-approved U10 defensive logic. The alert is evidence, not an automatic instruction.
+Important: this remains `PROMISING_RESEARCH_CANDIDATE / NOT_PRODUCTION_APPROVED`. The existing 3/5 breadth thresholds were not retuned for target-U9 transition in this patch, so the overlay must not be interpreted as production-approved target-U9 transition defensive logic. The alert is evidence, not an automatic instruction.
 
 ## Daily workflow
 
@@ -105,16 +108,15 @@ For Armenia this is normally around `04:20` local time.
 
 Each run:
 
-1. downloads closed Binance Spot 1D candles for all 10 assets;
-2. builds a common 10-asset panel;
-3. recomputes all 45 relative-pair state machines from common history;
-4. filters new events for the configured held asset;
-5. independently filters outbound events for persistent watch assets such as ATOM;
-6. selects the strongest confirmed candidate when several exist;
-7. calculates the defensive breadth/low-vol overlay;
-8. writes JSON/Markdown/CSV evidence;
-9. sends Telegram only if notification policy allows it;
-10. uploads the evidence as a GitHub Actions artifact.
+1. downloads closed Binance Spot 1D candles for all 13 monitor-union assets;
+2. builds a common 13-asset observation panel;
+3. recomputes all 78 observed pair state machines;
+4. filters held-asset events so only TARGET destinations are actionable;
+5. independently filters sunset-watch events so only TARGET destinations are actionable;
+6. blocks sunset re-entry at the recommendation layer;
+7. writes JSON/Markdown/CSV evidence;
+8. sends Telegram only if notification policy allows it;
+9. uploads the evidence as a GitHub Actions artifact.
 
 ## Output evidence
 
