@@ -629,6 +629,66 @@ The evidence now suggests two regimes:
 
 Do not combine the rules or promote STREAK95 yet.
 
+## Multimonth STREAK95 + Recovery15 stress
+
+Research:
+
+- prereg: `research/relative_rotation/2026-09-28_U10_STREAK95_RECOVERY15_V1_PREREG.md`
+- runner: `scripts/research_u10_streak95_recovery15_v1.py`
+- evidence: [U10 Multimonth STREAK95 + Recovery15 v1](2026-09-28_U10_STREAK95_RECOVERY15_V1.md)
+- run: `36381980047` — PASS
+- TEST_LEVEL: `GITHUB_ACTIONS_LIVE_PUBLIC_DATA_STRESS_TEST`
+
+Tested the same fixed fallback previously used on single-month SURGE95:
+- 15 calendar days after cash-out;
+- recovery level = 98% of U10 reference open equity at cash-out;
+- if already above at first eligibility, re-enter next open;
+- otherwise wait for upward close crossing.
+
+Canonical:
+
+P1:
+- original STREAK95: 219,322.44;
+- + Recovery15: 218,712.79;
+- -0.28% vs control;
+- cash days 136 -> 74;
+- 2 fractal / 2 fallback re-entries.
+
+P2:
+- original STREAK95: 227,103.08;
+- + Recovery15: 214,773.24;
+- -5.43% vs control;
+- +3.47% vs baseline became -2.15%;
+- cash days 106 -> 72;
+- 3 fractal / 1 fallback.
+
+Across 791 alternative U10s:
+
+P1:
+- candidate > control: 24.15%;
+- equal: 14.41%;
+- worse: 61.44%;
+- fallback used: 85.59%;
+- median effect vs control: -0.28%.
+
+P2:
+- candidate > control: 0%;
+- equal: 34.89%;
+- worse: 65.11%;
+- fallback used: 65.11%;
+- median effect: -5.43%.
+
+Cycle behavior:
+- P1: 959 fractal / 992 RECOVERY_IMMEDIATE / 0 RECOVERY_CROSS;
+- P2: 1,420 fractal / 531 RECOVERY_IMMEDIATE / 0 RECOVERY_CROSS.
+
+Thus the same structural failure repeated:
+when fallback executed, reference was already above the 98% recovery level at first day-15 eligibility, so the rule behaved as a forced ~day-16 re-entry rather than a true recovery crossing.
+
+Decision:
+- reject 15d/98% fallback for multimonth STREAK95 too;
+- no live/paper promotion.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
