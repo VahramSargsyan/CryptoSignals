@@ -241,10 +241,18 @@ def _observation_candidates(payload: dict, asset: str, threshold: float = 0.10) 
 
         left, right = pair.split("/", 1)
         deviation = float(deviation)
-        if abs(deviation) < threshold:
+        mode = str(row.get("mode") or "NONE")
+
+        # A previously armed pair remains operationally relevant until its
+        # reversal confirms, even if the current deviation falls below 10%.
+        if mode == "NONE" and abs(deviation) < threshold:
             continue
 
-        if deviation > 0:
+        if mode == "HIGH":
+            from_asset, to_asset = right, left
+        elif mode == "LOW":
+            from_asset, to_asset = left, right
+        elif deviation > 0:
             from_asset, to_asset = right, left
         else:
             from_asset, to_asset = left, right
@@ -252,20 +260,31 @@ def _observation_candidates(payload: dict, asset: str, threshold: float = 0.10) 
         if from_asset != asset:
             continue
 
+        max_dislocation = row.get("max_dislocation")
         candidates.append(
             {
                 "pair": pair,
                 "from_asset": from_asset,
                 "to_asset": to_asset,
                 "dislocation": abs(deviation),
-                "mode": str(row.get("mode") or "NONE"),
+                "max_dislocation": (
+                    abs(float(max_dislocation))
+                    if max_dislocation is not None
+                    else abs(deviation)
+                ),
+                "mode": mode,
                 "reversal_from_extreme": row.get("reversal_from_extreme"),
             }
         )
 
     return sorted(
         candidates,
-        key=lambda x: (-float(x["dislocation"]), str(x["to_asset"]), str(x["pair"])),
+        key=lambda x: (
+            0 if x["mode"] != "NONE" else 1,
+            -float(x["max_dislocation"]),
+            str(x["to_asset"]),
+            str(x["pair"]),
+        ),
     )
 
 
@@ -318,29 +337,41 @@ def build_notification_ru(payload: dict) -> str:
         lines.append("Порог 15% достигнут; ротации пока нет. Ждём разворот 3%.")
     elif observations:
         strongest = observations[0]
-        lines.extend(
-            [
-                "👀 НАБЛЮДЕНИЕ 10%+",
-                (
-                    f"Расхождение между {held} и {strongest['to_asset']} составляет "
-                    f"{strongest['dislocation'] * 100:.2f}%."
-                ),
-                (
-                    f"Возможное направление при дальнейшем подтверждении: "
-                    f"{held} -> {strongest['to_asset']}."
-                ),
-            ]
-        )
         if strongest["mode"] == "NONE":
-            lines.append("Порог наблюдения 10% достигнут. Торгового сигнала пока нет; ARM включается с 15%.")
+            lines.extend(
+                [
+                    "👀 НАБЛЮДЕНИЕ 10%+",
+                    (
+                        f"Расхождение между {held} и {strongest['to_asset']} составляет "
+                        f"{strongest['dislocation'] * 100:.2f}%."
+                    ),
+                    (
+                        f"Возможное направление при дальнейшем подтверждении: "
+                        f"{held} -> {strongest['to_asset']}."
+                    ),
+                    "Порог наблюдения 10% достигнут. Торгового сигнала пока нет; ARM включается с 15%.",
+                ]
+            )
         else:
-            lines.append("ARM 15% уже активен по этой паре; ждём подтверждения разворота 3%.")
+            lines.extend(
+                [
+                    "⚠️ ARM 15% АКТИВЕН",
+                    (
+                        f"Пара {held}/{strongest['to_asset']}: текущее расхождение "
+                        f"{strongest['dislocation'] * 100:.2f}%, максимум после ARM "
+                        f"{strongest['max_dislocation'] * 100:.2f}%."
+                    ),
+                    f"Ожидаем направление {held} -> {strongest['to_asset']} после подтверждения.",
+                    "Ждём разворот от экстремума минимум 3%.",
+                ]
+            )
 
         if len(observations) > 1:
-            lines.append("Другие пары 10%+:")
+            lines.append("Другие наблюдаемые пары:")
             for event in observations[1:4]:
+                suffix = " (ARM активен)" if event["mode"] != "NONE" else ""
                 lines.append(
-                    f"- {held}/{event['to_asset']}: {event['dislocation'] * 100:.2f}%"
+                    f"- {held}/{event['to_asset']}: {event['dislocation'] * 100:.2f}%{suffix}"
                 )
 
     for asset, watched in watch_events.items():
