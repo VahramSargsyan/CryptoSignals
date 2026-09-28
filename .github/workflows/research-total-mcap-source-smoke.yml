@@ -22,30 +22,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch CoinDesk historical total market cap
+      - name: Probe public CoinGecko global chart export
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p research_artifacts/total_mcap_source_smoke
-          URL='https://data-api.coindesk.com/overview/v1/historical/marketcap/all/assets/days?limit=10&quote_asset=USD'
-          STATUS="$(curl -L -sS -o research_artifacts/total_mcap_source_smoke/coindesk.json -w '%{http_code}' "$URL")"
-          echo "coindesk_http_status=$STATUS"
+          PAGE='https://www.coingecko.com/en/charts'
+          STATUS="$(curl -L -sS -A 'Mozilla/5.0 (compatible; CryptoSignalsResearch/1.0)' -o research_artifacts/total_mcap_source_smoke/coingecko_charts.html -w '%{http_code}' "$PAGE")"
+          echo "coingecko_http_status=$STATUS"
+          test "$STATUS" = "200"
           python - <<'PY'
           from pathlib import Path
-          import json
-          p=Path("research_artifacts/total_mcap_source_smoke/coindesk.json")
+          import re, html
+          p=Path("research_artifacts/total_mcap_source_smoke/coingecko_charts.html")
           raw=p.read_text(encoding="utf-8",errors="replace")
-          print("bytes=",len(raw))
-          print("preview=",raw[:1500])
-          try:
-              data=json.loads(raw)
-              print("top_level_type=",type(data).__name__)
-              if isinstance(data,dict):
-                  print("top_level_keys=",sorted(data.keys()))
-          except Exception as e:
-              print("json_parse_error=",repr(e))
+          print("html_bytes=",len(raw))
+          patterns=[
+              r'https?[^"\s<>]+',
+              r'[^"\s<>]{0,100}(?:csv|CSV|download|market_cap_chart|global[_-]?chart)[^"\s<>]{0,180}',
+          ]
+          out=[]
+          for pat in patterns:
+              for m in re.finditer(pat, raw):
+                  s=html.unescape(m.group(0))
+                  if any(k in s.lower() for k in ("csv","download","market_cap","global")):
+                      out.append(s)
+          unique=[]
+          for s in out:
+              if s not in unique:
+                  unique.append(s)
+          Path("research_artifacts/total_mcap_source_smoke/coingecko_candidates.txt").write_text("\n".join(unique[:500]),encoding="utf-8")
+          print("candidate_count=",len(unique))
+          print("\n".join(unique[:80]))
           PY
-          test "$STATUS" = "200"
 
       - name: Upload source evidence
         if: always()
