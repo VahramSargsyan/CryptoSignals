@@ -242,40 +242,63 @@ def _event_line_ru(event: dict) -> str:
 
 
 def build_notification(payload: dict) -> str:
-    held = payload["held_asset"]
     latest = payload["latest_closed_candle"]
-    selected = payload["held_events"]
     watch_events = payload.get("watch_events", {})
     defensive = payload["defensive"]
     latest_defensive_events = payload["latest_defensive_events"]
 
+    raw_book_events = payload.get("book_events")
+    if raw_book_events:
+        book_events = raw_book_events
+    else:
+        book_events = {
+            "BOOK_1": {
+                "book": {
+                    "book_id": "BOOK_1",
+                    "held_asset": payload["held_asset"],
+                    "quantity": None,
+                },
+                "events": payload["held_events"],
+            }
+        }
+
     lines = [
         "Relative Rotation Paper Live v1",
         f"Closed candle: {latest}",
-        f"Held asset: {held}",
         f"Target universe: {', '.join(payload.get('target_assets', []))}",
         f"Sunset/exit-only: {', '.join(payload.get('sunset_assets', []))}",
     ]
 
-    primary = selected.get("primary_confirmed")
-    if primary:
-        lines.extend(
-            [
-                "ROTATION CONFIRMED",
-                _event_line(primary),
-                "Historical model action only — manual approval required.",
-            ]
-        )
-        extra = [event for event in selected.get("confirmed", []) if event is not primary]
-        if extra:
-            lines.append("Other confirmed outbound candidates:")
-            lines.extend(f"- {_event_line(event)}" for event in extra)
-    elif selected.get("armed"):
-        lines.append("ARMED / PREWATCH")
-        lines.extend(f"- {_event_line(event)}" for event in selected["armed"])
-        lines.append("15% threshold reached; no rotation until 3% reversal confirms.")
-    elif payload.get("force_notify"):
-        lines.append("Initialization snapshot — no confirmed rotation from held asset on this candle.")
+    for book_id, details in book_events.items():
+        book = details["book"]
+        quantity = book.get("quantity")
+        position = book["held_asset"] if quantity is None else f"{float(quantity):g} {book['held_asset']}"
+        selected = details["events"]
+        lines.append(f"{book_id} held: {position}")
+
+        primary = selected.get("primary_confirmed")
+        if primary:
+            lines.extend(
+                [
+                    f"{book_id} ROTATION CONFIRMED",
+                    _event_line(primary),
+                    "Historical model action only — manual approval required.",
+                ]
+            )
+            extra = [event for event in selected.get("confirmed", []) if event is not primary]
+            if extra:
+                lines.append(f"Other {book_id} confirmed outbound candidates:")
+                lines.extend(f"- {_event_line(event)}" for event in extra)
+            armed = selected.get("armed", [])
+            if armed:
+                lines.append(f"Other {book_id} ARMED / PREWATCH candidates (not confirmed):")
+                lines.extend(f"- {_event_line(event)}" for event in armed)
+        elif selected.get("armed"):
+            lines.append(f"{book_id} ARMED / PREWATCH")
+            lines.extend(f"- {_event_line(event)}" for event in selected["armed"])
+            lines.append("15% threshold reached; no rotation until 3% reversal confirms.")
+        elif payload.get("force_notify"):
+            lines.append(f"{book_id}: no confirmed rotation on this candle.")
 
     for asset, watched in watch_events.items():
         primary_watch = watched.get("primary_confirmed")
@@ -284,7 +307,7 @@ def build_notification(payload: dict) -> str:
                 [
                     f"{asset} WATCH — EXIT CONFIRMED",
                     _event_line(primary_watch),
-                    "Manual review only — this watch does not place an order.",
+                    "Independent sunset watch only — not a live-book position signal.",
                 ]
             )
             extra_watch = [event for event in watched.get("confirmed", []) if event is not primary_watch]
