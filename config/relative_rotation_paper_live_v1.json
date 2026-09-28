@@ -1,6 +1,6 @@
 {
-  "schema_version": 2,
-  "strategy": "RELATIVE_ROTATION_TARGET_U9_TRANSITION_V1",
+  "schema_version": 3,
+  "strategy": "RELATIVE_ROTATION_TARGET_U10_FORWARD_V1",
   "held_asset": "ATOM",
   "monitor_start": "2026-09-27T00:00:00Z",
   "manual_execution_only": true,
@@ -14,20 +14,22 @@
     "AVAX",
     "FIL",
     "ALGO",
-    "XRP"
+    "XRP",
+    "HBAR"
   ],
   "sunset_assets": [
     "ATOM",
     "SOL",
-    "LINK",
-    "HBAR"
+    "LINK"
   ],
   "watch_assets": [
     "ATOM",
     "SOL",
-    "LINK",
-    "HBAR"
+    "LINK"
   ],
   "defensive_overlay_enabled": false,
-  "notes": "Gradual migration toward the bull-neutralized target U9. Sunset assets may be held temporarily but every monitored outbound recommendation is filtered to TARGET_ASSETS; once capital leaves a sunset asset, the monitor does not recommend re-entry. Manual execution only; no exchange API trading keys."
+  "notes": "Final TARGET U10 frozen for forward/paper observation from 2026-09-29T00:00:00Z. ATOM remains the real configured held asset and stays sunset/exit-only until a manual confirmed outbound rotation is executed. No pre-freeze candle counts as forward evidence. Manual execution only; no exchange API trading keys.",
+  "universe_version": "RR_TARGET_U10_FROZEN_V1",
+  "forward_validation_enabled": true,
+  "forward_validation_start": "2026-09-29T00:00:00Z"
 }

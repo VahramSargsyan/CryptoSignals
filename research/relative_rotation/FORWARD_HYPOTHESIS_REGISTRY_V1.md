@@ -2,7 +2,7 @@
 
 Date: 2026-09-28
 Mode: ECOSYSTEM_PLANNING
-Status: PREPARED / FORWARD ACTIVATION BLOCKED UNTIL TARGET U10 FREEZE
+Status: ACTIVE FORWARD OBSERVATION / TARGET U10 FROZEN
 
 ## Purpose
 
@@ -14,9 +14,16 @@ This registry does not alter trading behavior.
 
 ## Universe activation gate
 
-The current TARGET U9 is transitional. The intended steady state is a new TARGET U10 after a tenth candidate is selected.
+The final TARGET U10 is frozen as:
 
-Forward validation MUST NOT start while membership is still changing.
+`RR_TARGET_U10_FROZEN_V1 = TWT, PEPE, BNB, TRX, AAVE, AVAX, FIL, ALGO, XRP, HBAR`
+
+Forward validation start:
+
+`2026-09-29T00:00:00Z`
+
+No candle before that timestamp may count as forward evidence. Universe membership
+must not be changed during forward observation without creating a new version.
 
 Activation prerequisites:
 
@@ -27,7 +34,7 @@ Activation prerequisites:
 5. no backfill before that date may count as forward evidence;
 6. all hypotheses below use the same frozen U10 reference until a formally versioned universe change.
 
-Until then: FORWARD_VALIDATION_STATUS = BLOCKED_UNIVERSE_NOT_FROZEN.
+FORWARD_VALIDATION_STATUS = ACTIVE_FROZEN_U10_FORWARD_OBSERVATION.
 
 ## Accepted core
 
@@ -207,12 +214,15 @@ A Telegram hypothesis reminder is NOT a strategy signal, an exchange order, perm
 
 Promotion requires a documented decision after the preregistered forward evidence gate is met.
 
-## Next action after tenth candidate selection
+## Post-freeze operating rule
 
-1. version the final universe;
-2. set forward_validation_start;
-3. activate HYP-RR-001 and HYP-RR-002 tracking;
-4. revalidate HYP-RR-003 against frozen U10 before enabling it;
-5. add Telegram hypothesis blocks;
-6. create append-only forward hypothesis log;
-7. do not backfill old candles as forward evidence.
+1. U10 membership is frozen as RR_TARGET_U10_FROZEN_V1.
+2. Forward start is 2026-09-29T00:00:00Z.
+3. HYP-RR-001 and HYP-RR-002 remain forward hypotheses; only genuinely future
+   activations may count.
+4. HYP-RR-003 remains disabled until a separately authorized validation/promotion
+   step; it must not silently affect routing.
+5. Core Telegram alerts remain operational; hypothesis-specific runtime alerts
+   require their trigger to occur after the forward start.
+6. Append-only forward logs exist from the freeze point onward.
+7. No historical candle may be inserted as forward evidence.

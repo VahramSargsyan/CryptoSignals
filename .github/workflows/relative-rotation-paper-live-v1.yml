@@ -54,7 +54,7 @@ jobs:
           FORCE_NOTIFY_INPUT: ${{ inputs.force_notify }}
         run: |
           EXTRA=""
-          if [ "$EVENT_NAME" = "push" ] || [ "$FORCE_NOTIFY_INPUT" = "true" ]; then
+          if [ "$FORCE_NOTIFY_INPUT" = "true" ]; then
             EXTRA="--force-notify"
           fi
           python -m scripts.run_relative_rotation_paper_live $EXTRA
@@ -66,6 +66,7 @@ jobs:
           echo "PAPER_RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
 
       - name: Optional Telegram notification
+        if: github.event_name != 'push'
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

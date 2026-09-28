@@ -90,6 +90,9 @@ def _read_config(path: Path) -> dict:
         "watch_assets": watch_assets,
         "migration_mode": bool(payload.get("migration_mode", False)),
         "defensive_overlay_enabled": bool(payload.get("defensive_overlay_enabled", True)),
+        "forward_validation_enabled": bool(payload.get("forward_validation_enabled", False)),
+        "forward_validation_start": _utc(payload["forward_validation_start"]) if payload.get("forward_validation_start") else None,
+        "universe_version": str(payload.get("universe_version", "")),
         "monitor_start": monitor_start,
     }
 
@@ -220,6 +223,10 @@ def build_notification(payload: dict) -> str:
             if extra_watch:
                 lines.append(f"Other {asset} confirmed outbound candidates:")
                 lines.extend(f"- {_event_line(event)}" for event in extra_watch)
+            armed_watch = watched.get("armed", [])
+            if armed_watch:
+                lines.append(f"Other {asset} ARMED / PREWATCH candidates (not confirmed):")
+                lines.extend(f"- {_event_line(event)}" for event in armed_watch)
         elif watched.get("armed"):
             lines.append(f"{asset} WATCH — ARMED / PREWATCH")
             lines.extend(f"- {_event_line(event)}" for event in watched["armed"])
@@ -415,8 +422,9 @@ def build_notification_ru(payload: dict) -> str:
         if primary_watch:
             lines.extend(
                 [
-                    f"🚨 {asset} — ВЫХОД ПОДТВЕРЖДЕН",
+                    f"🚨 WATCH {asset} — ВЫХОД ПОДТВЕРЖДЁН ДЛЯ {asset}",
                     _event_line_ru(primary_watch),
+                    f"Это НЕ сигнал для текущего актива {held}; это независимый sunset-watch.",
                     "Только ручная проверка — наблюдение не размещает ордера.",
                 ]
             )
@@ -424,10 +432,16 @@ def build_notification_ru(payload: dict) -> str:
             if extra_watch:
                 lines.append(f"Другие подтверждённые кандидаты на выход для {asset}:")
                 lines.extend(f"- {_event_line_ru(event)}" for event in extra_watch)
+            armed_watch = watched.get("armed", [])
+            if armed_watch:
+                lines.append(f"Другие {asset} ARM / PREWATCH (ещё НЕ подтверждены):")
+                lines.extend(f"- {_event_line_ru(event)}" for event in armed_watch)
         elif watched.get("armed"):
-            lines.append(f"⚠️ {asset} — ARM 15%")
+            lines.append(f"⚠️ WATCH {asset} — ARM / PREWATCH, ЭТО НЕ СИГНАЛ НА ОБМЕН")
             lines.extend(f"- {_event_line_ru(event)}" for event in watched["armed"])
-            lines.append("Ждём подтверждения разворота 3%.")
+            lines.append(
+                f"Текущий актив {held} не меняется. Для {asset} ждём разворот от экстремума минимум 3%."
+            )
 
     for event in latest_defensive_events:
         if event["event"] == "DEFENSIVE_ENTER":
@@ -472,6 +486,8 @@ def build_report_markdown(payload: dict) -> str:
         f"Persistent watch assets: **{', '.join(payload.get('watch_assets', [])) or '-'}**",
         f"Monitor start: **{payload['monitor_start']}**",
         f"Status: **{payload['status']}**",
+        f"Universe version: **{payload.get('universe_version') or '-'}**",
+        f"Forward validation start: **{payload.get('forward_validation_start') or '-'}**",
         "",
         "## Frozen relative-rotation engine",
         "",
@@ -653,8 +669,15 @@ def main(argv: list[str] | None = None) -> int:
 
     payload = {
         "schema_version": 1,
-        "strategy": config.get("strategy", "RELATIVE_ROTATION_TARGET_U9_TRANSITION_V1"),
-        "status": "TRANSITION_PAPER_LIVE / MANUAL_EXECUTION_ONLY",
+        "strategy": config.get("strategy", "RELATIVE_ROTATION_TARGET_U10_FORWARD_V1"),
+        "status": "FROZEN_U10_FORWARD_PAPER_LIVE / MANUAL_EXECUTION_ONLY",
+        "universe_version": config.get("universe_version", ""),
+        "forward_validation_enabled": config.get("forward_validation_enabled", False),
+        "forward_validation_start": (
+            config["forward_validation_start"].isoformat()
+            if config.get("forward_validation_start") is not None
+            else None
+        ),
         "generated_at": generated_at.isoformat(),
         "source_commit_sha": _source_commit(),
         "held_asset": config["held_asset"],

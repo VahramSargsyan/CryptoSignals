@@ -132,13 +132,22 @@ and the underlying canonical evidence:
 
 `research/relative_rotation/2026-09-28_ROBUST_EXHAUSTIVE_U9_U10_ATOM_REPLACEMENT_V1_EVIDENCE.md`
 
-Frozen research candidate:
+Historical research candidate:
 
 `RR_TARGET_U10_CANDIDATE_HBAR_V1 = CURRENT_TARGET_U9 + HBAR`
 
-Do not repeat the completed 15-token exhaustive U9/U10 search merely to rediscover the same result. A rerun requires materially new unseen data, a documented engine/semantic correction, materially changed cost assumptions, a materially changed token pool/mechanism, or an explicitly separate confirmatory/forward-validation protocol. Any future run must state what is materially new.
+As of 2026-09-29 this membership is frozen for forward observation as:
 
-The candidate is not production-approved. Current production/paper-live U9 remains unchanged until a separate promotion gate is satisfied.
+`RR_TARGET_U10_FROZEN_V1 = TWT, PEPE, BNB, TRX, AAVE, AVAX, FIL, ALGO, XRP, HBAR`
+
+Forward validation starts at `2026-09-29T00:00:00Z`. No earlier candle counts as forward evidence.
+Paper-live remains manual-execution-only. The configured real held asset is still ATOM,
+which is sunset/exit-only together with SOL and LINK; HBAR is now TARGET.
+
+Read:
+`docs/evidence/2026-09-29_RELATIVE_ROTATION_U10_FORWARD_FREEZE_DECISION_LOG_V1.md`
+
+Do not repeat the completed 15-token exhaustive U9/U10 search merely to rediscover the same result. A rerun requires materially new unseen data, a documented engine/semantic correction, materially changed cost assumptions, a materially changed token pool/mechanism, or an explicitly separate confirmatory/forward-validation protocol. Any future run must state what is materially new.
 
 
 ## Relative Rotation multibook diversification research memory — 2026-09-28

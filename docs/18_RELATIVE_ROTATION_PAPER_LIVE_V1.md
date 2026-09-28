@@ -166,3 +166,67 @@ Local static/unit verification for this patch covers:
 GitHub Actions additionally runs the monitor against live Binance public market data.
 
 `TEST_LEVEL: UNIT_REGRESSION + GITHUB_ACTIONS_LIVE_PUBLIC_DATA` only after the workflow run succeeds.
+
+
+## 2026-09-29 — Frozen U10 forward observation
+
+Universe version:
+
+`RR_TARGET_U10_FROZEN_V1`
+
+Forward start:
+
+`2026-09-29T00:00:00Z`
+
+TARGET:
+- TWT
+- PEPE
+- BNB
+- TRX
+- AAVE
+- AVAX
+- FIL
+- ALGO
+- XRP
+- HBAR
+
+SUNSET / EXIT-ONLY / WATCH:
+- ATOM
+- SOL
+- LINK
+
+The configured real held asset remains ATOM, therefore migration mode stays
+enabled until Vahram manually executes a confirmed outbound rotation from ATOM
+into TARGET and updates the config.
+
+HBAR is no longer a sunset/watch asset; it is part of the frozen TARGET U10.
+
+Forward evidence rules:
+- no pre-2026-09-29 candle counts as forward evidence;
+- no historical backfill;
+- TARGET membership remains frozen during this forward version;
+- manual execution only;
+- defensive overlay remains disabled.
+
+### Telegram clarification
+
+A sunset watch alert is independent of the configured held asset.
+
+Example:
+- held asset = ATOM
+- watch alert = LINK -> FIL
+
+This does not instruct ATOM -> FIL and does not mean LINK is currently held.
+
+Watch ARMED messages must explicitly say:
+- PREWATCH;
+- not a swap signal;
+- current held asset is unchanged;
+- 3% reversal confirmation is still required.
+
+Telegram sender must obey `report.should_notify`; no-signal scheduled runs are
+not sent unless force-notify is explicitly requested.
+
+The meaningful D1 live cadence remains once after the Binance daily close.
+Repeated intraday runs would evaluate the same closed candle and are not treated
+as new forward evidence.
