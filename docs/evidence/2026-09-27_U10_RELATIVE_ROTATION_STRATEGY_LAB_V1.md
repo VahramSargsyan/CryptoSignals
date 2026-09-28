@@ -566,6 +566,65 @@ Secondary reused-history check on OLD10 2020-2022:
 
 No live/paper promotion is authorized.
 
+## Single-month surge threshold 95% sensitivity
+
+Research:
+
+- prereg: `research/relative_rotation/2026-09-28_U10_SINGLEMONTH_SURGE95_V1_PREREG.md`
+- runner: `scripts/research_u10_singlemonth_surge95_v1.py`
+- evidence: [U10 Single-Month Surge 95% v1](2026-09-28_U10_SINGLEMONTH_SURGE95_V1.md)
+- primary run: `36379375833` — PASS
+- canonical verification: `36379478637` — PASS
+- TEST_LEVEL: `GITHUB_ACTIONS_LIVE_PUBLIC_DATA_STRESS_TEST`
+
+Only change:
+- single selected-month surge threshold 100% -> 95%.
+
+All P1/P2 and 5-bar fractal cash/re-entry mechanics stayed frozen.
+
+Canonical U10:
+- >=100% events: 3;
+- >=95% events: 4;
+- new event: September 2025, +98.98%;
+- subsequent worst running DD: -43.20% within 31d, -44.54% within 62d.
+
+P1:
+- 100% trigger final: 258,557.42;
+- 95% trigger final: 262,340.46;
+- +1.46% vs 100%-trigger variant;
+- +19.53% vs ordinary U10 baseline;
+- max DD -68.36%;
+- 4/4 cash cycles completed.
+
+Across 791 alternative U10s:
+- >=100% events: 2,227;
+- >=95% events: 2,760;
+- incremental 95-100% events: 533 across 516 universes;
+- incremental -25% hit within 31/62/93d: 96.06%.
+
+P1 95%:
+- final > baseline: 100%;
+- both final and DD improved: 91.78%;
+- 95% better than 100% in 516/791;
+- equal in 275;
+- worse in 0;
+- median terminal delta vs baseline: +23.17%;
+- median improvement vs 100%: +1.46%.
+
+Critical clustering:
+- 512/533 incremental events occurred in September 2025 and all hit -25%;
+- 21 occurred in July 2026 and none hit -25% within 93d.
+
+Therefore the 95% result is topology-robust but not temporally independent.
+
+95% was proposed after observing the canonical +98.98% event, so selection bias is explicit.
+
+Research disposition:
+- 95% is the stronger current P1 research candidate;
+- retain 100% as frozen control;
+- do not sweep intermediate thresholds;
+- no live/paper promotion without future temporal evidence.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
