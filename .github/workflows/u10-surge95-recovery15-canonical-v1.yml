@@ -1,0 +1,35 @@
+name: U10 SURGE95 Recovery15 Canonical v1
+
+on:
+  push:
+    branches:
+      - research/u10-surge95-recovery15-v1
+    paths:
+      - "scripts/research_u10_surge95_recovery15_canonical_v1.py"
+      - ".github/workflows/u10-surge95-recovery15-canonical-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install "pandas==2.2.3"
+      - run: python -m py_compile scripts/research_u10_surge95_recovery15_canonical_v1.py
+      - name: Run canonical recovery15 check
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_u10_surge95_recovery15_canonical_v1 --cutoff 2026-09-27T00:00:00Z
+      - uses: actions/upload-artifact@v4
+        with:
+          name: u10-surge95-recovery15-canonical-v1-${{ github.run_number }}
+          path: research_artifacts/u10_surge95_recovery15_canonical_v1/**
+          if-no-files-found: error
+          retention-days: 30
