@@ -86,126 +86,100 @@ def physical_assignment(books, volatility, open_idx):
     """
     Choose three distinct physical assets after shadow state has updated.
 
-    Priority:
-    1) maximize number of books physically synced to shadow;
-    2) preserve already-resident synced books;
-    3) among colliding fresh shadow transitions, prefer stronger max_dislocation;
-    4) preserve frozen defensive parking when sync is impossible;
-    5) minimize defensive displacement and physical turnover;
-    6) for new parking, prefer lower causal 30d realized volatility.
+    Exact three-book priority:
+    1) for each distinct shadow target, at most one physical book may occupy it;
+    2) a current physical resident of that shadow target wins first;
+    3) otherwise the strongest just-confirmed shadow transition wins;
+    4) deterministic book index breaks remaining ties;
+    5) losing books remain in an already-frozen defensive token when feasible;
+    6) otherwise they park in the lowest causal 30d-volatility free U10 token.
+
+    With three books this directly implements the preregistered objective without
+    enumerating every 10^3 physical assignment.
     """
-    option_sets = []
+    desired_groups = {}
     for idx, book in enumerate(books):
-        desired = book["shadow"]
+        desired_groups.setdefault(book["shadow"], []).append(idx)
+
+    synced_winners = set()
+    used_targets = set()
+
+    for target, members in desired_groups.items():
+        def winner_key(idx):
+            book = books[idx]
+            resident = int(book["actual"] == target)
+            fresh_strength = (
+                float(book.get("shadow_score", 0.0))
+                if book.get("shadow_transitioned", False)
+                else 0.0
+            )
+            # max resident, max strength, then lowest deterministic book index
+            return (resident, fresh_strength, -idx)
+
+        winner = max(members, key=winner_key)
+        synced_winners.add(winner)
+        used_targets.add(target)
+
+    assignments = [None, None, None]
+
+    # Winners synchronize to shadow.
+    for idx in synced_winners:
+        assignments[idx] = {
+            "target": books[idx]["shadow"],
+            "kind": "sync",
+            "vol": 0.0,
+        }
+
+    parking_books = [idx for idx in range(3) if idx not in synced_winners]
+
+    # Preserve already-frozen defensive tokens whenever a winner does not claim them.
+    for idx in parking_books:
+        book = books[idx]
         actual = book["actual"]
-        prev_parked = bool(book["prev_parked"])
-        options = []
-
-        # Sync option.
-        options.append(
-            {
-                "target": desired,
-                "kind": "sync",
-                "vol": 0.0,
-            }
-        )
-
-        # Frozen parking stay.
-        if actual != desired:
-            options.append(
-                {
-                    "target": actual,
-                    "kind": "park_stay",
-                    "vol": vol_at_open(volatility, actual, open_idx),
-                }
-            )
-
-        # Any U10 asset can serve as defensive crypto parking, but lower vol wins.
-        for asset in U10:
-            if asset == desired or asset == actual:
-                continue
-            options.append(
-                {
-                    "target": asset,
-                    "kind": "park_new",
-                    "vol": vol_at_open(volatility, asset, open_idx),
-                }
-            )
-
-        # Deduplicate targets while preferring sync > stay > new park.
-        preference = {"sync": 0, "park_stay": 1, "park_new": 2}
-        best_by_target = {}
-        for option in options:
-            target = option["target"]
-            old = best_by_target.get(target)
-            if old is None or preference[option["kind"]] < preference[old["kind"]]:
-                best_by_target[target] = option
-        option_sets.append(list(best_by_target.values()))
-
-    best_combo = None
-    best_key = None
-    best_tie = None
-
-    for combo in itertools.product(*option_sets):
-        targets = tuple(option["target"] for option in combo)
-        if len(set(targets)) != 3:
-            continue
-
-        synced = 0
-        resident_synced = 0
-        fresh_strength = 0.0
-        frozen_stays = 0
-        displacements = 0
-        moves = 0
-        parking_vol = 0.0
-
-        for book, option in zip(books, combo):
-            target = option["target"]
-            desired = book["shadow"]
-            actual = book["actual"]
-            prev_parked = bool(book["prev_parked"])
-
-            if target == desired:
-                synced += 1
-                if actual == desired:
-                    resident_synced += 1
-                elif book.get("shadow_transitioned", False):
-                    fresh_strength += float(book.get("shadow_score", 0.0))
-            else:
-                v = float(option["vol"])
-                parking_vol += v if math.isfinite(v) else 1e6
-
-            if prev_parked and target == actual and target != desired:
-                frozen_stays += 1
-            if prev_parked and target != actual and target != desired:
-                displacements += 1
-            if target != actual:
-                moves += 1
-
-        key = (
-            synced,
-            resident_synced,
-            fresh_strength,
-            frozen_stays,
-            -displacements,
-            -moves,
-            -parking_vol,
-        )
-        tie = tuple(ASSET_RANK[target] for target in targets)
-
+        desired = book["shadow"]
         if (
-            best_combo is None
-            or key > best_key
-            or (key == best_key and tie < best_tie)
+            book.get("prev_parked", False)
+            and actual != desired
+            and actual not in used_targets
         ):
-            best_combo = combo
-            best_key = key
-            best_tie = tie
+            assignments[idx] = {
+                "target": actual,
+                "kind": "park_stay",
+                "vol": vol_at_open(volatility, actual, open_idx),
+            }
+            used_targets.add(actual)
 
-    if best_combo is None:
-        raise RuntimeError("No feasible distinct physical assignment")
+    # Remaining losers use the lowest-volatility currently free token.
+    for idx in parking_books:
+        if assignments[idx] is not None:
+            continue
+        book = books[idx]
+        ranked = sorted(
+            U10,
+            key=lambda asset: (
+                vol_at_open(volatility, asset, open_idx),
+                ASSET_RANK[asset],
+            ),
+        )
+        chosen = None
+        for asset in ranked:
+            if asset in used_targets:
+                continue
+            chosen = asset
+            break
+        if chosen is None:
+            raise RuntimeError("No free U10 asset for defensive parking")
+        assignments[idx] = {
+            "target": chosen,
+            "kind": "park_new",
+            "vol": vol_at_open(volatility, chosen, open_idx),
+        }
+        used_targets.add(chosen)
 
-    return [dict(option) for option in best_combo]
+    targets = [row["target"] for row in assignments]
+    if len(set(targets)) != 3:
+        raise RuntimeError(f"Physical assignment collision: {targets}")
+    return assignments
 
 
 def concentration_snapshot(books, closes, idx):
