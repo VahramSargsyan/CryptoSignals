@@ -128,15 +128,26 @@ remains correct only for:
 
 Its rejection must not be generalized to this shadow/defensive architecture.
 
-## MAX_2_OF_3
+## MAX_2_OF_3 — tested 2026-09-28
 
-`MAX_2_OF_3_BOOKS_PER_ASSET`
+`MAX_2_OF_3_BOOKS_PER_ASSET` is no longer `IDEA_NOT_TESTED`.
 
-remains:
+It was tested separately as:
 
-`IDEA_NOT_TESTED`
+`V4_MAX2_SHADOW_FALLBACK`
 
-It is a separate hypothesis that may preserve more upside while allowing up to two books to converge. It is not required merely because shadow-fallback failed; shadow-fallback did not fail mechanically.
+Canonical decision:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_MULTIBOOK_MAX2_SHADOW_DECISION_LOG_V1.md`
+
+MATURE historical result:
+- median return: +2223.8%
+- median max DD: -57.1%
+- median daily largest asset: 80.5%
+- median peak concentration: 95.1%
+- full 3-in-1 physical convergence: 0%
+
+Interpretation: MAX2 preserves substantially more upside than MAX1 shadow, but value concentration remains high.
 
 ## No-repeat rule
 
