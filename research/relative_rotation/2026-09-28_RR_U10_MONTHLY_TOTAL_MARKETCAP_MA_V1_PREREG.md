@@ -1,28 +1,47 @@
-# RR U10 MONTHLY TOTAL MARKET CAP + MA V1 — PREREG
+# RR U10 MONTHLY TRADINGVIEW TOTAL + SMA V1 — PREREG
 
 Date: 2026-09-28
 Workflow mode: STRESS_TEST_ONLY
 Production/live changes: NONE
 
+## Source correction
+
+A first exploratory run attempted to read CoinMarketCap historical-page
+`pageProps.globalMetrics.marketCap`. Validation showed that field is a
+current-site global metric even when the page URL is historical. The resulting
+near-flat ~$2.86T series was therefore invalid for historical analysis.
+
+That exploratory output is classified:
+
+`INVALID_SOURCE_SEMANTICS`
+
+It must not be used as evidence and will not be merged as a result.
+
 ## Goal
 
 Build one unified monthly view connecting:
-- total crypto market capitalization,
+
+- broad crypto market capitalization,
 - BTC monthly return,
 - frozen U10 strategy monthly return,
-- broad market-cap trend / moving-average state.
+- exact daily market-cap SMA structure.
 
-The purpose is descriptive regime research: understand when the market appears to transition from deterioration to expansion and vice versa.
+Then inspect which pre-frozen moving-average configurations coincide with
+market expansion ("market starts to live") and deterioration ("market starts
+to die").
 
 ## Frozen strategy
 
 Universe:
+
 `RR_TARGET_U10_CANDIDATE_HBAR_V1`
 
 Assets:
+
 `TWT, PEPE, BNB, TRX, AAVE, AVAX, FIL, ALGO, XRP, HBAR`
 
 Core semantics unchanged:
+
 - Binance Spot D1
 - rolling median lookback 180d
 - ARM 15%
@@ -34,135 +53,169 @@ Core semantics unchanged:
 
 ## Analysis window
 
-Baseline snapshot:
-- 2023-10-31
+Monthly table:
 
-Monthly rows:
-- 2023-10 through 2026-09
-- final row uses 2026-09-26 cutoff rather than a future month-end
+- baseline 2023-10-31
+- then every month-end through 2026-08-31
+- final partial month at 2026-09-26
 
-This matches the existing MATURE research period.
+This matches the existing MATURE research window.
 
-## Total market-cap source
+## Market-cap source
 
-Use CoinMarketCap public historical snapshot pages:
+Use TradingView symbol:
 
-`https://coinmarketcap.com/historical/YYYYMMDD/`
+`CRYPTOCAP:TOTAL`
 
-Extract the page's embedded `__NEXT_DATA__` JSON:
+Definition: TradingView's accumulated market capitalization of the top-125
+cryptocurrencies from its Crypto Coins Screener.
 
-`props.pageProps.globalMetrics.marketCap`
+Retrieve daily bars through the open-source `tvdatafeed` client in anonymous
+mode, pinned to source commit:
 
-This is the historical global market-cap snapshot value reported by CoinMarketCap for that date.
+`rongardF/tvdatafeed@e6f6aaa7de439ac6e454d9b26d2760ded8dc4923`
 
-For each requested month-end:
-- request the exact calendar month-end;
-- if unavailable, retry backward up to 3 calendar days;
-- persist the actual snapshot date used;
-- fail the test if no value is found.
+Require at least 1,300 daily bars and coverage beginning no later than
+2022-12-01 so SMA300 is fully warmed before the main analysis.
 
-No summing of individual tokens and no synthetic U10 proxy is allowed for this column.
+Persist the raw daily TOTAL series used by the run.
+
+Important naming:
+
+- call this `TradingView TOTAL` or `CRYPTOCAP:TOTAL`;
+- do not call it the literal capitalization of every cryptocurrency in existence.
+
+## Monthly TOTAL
+
+For each table row:
+
+- sample the last available TOTAL daily close on or before the row date;
+- `TOTAL MoM = current / previous - 1`.
 
 ## BTC monthly return
 
 Binance BTCUSDT D1.
 
-For each monthly row:
-- take the last available BTC close on or before the snapshot/cutoff date;
-- monthly return = current row close / previous row close - 1.
+- sample last available close on or before each table date;
+- `BTC MoM = current / previous - 1`.
 
 ## U10 monthly return
 
-For each of the 10 possible starting assets:
-- simulate the frozen U10 once across the full MATURE period;
-- sample strategy equity at each month-end row;
-- compute each start-state monthly return from consecutive sampled equity values.
+For each of the 10 frozen possible starting assets:
 
-Monthly U10 column:
-- median monthly return across the 10 frozen starting states.
+- simulate the full MATURE U10 path once;
+- sample strategy equity at each table date;
+- calculate monthly return between adjacent samples.
 
-Also persist:
-- minimum start-state monthly return;
-- maximum start-state monthly return.
+Reported U10 monthly return:
 
-Do not choose a favorable start asset.
+`median monthly return across the 10 frozen starting states`
 
-## Market-cap monthly change
+Also persist min/max start-state monthly return.
 
-`market_cap_mom = current_month_end_market_cap / previous_month_end_market_cap - 1`
+Do not select a favorable start.
 
-## Moving averages
+## Exact TOTAL moving averages
 
-Because this source is sampled monthly rather than daily, do NOT label the following as exact daily SMA50/100/200/300.
+Calculate on DAILY `CRYPTOCAP:TOTAL` closes:
 
-Use fixed monthly equivalents:
+- SMA50
+- SMA100
+- SMA200
+- SMA300
 
-- `MC_MA2` ≈ 60 calendar days, nearest coarse analogue of SMA50
-- `MC_MA3` ≈ 90 calendar days, nearest coarse analogue of SMA100
-- `MC_MA7` ≈ 210 calendar days, nearest coarse analogue of SMA200
-- `MC_MA10` ≈ 300 calendar days, nearest coarse analogue of SMA300
+These are exact daily simple moving averages on the retrieved TradingView TOTAL
+series, not monthly approximations.
 
-These are simple moving averages of monthly market-cap snapshots.
+At each monthly row persist:
 
-The previously completed exact BTC SMA200 test remains the exact daily-SMA reference:
-- BTC above SMA200 -> U10 strongly positive historically
-- BTC below SMA200 -> U10 negative historically
+- TOTAL close
+- SMA50 / SMA100 / SMA200 / SMA300
+- percentage distance of TOTAL from each SMA
+- slope sign of each SMA vs 5 trading days earlier
 
-## MA state descriptors
+## Frozen daily MA states
 
-For every row with enough history, calculate:
+No period or threshold optimization after inspection.
 
-1. Price-to-MA flags:
-   - CAP > MA2
-   - CAP > MA3
-   - CAP > MA7
-   - CAP > MA10
+### FULL_BULL_ALIGNMENT
 
-2. Alignment:
-   - `FULL_BULL_ALIGNMENT`: CAP > MA2 > MA3 > MA7 > MA10
-   - `BULL_BUILDING`: CAP > MA2 and MA2 > MA3, but full bull alignment is absent
-   - `MIXED`: neither bullish nor bearish definition
-   - `BEAR_BUILDING`: CAP < MA2 and MA2 < MA3, but full bear alignment is absent
-   - `FULL_BEAR_ALIGNMENT`: CAP < MA2 < MA3 < MA7 < MA10
+`TOTAL > SMA50 > SMA100 > SMA200 > SMA300`
 
-3. Slopes:
-   - each MA rising / falling versus previous monthly row.
+### BULL_BUILDING
 
-No thresholds or MA periods are optimized after seeing U10 returns.
+Not full bull, but:
 
-## Transition analysis
+`TOTAL > SMA50 > SMA100`
 
-Descriptively identify:
-- first transition into BULL_BUILDING;
-- first transition into FULL_BULL_ALIGNMENT;
-- first loss of full bull alignment;
-- first transition into BEAR_BUILDING;
-- first transition into FULL_BEAR_ALIGNMENT;
-- reversals back toward bullish alignment.
+### FULL_BEAR_ALIGNMENT
 
-For each transition, show:
-- market cap level and MoM change,
-- BTC monthly return,
-- U10 monthly return,
-- next 1-month and next 3-month cumulative BTC/U10 return where enough future data exists.
+`TOTAL < SMA50 < SMA100 < SMA200 < SMA300`
 
-This is descriptive, not a production timing rule.
+### BEAR_BUILDING
+
+Not full bear, but:
+
+`TOTAL < SMA50 < SMA100`
+
+### MIXED
+
+Anything else with full SMA history.
+
+## Daily transition events
+
+Identify exact dates for:
+
+- TOTAL crossing above/below SMA50
+- TOTAL crossing above/below SMA100
+- TOTAL crossing above/below SMA200
+- TOTAL crossing above/below SMA300
+- first entry into FULL_BULL_ALIGNMENT
+- first exit from FULL_BULL_ALIGNMENT
+- first entry into FULL_BEAR_ALIGNMENT
+- first exit from FULL_BEAR_ALIGNMENT
+
+For MA-state entries/exits, record the raw first day and whether the state
+persisted for at least 3 consecutive daily bars. The 3-day flag is diagnostic;
+it does not redefine the raw event.
+
+For each major state event, attach:
+
+- TOTAL value
+- BTC close
+- next 30d BTC return
+- next 90d BTC return
+- next 30d U10 return if available from the strategy equity curve
+- next 90d U10 return if available
+
+This is descriptive only.
 
 ## Relationship statistics
 
-Across monthly rows with valid returns, report:
-- Pearson correlation: market-cap MoM vs BTC monthly return;
-- Pearson correlation: market-cap MoM vs U10 median monthly return;
-- same-month directional agreement rates.
+Monthly:
 
-Important interpretation:
-Market capitalization is mechanically linked to crypto prices (price × circulating supply), so correlation is expected and does not prove market-cap change causes asset-price change.
+- Pearson TOTAL MoM vs BTC MoM
+- Pearson TOTAL MoM vs U10 monthly return
+- directional agreement TOTAL vs BTC
+- directional agreement TOTAL vs U10
+- lag-1 correlation TOTAL MoM vs next-month BTC return
+- lag-1 correlation TOTAL MoM vs next-month U10 return
+
+Interpretation rule:
+
+Market capitalization is mechanically linked to asset prices
+(price × circulating supply). Same-period correlation is expected and does not
+prove market cap causes price changes. Lagged relationships are diagnostic and
+must not be called causal or predictive without separate out-of-sample evidence.
 
 ## Output
 
 Persist:
+
+- `total_daily.csv`
 - `monthly_table.csv`
-- `transition_events.csv`
+- `daily_transition_events.csv`
+- `ma_state_summary.csv`
 - `summary.json`
 - `report.md`
 
@@ -171,11 +224,13 @@ Persist:
 Research only.
 
 Do not alter:
-- paper/live U9,
-- frozen U10 candidate,
-- defensive overlay,
-- Telegram,
-- exchange execution.
+
+- paper/live U9
+- frozen U10 candidate
+- defensive overlay
+- Telegram
+- exchange execution
 
 Target test level:
+
 `TEST_LEVEL: GITHUB_ACTIONS_LIVE_PUBLIC_DATA_STRESS_TEST`
