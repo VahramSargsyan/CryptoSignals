@@ -629,6 +629,62 @@ The evidence now suggests two regimes:
 
 Do not combine the rules or promote STREAK95 yet.
 
+## STREAK95 trend-break exit filter
+
+Research:
+
+- prereg: `research/relative_rotation/2026-09-28_U10_STREAK95_TRENDBREAK_V1_PREREG.md`
+- runner: `scripts/research_u10_streak95_trendbreak_v1.py`
+- evidence: [U10 STREAK95 Trend-Break Exit v1](2026-09-28_U10_STREAK95_TRENDBREAK_V1.md)
+- primary run: `36378225818` — PASS
+- canonical verification: `36378296336` — PASS
+
+Rule tested:
+
+`STREAK95 -> wait for first completed non-positive selected month -> confirm 5-bar lower high on current U10 asset -> require same 5%/10% pullback -> sell 30% -> unchanged 5-bar re-entry`.
+
+Canonical:
+
+- baseline: 219,485.20 USDT;
+- original P1-STREAK95: 219,322.44;
+- P1-TRENDBREAK: 198,096.80 / -9.74% vs baseline / max DD -71.17%;
+- original P2-STREAK95: 227,103.08;
+- P2-TRENDBREAK: 196,582.17 / -10.43% / max DD -71.17%.
+
+Across 791 alternative U10s:
+
+P1:
+- final > baseline: 47.79%;
+- final > original P1-STREAK95: 59.42%;
+- max DD improved: 3.92%;
+- both final and DD improved: 2.91%;
+- unfinished cash: 0%;
+- unfinished WATCH: 58.28%;
+- median delta vs baseline: -0.83%.
+
+P2:
+- final > baseline: 47.03%;
+- final > original P2-STREAK95: 44.50%;
+- max DD improved: 3.41%;
+- both improved: 2.53%;
+- unfinished WATCH: 58.28%;
+- median delta vs baseline: -0.83%.
+
+Timing diagnosis:
+
+- median delay from STREAK95 trigger to sale signal: roughly 50 days P1 / 57 days P2;
+- 53.09% of completed P1 cycles sold only after reference decline had already reached >=25%;
+- 52.62% sold after >=30%;
+- 22.15% after >=35%.
+
+Interpretation:
+
+The causal trend-break idea is coherent, but this exact confirmation stack is too slow for protective selling.
+
+Waiting for an entire non-positive month and then a 5-bar lower high often means selling after the correction has already happened.
+
+Reject this implementation; do not promote it.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
