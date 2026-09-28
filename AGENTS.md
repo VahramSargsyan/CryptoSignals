@@ -486,3 +486,35 @@ legs can later finish profitably after regime transition.
 
 Do not rerun unchanged on the same history. Do not promote this research into
 live/paper execution rules without separate validation.
+
+
+## Relative Rotation U10 day-0 price-reset counterfactual memory — 2026-09-28
+
+Before discussing the abstract test where every future destination token is
+purchased at its first-day test price, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_U10_DAY0_PRICE_RESET_COUNTERFACTUAL_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_DAY0_PRICE_RESET_COUNTERFACTUAL_V1_EVIDENCE.md`
+
+Frozen semantics:
+- snapshot date: 2023-10-31;
+- canonical route/dates unchanged;
+- source holding valued at real execution-date open;
+- destination purchase price reset to frozen day-0 open on every rotation;
+- 0.1% cost retained;
+- destination then follows real historical prices until next rotation.
+
+Frozen result:
+- median real-price baseline: 100 -> 3252.05 USDT;
+- median DAY0_RESET: 100 -> 1,432,085 USDT;
+- median amplification: 434.3x;
+- all 10 reset paths remain non-monotonic.
+
+Frozen classification:
+`DAY0_RESET_CAUSES_EXTREME_SYNTHETIC_AMPLIFICATION_BUT_NOT_MONOTONIC_GROWTH`
+
+This is deliberately impossible stale-price execution. Never describe it as
+achievable P&L, arbitrage, or a production rule.
