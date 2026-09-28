@@ -98,7 +98,8 @@ jobs:
         run: |
           echo "## Relative Rotation Historical Dataset Cache v1" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Archive: `$ARCHIVE`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Catalog: `$CATALOG`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Dataset count: 26 expected" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Archive: $ARCHIVE" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Catalog: $CATALOG" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Dataset count: 26" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Critical datasets: 0 required for publication" >> "$GITHUB_STEP_SUMMARY"
           echo "- Storage: GitHub prerelease + 90-day Actions artifact" >> "$GITHUB_STEP_SUMMARY"
