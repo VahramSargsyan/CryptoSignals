@@ -223,6 +223,10 @@ def build_notification(payload: dict) -> str:
             if extra_watch:
                 lines.append(f"Other {asset} confirmed outbound candidates:")
                 lines.extend(f"- {_event_line(event)}" for event in extra_watch)
+            armed_watch = watched.get("armed", [])
+            if armed_watch:
+                lines.append(f"Other {asset} ARMED / PREWATCH candidates (not confirmed):")
+                lines.extend(f"- {_event_line(event)}" for event in armed_watch)
         elif watched.get("armed"):
             lines.append(f"{asset} WATCH — ARMED / PREWATCH")
             lines.extend(f"- {_event_line(event)}" for event in watched["armed"])
@@ -428,6 +432,10 @@ def build_notification_ru(payload: dict) -> str:
             if extra_watch:
                 lines.append(f"Другие подтверждённые кандидаты на выход для {asset}:")
                 lines.extend(f"- {_event_line_ru(event)}" for event in extra_watch)
+            armed_watch = watched.get("armed", [])
+            if armed_watch:
+                lines.append(f"Другие {asset} ARM / PREWATCH (ещё НЕ подтверждены):")
+                lines.extend(f"- {_event_line_ru(event)}" for event in armed_watch)
         elif watched.get("armed"):
             lines.append(f"⚠️ WATCH {asset} — ARM / PREWATCH, ЭТО НЕ СИГНАЛ НА ОБМЕН")
             lines.extend(f"- {_event_line_ru(event)}" for event in watched["armed"])
