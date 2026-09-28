@@ -486,6 +486,86 @@ Therefore:
 - 2020-2022 is now consumed validation evidence and must not be tuned against;
 - no live/paper change is authorized.
 
+## Fractal buy-stop re-entry after surge cash-out
+
+Research:
+
+- prereg: `research/relative_rotation/2026-09-28_U10_MONTHLY_SURGE_FRACTAL_BUYSTOP_V1_PREREG.md`
+- runner: `scripts/research_u10_monthly_surge_fractal_buystop_v1.py`
+- workflow: `.github/workflows/u10-monthly-surge-fractal-buystop-v1.yml`
+- evidence: [U10 Monthly Surge Fractal Buy-Stop Re-entry v1](2026-09-28_U10_MONTHLY_SURGE_FRACTAL_BUYSTOP_V1.md)
+- primary GitHub Actions run: `36375093832`
+- independent canonical verification: `36375212278`
+- result: PASS
+- test level: `GITHUB_ACTIONS_LIVE_PUBLIC_DATA_STRESS_TEST`
+
+Frozen logic:
+
+- P1/P2 cash-out remains +100% surge -> 5%/10% pullback -> sell 30%;
+- wait until U10 reference equity is at least -15% below latest post-surge peak;
+- search the currently held U10 asset for a confirmed 5-bar swing high (2 left / center / 2 right);
+- pivot becomes known only after both right-side bars close;
+- activate buy-stop from the next session;
+- a later lower confirmed swing high ratchets the stop downward;
+- U10 asset rotation cancels/reset the old asset stop;
+- gap above stop fills at open; otherwise a daily-high touch fills at stop;
+- no fixed -25% re-entry;
+- no timeout.
+
+Canonical U10:
+
+| Variant | Baseline | Fixed -25% | Moving-peak -25% | Fractal | Fractal vs baseline | Max DD |
+|---|---:|---:|---:|---:|---:|---:|
+| P1 | 219,485.20 | 270,653.52 | 252,642.73 | 258,557.42 | +17.80% | -68.36% |
+| P2 | 219,485.20 | 265,751.95 | 248,067.33 | 253,741.70 | +15.61% | -68.36% |
+
+P1 fractal:
+- 3/3 cash cycles completed;
+- 145 cash days;
+- 16 confirmed pivots;
+- 11 lower-stop replacements;
+- 0 unfinished cycles.
+
+Across 791 alternative U10s, P1-FRACTAL:
+- final > ordinary U10 baseline: 100%;
+- max DD improved: 90.14%;
+- both final and max DD improved: 90.14%;
+- unfinished cash cycles: 0%;
+- median terminal delta vs baseline: +21.39%;
+- q25/q75: +17.55% / +25.39%;
+- fractal beat fixed old-peak -25% in 32.87%;
+- fractal beat moving-reference-peak -25% in 84.45%.
+
+P2-FRACTAL:
+- final > baseline: 100%;
+- both final and max DD improved: 79.01%;
+- unfinished cycles: 0%;
+- median terminal delta: +17.54%;
+- beat moving-peak -25% in 78.26%.
+
+Actual structural re-entry depth across 2,227 alternative fractal cycles ranged roughly from:
+- -8.81% shallowest
+- median -29.61%
+- -40.43% deepest
+
+Thus the re-entry depth emerged from price structure rather than a universal -25% constant.
+
+Interpretation:
+
+P1-FRACTAL is the stronger structural candidate on 2023-2026.
+
+It does not dominate the hindsight-friendly frozen old-peak -25% rule on terminal equity, but it is more adaptive than moving-peak -25%, requires no arbitrary timeout, and completed all tested cycles.
+
+Secondary reused-history check on OLD10 2020-2022:
+
+- OLD10 baseline: 56,902.97 USDT;
+- P1-FRACTAL: 50,295.00 / -11.61% vs baseline;
+- P2-FRACTAL: 49,569.15 / -12.89%;
+- all 3/3 fractal cycles completed, but the 5-bar confirmation could re-enter too late after V-shaped recoveries;
+- this history is already consumed and is not untouched OOS evidence.
+
+No live/paper promotion is authorized.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
