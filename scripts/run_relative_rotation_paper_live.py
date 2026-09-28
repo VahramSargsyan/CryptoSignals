@@ -82,9 +82,70 @@ def _read_config(path: Path) -> dict:
             raise ValueError(f"watch_asset must be one of {ASSETS}; got {asset!r}")
         if asset not in watch_assets:
             watch_assets.append(asset)
+
+    raw_books = payload.get("position_books")
+    position_books = []
+    if raw_books:
+        seen_book_ids = set()
+        for index, raw in enumerate(raw_books, start=1):
+            book_id = str(raw.get("book_id") or f"BOOK_{index}").strip().upper()
+            if not book_id:
+                raise ValueError("position book_id cannot be empty")
+            if book_id in seen_book_ids:
+                raise ValueError(f"duplicate position book_id: {book_id}")
+            seen_book_ids.add(book_id)
+
+            asset = str(raw.get("held_asset", "")).upper()
+            if asset not in ASSETS:
+                raise ValueError(f"{book_id} held_asset must be one of {ASSETS}; got {asset!r}")
+
+            quantity = raw.get("quantity")
+            if quantity is not None:
+                quantity = float(quantity)
+                if quantity <= 0:
+                    raise ValueError(f"{book_id} quantity must be positive")
+
+            initial_quantity = raw.get("initial_quantity")
+            if initial_quantity is not None:
+                initial_quantity = float(initial_quantity)
+                if initial_quantity <= 0:
+                    raise ValueError(f"{book_id} initial_quantity must be positive")
+
+            tracking_start = _utc(raw.get("tracking_start", monitor_start))
+            position_books.append(
+                {
+                    **raw,
+                    "book_id": book_id,
+                    "label": str(raw.get("label") or book_id),
+                    "held_asset": asset,
+                    "quantity": quantity,
+                    "initial_quantity": initial_quantity,
+                    "tracking_start": tracking_start,
+                }
+            )
+    else:
+        position_books = [
+            {
+                "book_id": "BOOK_1",
+                "label": "LEGACY_PRIMARY",
+                "held_asset": held_asset,
+                "quantity": None,
+                "initial_quantity": None,
+                "tracking_start": monitor_start,
+                "quantity_source": "LEGACY_HELD_ASSET_ALIAS",
+            }
+        ]
+
+    if position_books[0]["held_asset"] != held_asset:
+        raise ValueError(
+            "legacy held_asset must match the first position book held_asset "
+            f"({held_asset} != {position_books[0]['held_asset']})"
+        )
+
     return {
         **payload,
         "held_asset": held_asset,
+        "position_books": position_books,
         "target_assets": target_assets,
         "sunset_assets": sunset_assets,
         "watch_assets": watch_assets,
@@ -94,6 +155,13 @@ def _read_config(path: Path) -> dict:
         "forward_validation_start": _utc(payload["forward_validation_start"]) if payload.get("forward_validation_start") else None,
         "universe_version": str(payload.get("universe_version", "")),
         "monitor_start": monitor_start,
+    }
+
+
+def _book_payload(book: dict) -> dict:
+    return {
+        **book,
+        "tracking_start": book["tracking_start"].isoformat(),
     }
 
 
