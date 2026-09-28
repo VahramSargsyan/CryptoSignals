@@ -418,3 +418,34 @@ Current cutoff state 2026-09-26:
 - descriptive label: `BULLISH_ROTATION_COMBO_ACTIVE`
 
 Do not rerun unchanged. No production rule is authorized.
+
+
+## Relative Rotation U10 extreme-month indicator overlay memory — 2026-09-28
+
+Before claiming TOTAL/ETH-BTC indicators explain U10 explosive months or severe
+monthly dips, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_U10_EXTREMES_INDICATOR_OVERLAY_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_EXTREMES_INDICATOR_OVERLAY_V1_EVIDENCE.md`
+
+Frozen thresholds:
+- explosive month: U10 >= +40%
+- severe dip month: U10 <= -15%
+
+Frozen findings:
+- explosive months: TOTAL positive in 6/7, TOTAL bullish in 5/7; ETH/BTC
+  fast-MA strength is common but not required;
+- severe dip months: TOTAL bullish in 0/6 and ETH/BTC above SMA100 in 0/6;
+- descriptive risk pattern:
+  `TOTAL_NOT_BULL + ETHBTC_BELOW_SMA100 = HIGH_ATTENTION_RISK_PATTERN`;
+- this is based on only six severe months and is not production-approved;
+- 2026-05-02 is the canonical false-recovery example:
+  TOTAL BULL_BUILDING while still below SMA200/300 and ETH/BTC below all tested SMAs;
+- 2026-08 recovery sequence is the canonical stronger recovery example:
+  ETH/BTC turns first, then TOTAL regains SMA200/SMA300, then BULL_BUILDING.
+
+Do not convert this research pattern into automatic cash exit/re-entry without a
+separate preregistered withdrawal/allocation validation.
