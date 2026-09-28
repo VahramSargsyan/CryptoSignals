@@ -6,7 +6,9 @@ from typing import Iterable, Sequence
 
 import pandas as pd
 
-ASSETS = ("ATOM", "TWT", "PEPE", "BNB", "SOL", "TRX", "AAVE", "LINK", "FIL", "HBAR")
+TARGET_ASSETS = ("TWT", "PEPE", "BNB", "TRX", "AAVE", "AVAX", "FIL", "ALGO", "XRP")
+SUNSET_ASSETS = ("ATOM", "SOL", "LINK", "HBAR")
+ASSETS = TARGET_ASSETS + SUNSET_ASSETS
 LOOKBACK = 180
 ARM_THRESHOLD = 0.15
 REVERSAL = 0.03
@@ -223,18 +225,26 @@ def choose_held_events(
     *,
     held_asset: str,
     latest_date: pd.Timestamp | str,
+    allowed_to_assets: Sequence[str] | None = None,
 ) -> dict:
     """Filter latest-candle events for the currently held asset.
+
+    Optional allowed_to_assets enforces transition routing. In migration mode this
+    prevents re-entry into sunset assets while allowing a legacy held asset to
+    exit into the target universe.
 
     When several CONFIRMED transitions exist, preserve the frozen baseline router:
     strongest max dislocation first, then target asset, then pair name.
     """
     held_asset = held_asset.upper()
+    allowed_to = None if allowed_to_assets is None else {str(asset).upper() for asset in allowed_to_assets}
     latest_iso = pd.Timestamp(latest_date).tz_convert("UTC").isoformat() if pd.Timestamp(latest_date).tzinfo else pd.Timestamp(latest_date).tz_localize("UTC").isoformat()
     latest = [
         dict(event)
         for event in events
-        if event.get("date") == latest_iso and event.get("from_asset") == held_asset
+        if event.get("date") == latest_iso
+        and event.get("from_asset") == held_asset
+        and (allowed_to is None or str(event.get("to_asset", "")).upper() in allowed_to)
     ]
     armed = sorted(
         (event for event in latest if event.get("event") == "ARMED"),
