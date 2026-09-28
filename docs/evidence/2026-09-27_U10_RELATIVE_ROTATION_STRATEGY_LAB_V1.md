@@ -566,6 +566,69 @@ Secondary reused-history check on OLD10 2020-2022:
 
 No live/paper promotion is authorized.
 
+## Consecutive positive-month streak >=95% stress
+
+Research:
+
+- prereg: `research/relative_rotation/2026-09-28_U10_MULTIMONTH_STREAK95_V1_PREREG.md`
+- runner: `scripts/research_u10_multimonth_streak95_v1.py`
+- workflow: `.github/workflows/u10-multimonth-streak95-v1.yml`
+- evidence: [U10 Consecutive Positive-Month Streak >=95% v1](2026-09-28_U10_MULTIMONTH_STREAK95_V1.md)
+- run: `36377218013` — PASS
+- TEST_LEVEL: `GITHUB_ACTIONS_LIVE_PUBLIC_DATA_STRESS_TEST`
+
+Trigger:
+- at least 2 consecutive positive selected calendar months;
+- cumulative selected-equity gain >=95%;
+- any zero/negative selected month resets the streak;
+- a single +95% month does not qualify.
+
+Canonical U10:
+- 4 qualifying streaks;
+- -25% hit within 31d: 50%;
+- within 62d: 50%;
+- within 93d: 75%.
+
+Only 1/4 canonical streaks overlapped the prior single-month +100% signal.
+
+Canonical portfolio:
+- baseline 219,485.20;
+- P1-STREAK95 219,322.44 / -0.07% vs baseline / max DD -69.54%;
+- P2-STREAK95 227,103.08 / +3.47% / max DD -69.54%;
+- all 4 cycles completed.
+
+Across 791 alternative U10s:
+- 1,951 streak95 events;
+- overall -25% hit within 31/62d: 57.41%;
+- within 93d: 76.37%;
+- 22.25% of events overlapped a single-month +100% move.
+
+Critical distinct-event subset:
+- 1,517 events with NO single-month +100% overlap;
+- -25% hit within 31d: 45.22%;
+- within 62d: 45.22%;
+- within 93d: 69.61%;
+- median 31/62d worst DD only -18.34%.
+
+Overlap subset:
+- 434 events;
+- -25% hit within 31/62/93d: 100%;
+- median 31d worst DD -40.66%.
+
+Portfolio robustness:
+- P1 final > baseline: 49.68%; both final and DD improved: 34.39%; median delta -0.02%.
+- P2 final > baseline: 53.48%; both improved: 37.93%; median delta +1.83%.
+
+Interpretation:
+
+The new multimonth state is real and mostly distinct, but much weaker as an immediate reversal signal than the prior explosive single-month +100% event.
+
+The evidence now suggests two regimes:
+- **explosive overheat**: one month +100%+, high short-horizon pullback probability;
+- **persistent-trend overheat**: >=2 consecutive positive months and cumulative >=95%, correction risk exists but is slower and less reliable.
+
+Do not combine the rules or promote STREAK95 yet.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
