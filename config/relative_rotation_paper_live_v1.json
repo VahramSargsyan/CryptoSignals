@@ -1,11 +1,33 @@
 {
-  "schema_version": 1,
-  "strategy": "RELATIVE_ROTATION_GRAPH_10_V1",
+  "schema_version": 2,
+  "strategy": "RELATIVE_ROTATION_TARGET_U9_TRANSITION_V1",
   "held_asset": "ATOM",
   "monitor_start": "2026-09-27T00:00:00Z",
   "manual_execution_only": true,
-  "notes": "U10 paper-live universe. held_asset changes only after Vahram manually confirms and executes a real rotation. watch_assets remain monitored independently for ARMED/CONFIRMED alerts. No exchange API trading keys are used.",
+  "migration_mode": true,
+  "target_assets": [
+    "TWT",
+    "PEPE",
+    "BNB",
+    "TRX",
+    "AAVE",
+    "AVAX",
+    "FIL",
+    "ALGO",
+    "XRP"
+  ],
+  "sunset_assets": [
+    "ATOM",
+    "SOL",
+    "LINK",
+    "HBAR"
+  ],
   "watch_assets": [
-    "ATOM"
-  ]
+    "ATOM",
+    "SOL",
+    "LINK",
+    "HBAR"
+  ],
+  "defensive_overlay_enabled": false,
+  "notes": "Gradual migration toward the bull-neutralized target U9. Sunset assets may be held temporarily but every monitored outbound recommendation is filtered to TARGET_ASSETS; once capital leaves a sunset asset, the monitor does not recommend re-entry. Manual execution only; no exchange API trading keys."
 }

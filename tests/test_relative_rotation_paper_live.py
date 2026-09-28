@@ -7,6 +7,8 @@ import pandas as pd
 from scripts.run_relative_rotation_paper_live import build_notification_ru
 from strategies.crypto.relative_rotation.paper_live import (
     ASSETS,
+    TARGET_ASSETS,
+    SUNSET_ASSETS,
     _defensive_state_machine,
     build_pair_monitor,
     choose_held_events,
@@ -92,11 +94,14 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertEqual(len(selected["confirmed"]), 2)
         self.assertEqual(selected["primary_confirmed"]["to_asset"], "SOL")
 
-    def test_default_live_universe_is_u10_and_has_45_pair_states(self):
+    def test_transition_monitor_has_target_u9_plus_four_sunset_assets(self):
         self.assertEqual(
-            ASSETS,
-            ("ATOM", "TWT", "PEPE", "BNB", "SOL", "TRX", "AAVE", "LINK", "FIL", "HBAR"),
+            TARGET_ASSETS,
+            ("TWT", "PEPE", "BNB", "TRX", "AAVE", "AVAX", "FIL", "ALGO", "XRP"),
         )
+        self.assertEqual(SUNSET_ASSETS, ("ATOM", "SOL", "LINK", "HBAR"))
+        self.assertEqual(len(ASSETS), 13)
+        self.assertEqual(set(ASSETS), set(TARGET_ASSETS) | set(SUNSET_ASSETS))
         dates = pd.date_range("2026-01-01", periods=180, freq="D", tz="UTC")
         payload = {"timestamp": dates}
         for index, asset in enumerate(ASSETS, start=1):
@@ -105,7 +110,62 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
 
         events, states = build_pair_monitor(panel)
         self.assertEqual(events, [])
-        self.assertEqual(len(states), 45)
+        self.assertEqual(len(states), 78)
+
+    def test_migration_guard_blocks_sunset_reentry_and_keeps_target_candidate(self):
+        latest = pd.Timestamp("2026-09-28", tz="UTC")
+        events = [
+            {
+                "date": latest.isoformat(),
+                "event": "CONFIRMED",
+                "pair": "ATOM/SOL",
+                "from_asset": "ATOM",
+                "to_asset": "SOL",
+                "max_dislocation": 0.60,
+            },
+            {
+                "date": latest.isoformat(),
+                "event": "CONFIRMED",
+                "pair": "ATOM/AVAX",
+                "from_asset": "ATOM",
+                "to_asset": "AVAX",
+                "max_dislocation": 0.35,
+            },
+            {
+                "date": latest.isoformat(),
+                "event": "CONFIRMED",
+                "pair": "TWT/HBAR",
+                "from_asset": "TWT",
+                "to_asset": "HBAR",
+                "max_dislocation": 0.70,
+            },
+            {
+                "date": latest.isoformat(),
+                "event": "CONFIRMED",
+                "pair": "TWT/XRP",
+                "from_asset": "TWT",
+                "to_asset": "XRP",
+                "max_dislocation": 0.31,
+            },
+        ]
+
+        atom = choose_held_events(
+            events,
+            held_asset="ATOM",
+            latest_date=latest,
+            allowed_to_assets=TARGET_ASSETS,
+        )
+        twt = choose_held_events(
+            events,
+            held_asset="TWT",
+            latest_date=latest,
+            allowed_to_assets=TARGET_ASSETS,
+        )
+
+        self.assertEqual(atom["primary_confirmed"]["to_asset"], "AVAX")
+        self.assertEqual([e["to_asset"] for e in atom["confirmed"]], ["AVAX"])
+        self.assertEqual(twt["primary_confirmed"]["to_asset"], "XRP")
+        self.assertEqual([e["to_asset"] for e in twt["confirmed"]], ["XRP"])
 
     def test_atom_watch_can_be_evaluated_independently_of_held_asset(self):
         latest = pd.Timestamp("2026-09-27", tz="UTC")
