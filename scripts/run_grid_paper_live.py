@@ -356,18 +356,26 @@ def _notification_text(payload: dict) -> str:
 
 def _notification_text_ru(payload: dict) -> str:
     latest = payload.get("latest_closed_candle") or "ожидание"
+    active_rows = [
+        row for row in payload.get("rows", [])
+        if int(row.get("today_events", 0)) > 0
+    ]
+
+    if not active_rows and not payload.get("milestone"):
+        return (
+            "Сетка: сигналов нет.\n"
+            f"Закрытая свеча: {latest}\n"
+            f"Дней бумажного наблюдения: {payload['completed_paper_candles']}"
+        )
+
     lines = [
         "Сетка — бумажный монитор v1",
         f"Закрытая свеча: {latest}",
         f"Дней бумажного наблюдения: {payload['completed_paper_candles']}",
     ]
 
-    active_rows = [
-        row for row in payload.get("rows", [])
-        if int(row.get("today_events", 0)) > 0
-    ]
     if active_rows:
-        lines.append("Сигналы:")
+        lines.append("🚨 СИГНАЛЫ:")
         for row in active_rows:
             lines.append(
                 f"{row['profile']} {row['symbol']}: "
@@ -386,7 +394,7 @@ def _notification_text_ru(payload: dict) -> str:
 
     if payload.get("milestone"):
         lines.append(f"Контрольная точка: {payload['milestone']}")
-    lines.append("ТОЛЬКО БУМАЖНЫЙ РЕЖИМ — реальные ордера не отправляются.")
+    lines.append("БУМАЖНЫЙ РЕЖИМ — реальные ордера не отправляются.")
     return "\n".join(lines)
 
 
