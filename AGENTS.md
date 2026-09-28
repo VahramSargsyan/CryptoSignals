@@ -299,3 +299,27 @@ Key sequence:
 - 2026-08 and 2026-09 month-end: BULL_BUILDING
 
 Do not promote this descriptive regime framework into production without a separate preregistered defensive-overlay/timing test.
+
+
+### Repository cache for CRYPTOCAP:TOTAL
+
+For research requiring TradingView `CRYPTOCAP:TOTAL` daily history on or before
+2026-09-26, use the repository cache first:
+
+- `data/market/cryptocap_total_d1.csv`
+- `data/market/cryptocap_total_d1.meta.json`
+- `data/market/README.md`
+
+Frozen cache identity:
+- rows: 1,398
+- range: 2022-11-29 through 2026-09-26
+- dataset SHA256: `d0c9b3bac915e484069c6302ddce1a0b050abbb8de155e4106e39cf6e519d3ee`
+- source run: `36436522995`
+- source artifact: `10975563877`
+
+Do NOT fetch TradingView again merely to reproduce analysis fully covered by this
+cache. External refresh is justified only for dates after the cached end date,
+a documented source/semantic correction, or failed cache validation.
+
+The monthly TOTAL research script is cache-first and was validated without
+`tvdatafeed` installed in run `36439261228`.
