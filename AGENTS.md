@@ -255,3 +255,47 @@ Frozen result:
 This independently confirms the H8 50/200 classification that the base U10 is bull-dependent in absolute-return terms. Below SMA200 the strategy shows relative resilience, not positive bear-market profitability.
 
 Do not rerun unchanged on the same history.
+
+
+## Relative Rotation U10 TradingView TOTAL + SMA memory — 2026-09-28
+
+Before discussing broad market-cap regime transitions for the frozen U10, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_U10_TRADINGVIEW_TOTAL_SMA_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_MONTHLY_TRADINGVIEW_TOTAL_SMA_V1_EVIDENCE.md`
+
+Canonical market-cap source for this research family:
+
+`TradingView CRYPTOCAP:TOTAL`
+
+with exact daily SMA50 / SMA100 / SMA200 / SMA300.
+
+Do NOT use run `36435470008`; it is `INVALID_SOURCE_SEMANTICS` because CoinMarketCap historical-page `globalMetrics.marketCap` was current-site metadata rather than historical market cap.
+
+Corrected runtime:
+- run `36436522995`
+- artifact `10975563877`
+- SHA256 `b8d5ebfd7397bccd9024eb1e37aef243904dd429ff680b70e41bb8c45b5e69e0`
+- TEST_LEVEL: `GITHUB_ACTIONS_LIVE_PUBLIC_DATA_STRESS_TEST`
+
+Frozen current state at 2026-09-26:
+
+`RECOVERY / BULL_BUILDING, NOT FULL_BULL_CONFIRMED`
+
+Values:
+- TOTAL ~$2.87T
+- SMA50 ~$2.55T
+- SMA100 ~$2.35T
+- SMA200 ~$2.39T
+- SMA300 ~$2.51T
+
+Key sequence:
+- 2026-08-17: confirmed exit FULL_BEAR
+- 2026-08-19: TOTAL above SMA200
+- 2026-08-21: TOTAL above SMA300
+- 2026-08 and 2026-09 month-end: BULL_BUILDING
+
+Do not promote this descriptive regime framework into production without a separate preregistered defensive-overlay/timing test.
