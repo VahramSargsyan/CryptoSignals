@@ -207,3 +207,31 @@ Frozen result for `V4_MAX2_SHADOW_FALLBACK`:
 - TRX represented about 96.6% of aggregate MATURE defensive parking book-days.
 
 Interpretation: MAX2 is a viable research compromise that preserves much more upside than MAX1 shadow while blocking literal 3-in-1 occupancy, but it does not create strong value diversification. Do not rerun unchanged on the same data.
+
+
+## Relative Rotation U10 regime robustness memory — 2026-09-28
+
+Before describing `RR_TARGET_U10_CANDIDATE_HBAR_V1` as all-weather / all-season, or before rerunning bull-vs-bear attribution, read:
+
+`docs/evidence/2026-09-28_RELATIVE_ROTATION_U10_REGIME_ROBUSTNESS_DECISION_LOG_V1.md`
+
+and:
+
+`research/relative_rotation/2026-09-28_RR_U10_REGIME_ROBUSTNESS_V1_EVIDENCE.md`
+
+Frozen classification:
+
+`BULL_DEPENDENT`
+
+Key MATURE conditioned evidence:
+- BTC_BULL: +1257.2% median conditioned return;
+- BTC_BEAR: -15.4%, positive starts 0%;
+- BROAD_BULL: +30366.8%;
+- BROAD_BEAR: -88.3%, positive starts 0%;
+- BROAD_SIDEWAYS: -8.7%.
+
+Important nuance:
+- the strategy historically lost less than BTC / broad U10 on BTC_BEAR days, but still lost in absolute terms;
+- prior bull-neutral evidence only showed the strategy was not dependent on a narrow set of extreme bull days; it did not prove bear-market profitability.
+
+Do not rerun unchanged on the same history. The next materially distinct research question is a preregistered defensive-overlay test, potentially using the existing research candidate `DEFENSIVE_LOW_VOL_CRYPTO_SMA200_BREADTH_3_5_CONFIRM3_VOL30`. That candidate remains not production-approved.
