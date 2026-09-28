@@ -27,6 +27,8 @@ MATURE_START = pd.Timestamp("2023-10-31", tz="UTC")
 CUTOFF = pd.Timestamp("2026-09-26", tz="UTC")
 TV_MIN_ROWS = 1300
 TV_BARS = 1400
+TOTAL_CACHE_PATH = ROOT / "data" / "market" / "cryptocap_total_d1.csv"
+TOTAL_CACHE_META_PATH = ROOT / "data" / "market" / "cryptocap_total_d1.meta.json"
 
 
 def source_sha() -> str:
@@ -56,6 +58,45 @@ def month_ends() -> list[pd.Timestamp]:
         )
         cursor = cursor + pd.offsets.MonthBegin(1)
     return rows
+
+
+def load_total_cache_if_fresh(cutoff: pd.Timestamp) -> pd.DataFrame | None:
+    if not TOTAL_CACHE_PATH.exists():
+        return None
+
+    frame = pd.read_csv(TOTAL_CACHE_PATH)
+    if "timestamp" not in frame.columns or "close" not in frame.columns:
+        raise RuntimeError(
+            f"Invalid TOTAL cache schema: {TOTAL_CACHE_PATH}"
+        )
+
+    frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True)
+    frame = (
+        frame.dropna(subset=["timestamp", "close"])
+        .drop_duplicates("timestamp", keep="last")
+        .sort_values("timestamp")
+        .reset_index(drop=True)
+    )
+    last_date = pd.Timestamp(frame.iloc[-1]["timestamp"])
+    if last_date < cutoff.normalize():
+        return None
+
+    frame = frame[frame["timestamp"] <= cutoff].reset_index(drop=True)
+    if len(frame) < TV_MIN_ROWS - 5:
+        raise RuntimeError(
+            f"TOTAL cache too short after cutoff: {len(frame)} rows"
+        )
+    if frame.iloc[0]["timestamp"] > pd.Timestamp("2022-12-01", tz="UTC"):
+        raise RuntimeError(
+            "TOTAL cache does not provide enough SMA300 warmup"
+        )
+
+    print(
+        f"[TOTAL cache] using {TOTAL_CACHE_PATH} "
+        f"through {last_date.date()}",
+        flush=True,
+    )
+    return frame
 
 
 def fetch_tradingview_total() -> pd.DataFrame:
@@ -109,6 +150,22 @@ def fetch_tradingview_total() -> pd.DataFrame:
         classify_ma_state(row) for _, row in frame.iterrows()
     ]
     return frame
+
+
+def load_or_fetch_tradingview_total(
+    cutoff: pd.Timestamp,
+) -> tuple[pd.DataFrame, str]:
+    cached = load_total_cache_if_fresh(cutoff)
+    if cached is not None:
+        return cached, "REPOSITORY_CACHE"
+
+    print(
+        "[TOTAL cache] cache missing/stale; falling back to TradingView",
+        flush=True,
+    )
+    frame = fetch_tradingview_total()
+    frame = frame[frame["timestamp"] <= cutoff].reset_index(drop=True)
+    return frame, "TRADINGVIEW_REFRESH_REQUIRED"
 
 
 def classify_ma_state(row: pd.Series) -> str:
@@ -640,7 +697,7 @@ def main():
             f"got {cutoff.date()}"
         )
 
-    total = fetch_tradingview_total()
+    total, total_data_mode = load_or_fetch_tradingview_total(cutoff)
     btc = download_btc(cutoff)
 
     core.POOL = U10
@@ -717,6 +774,13 @@ def main():
             "daily_rows": int(len(total)),
             "daily_start": total.iloc[0]["timestamp"].isoformat(),
             "daily_end": total.iloc[-1]["timestamp"].isoformat(),
+            "data_mode": total_data_mode,
+            "repository_cache_path": str(
+                TOTAL_CACHE_PATH.relative_to(ROOT)
+            ),
+            "repository_cache_meta_path": str(
+                TOTAL_CACHE_META_PATH.relative_to(ROOT)
+            ),
         },
         "invalid_exploration": {
             "run_id": 36435470008,
@@ -799,6 +863,7 @@ def main():
         "",
         "- Exploratory CMC globalMetrics series was rejected before evidence persistence.",
         "- TOTAL daily series is used for exact SMA50/SMA100/SMA200/SMA300.",
+        f"- TOTAL data mode: {total_data_mode}.",
         "- Market cap and prices are mechanically related; correlation is not causality.",
         "- MA rules were frozen before inspecting this corrected runtime.",
         "- No production/paper-live/Telegram/exchange behavior changed.",
