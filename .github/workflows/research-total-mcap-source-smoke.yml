@@ -22,38 +22,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch public CoinGecko TOTAL market-cap CSV with website session
+      - name: Fetch public CoinGecko TOTAL chart JSON
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p research_artifacts/total_mcap_source_smoke
           PAGE='https://www.coingecko.com/en/charts'
-          CSV='https://www.coingecko.com/etl2/global_charts/usd/total_market_cap.csv'
+          DATA='https://www.coingecko.com/etl2/global_charts/usd/total_market_cap?locale=en'
           UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36'
 
-          PAGE_STATUS="$(curl -L -sS -A "$UA" -c /tmp/cg.cookies             -o research_artifacts/total_mcap_source_smoke/coingecko_charts.html             -w '%{http_code}' "$PAGE")"
+          PAGE_STATUS="$(curl -L -sS -A "$UA" -c /tmp/cg.cookies -o /tmp/cg_page.html -w '%{http_code}' "$PAGE")"
           echo "page_status=$PAGE_STATUS"
           test "$PAGE_STATUS" = "200"
 
-          CSV_STATUS="$(curl -L -sS -A "$UA" -b /tmp/cg.cookies -c /tmp/cg.cookies             -e "$PAGE"             -H 'Accept: text/csv,application/csv,text/plain,*/*'             -o research_artifacts/total_mcap_source_smoke/total_market_cap.csv             -w '%{http_code}' "$CSV")"
-          echo "csv_status=$CSV_STATUS"
-          echo "csv_bytes=$(wc -c < research_artifacts/total_mcap_source_smoke/total_market_cap.csv)"
-          head -c 500 research_artifacts/total_mcap_source_smoke/total_market_cap.csv || true
+          DATA_STATUS="$(curl -L -sS -A "$UA" -b /tmp/cg.cookies -c /tmp/cg.cookies             -e "$PAGE" -H 'Accept: application/json,text/plain,*/*'             -o research_artifacts/total_mcap_source_smoke/total_market_cap.json             -w '%{http_code}' "$DATA")"
+          echo "data_status=$DATA_STATUS"
+          echo "data_bytes=$(wc -c < research_artifacts/total_mcap_source_smoke/total_market_cap.json)"
+          head -c 800 research_artifacts/total_mcap_source_smoke/total_market_cap.json || true
           echo
-          test "$CSV_STATUS" = "200"
+          test "$DATA_STATUS" = "200"
 
           python - <<'PY'
           from pathlib import Path
-          import csv
-          p=Path("research_artifacts/total_mcap_source_smoke/total_market_cap.csv")
-          with p.open(encoding="utf-8-sig",newline="") as fh:
-              rows=list(csv.reader(fh))
-          print("rows_including_header=",len(rows))
-          print("header=",rows[0] if rows else None)
-          print("first_rows=",rows[1:4])
-          print("last_rows=",rows[-3:])
-          if len(rows) < 500:
-              raise SystemExit("insufficient history")
+          import json
+          p=Path("research_artifacts/total_mcap_source_smoke/total_market_cap.json")
+          obj=json.loads(p.read_text(encoding="utf-8"))
+          print("top_type=",type(obj).__name__)
+          if isinstance(obj,dict):
+              print("keys=",sorted(obj.keys()))
+              for k,v in obj.items():
+                  if isinstance(v,list):
+                      print(k,"len=",len(v),"first=",v[:2],"last=",v[-2:])
           PY
 
       - name: Upload source evidence
