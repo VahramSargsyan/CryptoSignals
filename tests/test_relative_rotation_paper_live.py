@@ -135,7 +135,7 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertEqual(atom_watch["primary_confirmed"]["to_asset"], "FIL")
 
 
-    def test_russian_telegram_notification_for_initialization(self):
+    def test_russian_telegram_notification_is_short_when_no_signal(self):
         payload = {
             "held_asset": "ATOM",
             "latest_closed_candle": "2026-09-26T00:00:00+00:00",
@@ -151,17 +151,60 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
                 "breadth": 8,
             },
             "latest_defensive_events": [],
+            "latest_pair_states": [],
             "force_notify": True,
         }
 
         text = build_notification_ru(payload)
 
+        self.assertIn("Relative Rotation: сигналов нет.", text)
         self.assertIn("Закрытая свеча: 2026-09-26T00:00:00+00:00", text)
         self.assertIn("Текущий актив: ATOM", text)
-        self.assertIn("нет подтверждённой ротации", text)
-        self.assertIn("Защитный режим: ВЫКЛ; ширина рынка=8/10", text)
+        self.assertIn("Наблюдение 10%+: нет.", text)
+        self.assertNotIn("Защитный режим:", text)
         self.assertNotIn("Closed candle:", text)
-        self.assertNotIn("Held asset:", text)
+        self.assertLess(len(text), 250)
+
+    def test_russian_telegram_starts_observation_at_ten_percent(self):
+        payload = {
+            "held_asset": "ATOM",
+            "latest_closed_candle": "2026-09-27T00:00:00+00:00",
+            "held_events": {
+                "primary_confirmed": None,
+                "confirmed": [],
+                "armed": [],
+            },
+            "watch_events": {},
+            "defensive": {
+                "active": False,
+                "defensive_asset": None,
+                "breadth": 7,
+            },
+            "latest_defensive_events": [],
+            "latest_pair_states": [
+                {
+                    "pair": "ATOM/TWT",
+                    "mode": "NONE",
+                    "deviation": -0.11,
+                    "reversal_from_extreme": None,
+                },
+                {
+                    "pair": "ATOM/SOL",
+                    "mode": "NONE",
+                    "deviation": 0.12,
+                    "reversal_from_extreme": None,
+                },
+            ],
+            "force_notify": False,
+        }
+
+        text = build_notification_ru(payload)
+
+        self.assertIn("НАБЛЮДЕНИЕ 10%+", text)
+        self.assertIn("Расхождение между ATOM и TWT составляет 11.00%.", text)
+        self.assertIn("ATOM -> TWT", text)
+        self.assertIn("ARM включается с 15%", text)
+        self.assertNotIn("ATOM и SOL", text)
 
     def test_russian_telegram_notification_for_confirmed_rotation(self):
         event = {
