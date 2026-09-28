@@ -1,6 +1,11 @@
 name: Research Total Market Cap Source Smoke
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/research-total-mcap-source-smoke.yml"
   push:
     branches:
       - research/total-mcap-sma-return-breakout-v1
