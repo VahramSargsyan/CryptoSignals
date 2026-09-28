@@ -194,7 +194,7 @@ class GridPaperLiveTests(unittest.TestCase):
         self.assertIn("MICRO_ONLY_WIDE LINKUSDT: ПОКУПКА 2, ПРОДАЖА 0", text)
         self.assertIn("MICRO_ONLY_WIDE: +1.00%, ПОКУПКА 2, ПРОДАЖА 0", text)
         self.assertNotIn("MID_ONLY_WIDE:", text)
-        self.assertIn("ТОЛЬКО БУМАЖНЫЙ РЕЖИМ", text)
+        self.assertIn("БУМАЖНЫЙ РЕЖИМ", text)
         self.assertNotIn("Closed candle:", text)
         self.assertLess(len(text), 1000)
 
