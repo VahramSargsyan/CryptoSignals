@@ -401,3 +401,105 @@ TEST_LEVEL: GITHUB_ACTIONS_LIVE_PUBLIC_DATA_STRESS_TEST
 - current candidate pool has selection leakage;
 - transaction cost model remains simplified;
 - historical performance does not establish future performance.
+
+
+## Secondary reused-history check: OLD10 2020-2022
+
+GitHub Actions run:
+
+36375416856
+
+Artifact:
+
+10950891819
+
+Artifact digest:
+
+sha256:a6b6f4fdc74451bc389a01ebde42541d23b9c3e537556dc9d87640a77cd69e40
+
+History status:
+
+REUSED_HISTORY_SECONDARY_EVIDENCE
+
+This is **not untouched out-of-sample validation**, because 2020-2022 had already been inspected in the previous temporal-holdout study.
+
+The fractal parameters were nevertheless kept frozen:
+- +100% surge;
+- 5% / 10% cash-out;
+- 30% cash;
+- 15% fractal-search activation;
+- 2-left / 2-right swing high;
+- downward-only stop ratchet.
+
+OLD10:
+
+ATOM, BTC, ETH, BNB, XRP, TRX, ADA, LINK, XLM, LTC
+
+Baseline:
+
+- final: 56,902.97 USDT
+- return: +469.03%
+- max DD: -81.32%
+
+P1-FRACTAL:
+
+- final: 50,295.00
+- delta vs baseline: -11.61%
+- max DD: -80.81%
+- DD improvement: +0.51 pp
+- 3 cash-outs / 3 re-entries
+- 0 unfinished cycles
+- 85 cash days
+
+P2-FRACTAL:
+
+- final: 49,569.15
+- delta vs baseline: -12.89%
+- max DD: -80.81%
+- 3/3 cycles completed
+- 83 cash days
+
+### Why the old period failed
+
+The fractal correctly completed every cycle, but confirmation could arrive after a large rebound had already occurred.
+
+January 2021 P1/P2:
+
+- cash-out execution: 2021-02-02
+- search activated immediately around -24.59% reference drawdown
+- one confirmed TRX pivot
+- buy-stop filled 2021-02-19
+- by the re-entry close the U10 reference was about **+1.30% relative to the latest reference peak**
+
+Thus the algorithm had already missed the cheap part of the correction.
+
+April 2021:
+
+- search activated around -16.31%
+- BTC buy-stop re-entry: 2021-05-08
+- reference drawdown at re-entry close only about -12.27%
+
+August 2021:
+
+- search activation around -20.78%
+- XLM stop ratcheted twice
+- re-entry 2021-10-02
+- reference drawdown about -25.36%
+
+The third cycle behaved closer to the intended idea; the first two show that a confirmed 5-bar pivot can be too slow after a V-shaped recovery.
+
+### Secondary interpretation
+
+The current evidence now separates three facts:
+
+1. The large-surge -> substantial-pullback phenomenon replicated in older history.
+2. Fractal re-entry is structurally adaptive and robust across 2023-2026 U10 topologies.
+3. A 5-bar confirmation does **not** guarantee better monetization: in V-shaped recoveries it can re-enter too late.
+
+Therefore P1-FRACTAL remains research-worthy but is not promotion-ready.
+
+The old period must not be used to tune a faster pivot rule and then be presented as fresh validation.
+
+Secondary test level:
+
+TEST_LEVEL: GITHUB_ACTIONS_LIVE_PUBLIC_DATA_REUSED_HISTORY_SECONDARY
