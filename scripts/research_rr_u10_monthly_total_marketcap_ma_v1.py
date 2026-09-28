@@ -13,8 +13,6 @@ import pandas as pd
 import scripts.research_robust_exhaustive_u9_u10_atom_replacement_v1 as core
 from integrations.binance.historical import download_historical_dataset
 from integrations.binance.rest_client import BinanceSpotRestClient
-from tvDatafeed import Interval, TvDatafeed
-
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "research_artifacts" / "rr_u10_monthly_total_marketcap_ma_v1"
@@ -100,6 +98,9 @@ def load_total_cache_if_fresh(cutoff: pd.Timestamp) -> pd.DataFrame | None:
 
 
 def fetch_tradingview_total() -> pd.DataFrame:
+    # Lazy import: cached research runs do not need tvdatafeed installed.
+    from tvDatafeed import Interval, TvDatafeed
+
     tv = TvDatafeed()
     raw = tv.get_hist(
         symbol="TOTAL",
