@@ -94,12 +94,12 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertEqual(len(selected["confirmed"]), 2)
         self.assertEqual(selected["primary_confirmed"]["to_asset"], "SOL")
 
-    def test_transition_monitor_has_target_u9_plus_four_sunset_assets(self):
+    def test_transition_monitor_has_frozen_target_u10_plus_three_sunset_assets(self):
         self.assertEqual(
             TARGET_ASSETS,
-            ("TWT", "PEPE", "BNB", "TRX", "AAVE", "AVAX", "FIL", "ALGO", "XRP"),
+            ("TWT", "PEPE", "BNB", "TRX", "AAVE", "AVAX", "FIL", "ALGO", "XRP", "HBAR"),
         )
-        self.assertEqual(SUNSET_ASSETS, ("ATOM", "SOL", "LINK", "HBAR"))
+        self.assertEqual(SUNSET_ASSETS, ("ATOM", "SOL", "LINK"))
         self.assertEqual(len(ASSETS), 13)
         self.assertEqual(set(ASSETS), set(TARGET_ASSETS) | set(SUNSET_ASSETS))
         dates = pd.date_range("2026-01-01", periods=180, freq="D", tz="UTC")
@@ -335,6 +335,51 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertIn("отклонение +21.00%", text)
         self.assertIn("разворот от экстремума +4.00%", text)
         self.assertIn("требуется ручное подтверждение", text)
+
+    def test_russian_watch_arm_is_explicitly_not_current_held_signal(self):
+        watch_event = {
+            "from_asset": "LINK",
+            "to_asset": "FIL",
+            "pair": "FIL/LINK",
+            "max_dislocation": 0.1968,
+            "reversal_from_extreme": 0.0,
+        }
+        payload = {
+            "held_asset": "ATOM",
+            "latest_closed_candle": "2026-09-27T00:00:00+00:00",
+            "target_assets": list(TARGET_ASSETS),
+            "sunset_assets": list(SUNSET_ASSETS),
+            "held_events": {
+                "primary_confirmed": None,
+                "confirmed": [],
+                "armed": [],
+            },
+            "watch_events": {
+                "LINK": {
+                    "primary_confirmed": None,
+                    "confirmed": [],
+                    "armed": [watch_event],
+                }
+            },
+            "defensive": {
+                "active": False,
+                "defensive_asset": None,
+                "breadth": None,
+            },
+            "latest_defensive_events": [],
+            "latest_pair_states": [],
+            "defensive_overlay_enabled": False,
+            "force_notify": False,
+        }
+
+        text = build_notification_ru(payload)
+
+        self.assertIn("WATCH LINK — ARM / PREWATCH, ЭТО НЕ СИГНАЛ НА ОБМЕН", text)
+        self.assertIn("LINK -> FIL", text)
+        self.assertIn("Текущий актив ATOM не меняется", text)
+        self.assertIn("ждём разворот от экстремума минимум 3%", text)
+        self.assertNotIn("РОТАЦИЯ ПОДТВЕРЖДЕНА", text)
+
 
     def test_defensive_state_machine_enters_and_exits_after_three_closes(self):
         dates = list(pd.date_range("2026-01-01", periods=8, freq="D", tz="UTC"))
