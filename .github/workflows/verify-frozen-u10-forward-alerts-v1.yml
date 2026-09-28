@@ -1,0 +1,51 @@
+name: Verify Frozen U10 Forward Alerts v1
+
+on:
+  push:
+    branches:
+      - patch/freeze-u10-forward-alerts-v1
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install "pandas==2.2.3"
+      - name: Unit regressions
+        run: |
+          python -m unittest tests.test_relative_rotation_paper_live -v
+          python -m unittest tests.test_send_relative_rotation_report -v
+          python -m unittest tests.test_binance_historical tests.test_binance_rest_client -v
+      - name: Live public-data dry run
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: |
+          python -m scripts.run_relative_rotation_paper_live \
+            --force-notify \
+            --output-root verify_artifacts/frozen_u10_forward
+          RUN_DIR="$(find verify_artifacts/frozen_u10_forward -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          cat "$RUN_DIR/report.md"
+          echo "--- TELEGRAM RU ---"
+          python - "$RUN_DIR/report.json" <<'PY'
+          import json, sys
+          payload=json.load(open(sys.argv[1], encoding="utf-8"))
+          print(payload["telegram_text_ru"])
+          print("should_notify=", payload["should_notify"])
+          print("target_assets=", payload["target_assets"])
+          print("sunset_assets=", payload["sunset_assets"])
+          print("universe_version=", payload.get("universe_version"))
+          print("forward_validation_start=", payload.get("forward_validation_start"))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verify-frozen-u10-forward-alerts-v1-${{ github.run_number }}
+          path: verify_artifacts/frozen_u10_forward/**
+          if-no-files-found: error
+          retention-days: 30
