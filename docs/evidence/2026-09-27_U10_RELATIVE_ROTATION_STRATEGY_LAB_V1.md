@@ -566,6 +566,74 @@ Secondary reused-history check on OLD10 2020-2022:
 
 No live/paper promotion is authorized.
 
+## 3-bar fractal confirmation-speed stress
+
+Research:
+
+- prereg: `research/relative_rotation/2026-09-28_U10_MONTHLY_SURGE_FRACTAL3_BUYSTOP_V1_PREREG.md`
+- runner: `scripts/research_u10_monthly_surge_fractal3_buystop_v1.py`
+- workflow: `.github/workflows/u10-monthly-surge-fractal3-buystop-v1.yml`
+- evidence: [U10 Monthly Surge 3-Bar Fractal Buy-Stop v1](2026-09-28_U10_MONTHLY_SURGE_FRACTAL3_BUYSTOP_V1.md)
+- primary run: `36376455828` — PASS
+- reused-history secondary: `36376692360` — PASS
+
+Single change versus 5-bar fractal:
+
+- 5-bar: 2 left / pivot / 2 right
+- 3-bar: 1 left / pivot / 1 right
+
+All other surge/cash/search/order rules were frozen.
+
+Canonical P1:
+
+- baseline: 219,485.20
+- 5-bar: 258,557.42
+- 3-bar: 238,737.35
+- 3-bar vs 5-bar: -7.67%
+- max DD 3-bar: -69.03%
+- cash days: 62 vs 145 for 5-bar
+
+Across 791 alternative U10s, P1 3-bar:
+
+- final > baseline: 100%
+- both final and DD improved: 90.14%
+- 3-bar beat 5-bar in only 14.16%
+- 3-bar lost to 5-bar in 85.84%
+- median delta vs 5-bar: -3.49%
+- median total cash days: 69 vs 122 for 5-bar
+- unfinished cycles: 0%
+
+Actual re-entry depth shifted earlier:
+
+- 3-bar median reference drawdown at re-entry: about -21.54%
+- 5-bar median: about -29.61%
+
+Main failure example:
+
+- canonical 2026-01 P1
+- 3-bar re-entered HBAR on 2026-01-23 at only about -13.16% reference drawdown
+- 5-bar waited to 2026-03-12 and re-entered TWT near -29.61%
+- the faster pivot treated an early bounce as a durable reversal.
+
+Reused OLD10 2020-2022 evidence moved in the opposite direction:
+
+- 5-bar P1: -11.61% vs baseline
+- 3-bar P1: -1.44%
+- cash days fell from 85 to 46
+
+Interpretation:
+
+The confirmation-speed problem is real but regime-dependent.
+
+- 5-bar can be too slow in fast V-shaped recoveries.
+- 3-bar is usually too eager in the 2023-2026 topology stress.
+
+Therefore 3-bar is **not promoted over 5-bar**.
+
+A future rule should identify reversal quality / regime state causally rather than select one universal confirmation delay by retrospective comparison.
+
+No live/paper change.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
