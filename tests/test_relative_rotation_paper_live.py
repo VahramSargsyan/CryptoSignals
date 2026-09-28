@@ -384,6 +384,57 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertNotIn("РОТАЦИЯ ПОДТВЕРЖДЕНА", text)
 
 
+    def test_russian_watch_confirmed_keeps_other_prealerts_visible(self):
+        confirmed = {
+            "from_asset": "LINK",
+            "to_asset": "HBAR",
+            "pair": "HBAR/LINK",
+            "max_dislocation": 0.3840,
+            "reversal_from_extreme": 0.0330,
+        }
+        armed = {
+            "from_asset": "LINK",
+            "to_asset": "FIL",
+            "pair": "FIL/LINK",
+            "max_dislocation": 0.1968,
+            "reversal_from_extreme": 0.0,
+        }
+        payload = {
+            "held_asset": "ATOM",
+            "latest_closed_candle": "2026-09-27T00:00:00+00:00",
+            "target_assets": list(TARGET_ASSETS),
+            "sunset_assets": list(SUNSET_ASSETS),
+            "held_events": {
+                "primary_confirmed": None,
+                "confirmed": [],
+                "armed": [],
+            },
+            "watch_events": {
+                "LINK": {
+                    "primary_confirmed": confirmed,
+                    "confirmed": [confirmed],
+                    "armed": [armed],
+                }
+            },
+            "defensive": {
+                "active": False,
+                "defensive_asset": None,
+                "breadth": None,
+            },
+            "latest_defensive_events": [],
+            "latest_pair_states": [],
+            "defensive_overlay_enabled": False,
+            "force_notify": False,
+        }
+
+        text = build_notification_ru(payload)
+
+        self.assertIn("LINK -> HBAR", text)
+        self.assertIn("Другие LINK ARM / PREWATCH (ещё НЕ подтверждены)", text)
+        self.assertIn("LINK -> FIL", text)
+        self.assertIn("Это НЕ сигнал для текущего актива ATOM", text)
+
+
     def test_defensive_state_machine_enters_and_exits_after_three_closes(self):
         dates = list(pd.date_range("2026-01-01", periods=8, freq="D", tz="UTC"))
         breadth = [6, 3, 3, 3, 4, 5, 5, 5]
