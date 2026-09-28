@@ -665,6 +665,44 @@ def build_report_markdown(payload: dict) -> str:
         f"Universe version: **{payload.get('universe_version') or '-'}**",
         f"Forward validation start: **{payload.get('forward_validation_start') or '-'}**",
         "",
+        "## Live position books",
+        "",
+    ]
+
+    for book in payload.get("position_books", []):
+        quantity = book.get("quantity")
+        quantity_text = "-" if quantity is None else f"{float(quantity):g}"
+        lines.append(
+            f"- **{book['book_id']}**: held **{book['held_asset']}**; quantity **{quantity_text}**; "
+            f"tracking start **{book.get('tracking_start') or '-'}**"
+        )
+
+    lines.extend(
+        [
+        "",
+        "## Latest per-book events",
+        "",
+        ]
+    )
+    for book_id, details in payload.get("book_events", {}).items():
+        book = details["book"]
+        events = details["events"]
+        lines.append(f"### {book_id} — {book['held_asset']}")
+        lines.append("")
+        if events["confirmed"]:
+            lines.append("CONFIRMED:")
+            for event in events["confirmed"]:
+                lines.append(f"- {_event_line(event)}")
+        if events["armed"]:
+            lines.append("ARMED / PREWATCH:")
+            for event in events["armed"]:
+                lines.append(f"- {_event_line(event)}")
+        if not events["confirmed"] and not events["armed"]:
+            lines.append("- No new latest-candle ARMED/CONFIRMED event.")
+        lines.append("")
+
+    lines.extend(
+        [
         "## Frozen relative-rotation engine",
         "",
         f"- Monitor union: {', '.join(ASSETS)}",
@@ -677,7 +715,7 @@ def build_report_markdown(payload: dict) -> str:
         "- Router conflict rule: strongest confirmed max dislocation",
         "- Execution: MANUAL ONLY; monitor never places an order",
         "",
-        "## Latest held-asset events",
+        "## Legacy BOOK_1 compatibility view",
         "",
     ]
 
@@ -748,7 +786,7 @@ def build_report_markdown(payload: dict) -> str:
             "",
             "## Notification policy",
             "",
-            "Telegram is requested for a new latest-candle ARMED/CONFIRMED event from the configured held asset "
+            "Telegram is requested for a new latest-candle ARMED/CONFIRMED event from any configured live book "
             "only when the destination belongs to TARGET, "
             "a new TARGET-bound ARMED/CONFIRMED outbound event from any persistent sunset watch asset, "
             "a latest-candle defensive ENTER/EXIT event, or an explicit force-notify run.",
@@ -756,7 +794,7 @@ def build_report_markdown(payload: dict) -> str:
             "## Safety boundary",
             "",
             "No broker/exchange API keys are used. No order placement code exists in this monitor. "
-            "A real swap must be manually approved and executed by Vahram, then the configured held asset must be updated.",
+            "A real swap must be manually approved and executed by Vahram, then that book's held asset and quantity must be updated.",
             "",
         ]
     )
