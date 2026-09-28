@@ -85,9 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     text = args.notification_text.read_text(encoding="utf-8").strip()
     telegram_text = str(report.get("telegram_text_ru") or text).strip()
 
-    if not report.get("should_notify", False):
-        print("notification=SKIPPED_POLICY")
-        return 0
+    signal_notify = bool(report.get("should_notify", False))
 
     subject_bits = ["Grid Paper Live"]
     if report.get("milestone"):
@@ -118,13 +116,15 @@ def main(argv: list[str] | None = None) -> int:
         and os.environ.get("REPORT_EMAIL_FROM", "").strip()
         and os.environ.get("REPORT_EMAIL_TO", "").strip()
     )
-    if email_configured:
+    if email_configured and signal_notify:
         configured += 1
         try:
             _send_email(subject, text)
         except Exception as exc:
             failures.append(f"email: {exc}")
             print(f"email=FAILED {exc}")
+    elif email_configured:
+        print("email=SKIPPED_POLICY_NO_SIGNAL")
     else:
         print("email=SKIPPED_MISSING_SECRETS")
 
@@ -135,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
         raise RuntimeError("; ".join(failures))
 
     print("notification=SENT")
+    print("telegram_policy=DAILY_HEARTBEAT_OR_SIGNAL")
     return 0
 
 

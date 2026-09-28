@@ -118,6 +118,38 @@ class GridPaperLiveTests(unittest.TestCase):
         self.assertEqual(float(mid.iloc[0]["fill_price"]), 60.0)
 
 
+    def test_russian_telegram_notification_is_short_when_no_grid_signal(self):
+        payload = {
+            "latest_closed_candle": "2026-09-27T00:00:00+00:00",
+            "completed_paper_candles": 2,
+            "milestone": None,
+            "rows": [
+                {
+                    "profile": "CONTROL_BASE",
+                    "symbol": "LINKUSDT",
+                    "today_events": 0,
+                    "today_buys": 0,
+                    "today_sells": 0,
+                }
+            ],
+            "portfolio": [
+                {
+                    "profile": "CONTROL_BASE",
+                    "return": 0.01,
+                    "today_buys": 0,
+                    "today_sells": 0,
+                }
+            ],
+        }
+
+        text = _notification_text_ru(payload)
+
+        self.assertIn("Сетка: сигналов нет.", text)
+        self.assertIn("Закрытая свеча: 2026-09-27T00:00:00+00:00", text)
+        self.assertIn("Дней бумажного наблюдения: 2", text)
+        self.assertNotIn("Снимок профилей:", text)
+        self.assertLess(len(text), 220)
+
     def test_russian_telegram_notification_lists_only_active_profiles(self):
         payload = {
             "latest_closed_candle": "2026-09-26T00:00:00+00:00",
@@ -158,11 +190,11 @@ class GridPaperLiveTests(unittest.TestCase):
         text = _notification_text_ru(payload)
 
         self.assertIn("Закрытая свеча: 2026-09-26T00:00:00+00:00", text)
-        self.assertIn("Сигналы:", text)
+        self.assertIn("🚨 СИГНАЛЫ:", text)
         self.assertIn("MICRO_ONLY_WIDE LINKUSDT: ПОКУПКА 2, ПРОДАЖА 0", text)
         self.assertIn("MICRO_ONLY_WIDE: +1.00%, ПОКУПКА 2, ПРОДАЖА 0", text)
         self.assertNotIn("MID_ONLY_WIDE:", text)
-        self.assertIn("ТОЛЬКО БУМАЖНЫЙ РЕЖИМ", text)
+        self.assertIn("БУМАЖНЫЙ РЕЖИМ", text)
         self.assertNotIn("Closed candle:", text)
         self.assertLess(len(text), 1000)
 

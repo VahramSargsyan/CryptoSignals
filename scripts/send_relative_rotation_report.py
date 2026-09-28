@@ -38,9 +38,6 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     report = json.loads(args.report_json.read_text(encoding="utf-8"))
-    if not report.get("should_notify", False):
-        print("notification=SKIPPED_POLICY")
-        return 0
 
     legacy_text = args.notification_text.read_text(encoding="utf-8").strip()
     text = str(report.get("telegram_text_ru") or legacy_text).strip()
@@ -53,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
 
     _send_telegram(text)
     print("telegram=SENT")
+    print("notification=DAILY_HEARTBEAT_OR_SIGNAL")
     return 0
 
 

@@ -227,6 +227,67 @@ def build_notification(payload: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _observation_candidates(payload: dict, asset: str, threshold: float = 0.10) -> list[dict]:
+    """Return current outbound pair dislocations for an asset at/above alert threshold.
+
+    This is notification-only. It does not change the frozen 15% ARM threshold.
+    """
+    candidates: list[dict] = []
+    for row in payload.get("latest_pair_states", []):
+        pair = str(row.get("pair") or "")
+        deviation = row.get("deviation")
+        if not pair or deviation is None:
+            continue
+
+        left, right = pair.split("/", 1)
+        deviation = float(deviation)
+        mode = str(row.get("mode") or "NONE")
+
+        # A previously armed pair remains operationally relevant until its
+        # reversal confirms, even if the current deviation falls below 10%.
+        if mode == "NONE" and abs(deviation) < threshold:
+            continue
+
+        if mode == "HIGH":
+            from_asset, to_asset = right, left
+        elif mode == "LOW":
+            from_asset, to_asset = left, right
+        elif deviation > 0:
+            from_asset, to_asset = right, left
+        else:
+            from_asset, to_asset = left, right
+
+        if from_asset != asset:
+            continue
+
+        max_dislocation = row.get("max_dislocation")
+        candidates.append(
+            {
+                "pair": pair,
+                "from_asset": from_asset,
+                "to_asset": to_asset,
+                "dislocation": abs(deviation),
+                "max_dislocation": (
+                    abs(float(max_dislocation))
+                    if max_dislocation is not None
+                    else abs(deviation)
+                ),
+                "mode": mode,
+                "reversal_from_extreme": row.get("reversal_from_extreme"),
+            }
+        )
+
+    return sorted(
+        candidates,
+        key=lambda x: (
+            0 if x["mode"] != "NONE" else 1,
+            -float(x["max_dislocation"]),
+            str(x["to_asset"]),
+            str(x["pair"]),
+        ),
+    )
+
+
 def build_notification_ru(payload: dict) -> str:
     held = payload["held_asset"]
     latest = payload["latest_closed_candle"]
@@ -234,6 +295,23 @@ def build_notification_ru(payload: dict) -> str:
     watch_events = payload.get("watch_events", {})
     defensive = payload["defensive"]
     latest_defensive_events = payload["latest_defensive_events"]
+    observations = _observation_candidates(payload, held, threshold=0.10)
+
+    primary = selected.get("primary_confirmed")
+    held_armed = selected.get("armed", [])
+    watch_has_signal = any(
+        watched.get("primary_confirmed") or watched.get("armed")
+        for watched in watch_events.values()
+    )
+    detailed = bool(primary or held_armed or observations or watch_has_signal or latest_defensive_events)
+
+    if not detailed:
+        return (
+            "Relative Rotation: сигналов нет.\n"
+            f"Закрытая свеча: {latest}\n"
+            f"Текущий актив: {held}\n"
+            "Наблюдение 10%+: нет."
+        )
 
     lines = [
         "Relative Rotation — бумажный монитор v1",
@@ -241,11 +319,10 @@ def build_notification_ru(payload: dict) -> str:
         f"Текущий актив: {held}",
     ]
 
-    primary = selected.get("primary_confirmed")
     if primary:
         lines.extend(
             [
-                "РОТАЦИЯ ПОДТВЕРЖДЕНА",
+                "🚨 РОТАЦИЯ ПОДТВЕРЖДЕНА",
                 _event_line_ru(primary),
                 "Сигнал модели — требуется ручное подтверждение.",
             ]
@@ -254,19 +331,55 @@ def build_notification_ru(payload: dict) -> str:
         if extra:
             lines.append("Другие подтверждённые кандидаты на выход:")
             lines.extend(f"- {_event_line_ru(event)}" for event in extra)
-    elif selected.get("armed"):
-        lines.append("ГОТОВНОСТЬ / ПРЕДВАРИТЕЛЬНОЕ НАБЛЮДЕНИЕ")
-        lines.extend(f"- {_event_line_ru(event)}" for event in selected["armed"])
-        lines.append("Порог 15% достигнут; ротации нет, пока разворот 3% не подтвердится.")
-    elif payload.get("force_notify"):
-        lines.append("Начальный снимок — на этой свече нет подтверждённой ротации из текущего актива.")
+    elif held_armed:
+        lines.append("⚠️ ARM 15% — ЖДЁМ ПОДТВЕРЖДЕНИЯ")
+        lines.extend(f"- {_event_line_ru(event)}" for event in held_armed)
+        lines.append("Порог 15% достигнут; ротации пока нет. Ждём разворот 3%.")
+    elif observations:
+        strongest = observations[0]
+        if strongest["mode"] == "NONE":
+            lines.extend(
+                [
+                    "👀 НАБЛЮДЕНИЕ 10%+",
+                    (
+                        f"Расхождение между {held} и {strongest['to_asset']} составляет "
+                        f"{strongest['dislocation'] * 100:.2f}%."
+                    ),
+                    (
+                        f"Возможное направление при дальнейшем подтверждении: "
+                        f"{held} -> {strongest['to_asset']}."
+                    ),
+                    "Порог наблюдения 10% достигнут. Торгового сигнала пока нет; ARM включается с 15%.",
+                ]
+            )
+        else:
+            lines.extend(
+                [
+                    "⚠️ ARM 15% АКТИВЕН",
+                    (
+                        f"Пара {held}/{strongest['to_asset']}: текущее расхождение "
+                        f"{strongest['dislocation'] * 100:.2f}%, максимум после ARM "
+                        f"{strongest['max_dislocation'] * 100:.2f}%."
+                    ),
+                    f"Ожидаем направление {held} -> {strongest['to_asset']} после подтверждения.",
+                    "Ждём разворот от экстремума минимум 3%.",
+                ]
+            )
+
+        if len(observations) > 1:
+            lines.append("Другие наблюдаемые пары:")
+            for event in observations[1:4]:
+                suffix = " (ARM активен)" if event["mode"] != "NONE" else ""
+                lines.append(
+                    f"- {held}/{event['to_asset']}: {event['dislocation'] * 100:.2f}%{suffix}"
+                )
 
     for asset, watched in watch_events.items():
         primary_watch = watched.get("primary_confirmed")
         if primary_watch:
             lines.extend(
                 [
-                    f"{asset} — НАБЛЮДЕНИЕ: ВЫХОД ПОДТВЕРЖДЕН",
+                    f"🚨 {asset} — ВЫХОД ПОДТВЕРЖДЕН",
                     _event_line_ru(primary_watch),
                     "Только ручная проверка — наблюдение не размещает ордера.",
                 ]
@@ -276,9 +389,9 @@ def build_notification_ru(payload: dict) -> str:
                 lines.append(f"Другие подтверждённые кандидаты на выход для {asset}:")
                 lines.extend(f"- {_event_line_ru(event)}" for event in extra_watch)
         elif watched.get("armed"):
-            lines.append(f"{asset} — НАБЛЮДЕНИЕ: ГОТОВНОСТЬ")
+            lines.append(f"⚠️ {asset} — ARM 15%")
             lines.extend(f"- {_event_line_ru(event)}" for event in watched["armed"])
-            lines.append("Порог 15% достигнут; ждём подтверждения разворота 3%.")
+            lines.append("Ждём подтверждения разворота 3%.")
 
     for event in latest_defensive_events:
         if event["event"] == "DEFENSIVE_ENTER":
@@ -301,10 +414,7 @@ def build_notification_ru(payload: dict) -> str:
     lines.append(
         f"Защитный режим: {status}; ширина рынка={defensive.get('breadth')}/{len(ASSETS)}"
     )
-    lines.append(
-        "ТОЛЬКО БУМАЖНЫЙ/РУЧНОЙ РЕЖИМ — биржевые ордера не отправляются; "
-        "торговые API-ключи не используются."
-    )
+    lines.append("БУМАЖНЫЙ/РУЧНОЙ РЕЖИМ — реальные ордера не отправляются.")
     return "\n".join(lines) + "\n"
 
 
