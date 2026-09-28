@@ -556,6 +556,14 @@ P1-FRACTAL is the stronger structural candidate on 2023-2026.
 
 It does not dominate the hindsight-friendly frozen old-peak -25% rule on terminal equity, but it is more adaptive than moving-peak -25%, requires no arbitrary timeout, and completed all tested cycles.
 
+Secondary reused-history check on OLD10 2020-2022:
+
+- OLD10 baseline: 56,902.97 USDT;
+- P1-FRACTAL: 50,295.00 / -11.61% vs baseline;
+- P2-FRACTAL: 49,569.15 / -12.89%;
+- all 3/3 fractal cycles completed, but the 5-bar confirmation could re-enter too late after V-shaped recoveries;
+- this history is already consumed and is not untouched OOS evidence.
+
 No live/paper promotion is authorized.
 
 ## Promotion guardrail
