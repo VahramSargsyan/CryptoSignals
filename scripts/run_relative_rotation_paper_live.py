@@ -741,6 +741,7 @@ def build_report_markdown(payload: dict) -> str:
         "## Legacy BOOK_1 compatibility view",
         "",
     ]
+    )
 
     if held_events["confirmed"]:
         lines.append("### CONFIRMED")
