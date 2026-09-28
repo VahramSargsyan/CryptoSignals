@@ -144,6 +144,14 @@ def _event_line(event: dict) -> str:
     )
 
 
+def _event_line_ru(event: dict) -> str:
+    return (
+        f"{event['from_asset']} -> {event['to_asset']} "
+        f"({event['pair']}; отклонение {_pct(event.get('max_dislocation'))}; "
+        f"разворот от экстремума {_pct(event.get('reversal_from_extreme'))})"
+    )
+
+
 def build_notification(payload: dict) -> str:
     held = payload["held_asset"]
     latest = payload["latest_closed_candle"]
@@ -216,6 +224,87 @@ def build_notification(payload: dict) -> str:
         + f"; breadth={defensive.get('breadth')}/{len(ASSETS)}"
     )
     lines.append("PAPER/MANUAL ONLY — no exchange orders, no API trading keys.")
+    return "\n".join(lines) + "\n"
+
+
+def build_notification_ru(payload: dict) -> str:
+    held = payload["held_asset"]
+    latest = payload["latest_closed_candle"]
+    selected = payload["held_events"]
+    watch_events = payload.get("watch_events", {})
+    defensive = payload["defensive"]
+    latest_defensive_events = payload["latest_defensive_events"]
+
+    lines = [
+        "Relative Rotation — бумажный монитор v1",
+        f"Закрытая свеча: {latest}",
+        f"Текущий актив: {held}",
+    ]
+
+    primary = selected.get("primary_confirmed")
+    if primary:
+        lines.extend(
+            [
+                "РОТАЦИЯ ПОДТВЕРЖДЕНА",
+                _event_line_ru(primary),
+                "Сигнал модели — требуется ручное подтверждение.",
+            ]
+        )
+        extra = [event for event in selected.get("confirmed", []) if event is not primary]
+        if extra:
+            lines.append("Другие подтверждённые кандидаты на выход:")
+            lines.extend(f"- {_event_line_ru(event)}" for event in extra)
+    elif selected.get("armed"):
+        lines.append("ГОТОВНОСТЬ / ПРЕДВАРИТЕЛЬНОЕ НАБЛЮДЕНИЕ")
+        lines.extend(f"- {_event_line_ru(event)}" for event in selected["armed"])
+        lines.append("Порог 15% достигнут; ротации нет, пока разворот 3% не подтвердится.")
+    elif payload.get("force_notify"):
+        lines.append("Начальный снимок — на этой свече нет подтверждённой ротации из текущего актива.")
+
+    for asset, watched in watch_events.items():
+        primary_watch = watched.get("primary_confirmed")
+        if primary_watch:
+            lines.extend(
+                [
+                    f"{asset} — НАБЛЮДЕНИЕ: ВЫХОД ПОДТВЕРЖДЕН",
+                    _event_line_ru(primary_watch),
+                    "Только ручная проверка — наблюдение не размещает ордера.",
+                ]
+            )
+            extra_watch = [event for event in watched.get("confirmed", []) if event is not primary_watch]
+            if extra_watch:
+                lines.append(f"Другие подтверждённые кандидаты на выход для {asset}:")
+                lines.extend(f"- {_event_line_ru(event)}" for event in extra_watch)
+        elif watched.get("armed"):
+            lines.append(f"{asset} — НАБЛЮДЕНИЕ: ГОТОВНОСТЬ")
+            lines.extend(f"- {_event_line_ru(event)}" for event in watched["armed"])
+            lines.append("Порог 15% достигнут; ждём подтверждения разворота 3%.")
+
+    for event in latest_defensive_events:
+        if event["event"] == "DEFENSIVE_ENTER":
+            lines.append(
+                f"Кандидат на ВХОД В ЗАЩИТНЫЙ РЕЖИМ: ширина рынка "
+                f"{event['breadth']}/{len(ASSETS)}; токен с низкой волатильностью "
+                f"{event['defensive_asset']}."
+            )
+        elif event["event"] == "DEFENSIVE_EXIT":
+            lines.append(
+                f"Кандидат на ВЫХОД ИЗ ЗАЩИТНОГО РЕЖИМА: ширина рынка "
+                f"{event['breadth']}/{len(ASSETS)}; возврат по shadow-routing остаётся ручным."
+            )
+
+    status = (
+        f"ВКЛ ({defensive['defensive_asset']})"
+        if defensive["active"]
+        else "ВЫКЛ"
+    )
+    lines.append(
+        f"Защитный режим: {status}; ширина рынка={defensive.get('breadth')}/{len(ASSETS)}"
+    )
+    lines.append(
+        "ТОЛЬКО БУМАЖНЫЙ/РУЧНОЙ РЕЖИМ — биржевые ордера не отправляются; "
+        "торговые API-ключи не используются."
+    )
     return "\n".join(lines) + "\n"
 
 
@@ -421,6 +510,8 @@ def main(argv: list[str] | None = None) -> int:
         "latest_defensive_events": latest_defensive_events,
         "data": data_metadata,
     }
+
+    payload["telegram_text_ru"] = build_notification_ru(payload)
 
     _write_json(run_dir / "report.json", payload)
     (run_dir / "report.md").write_text(build_report_markdown(payload), encoding="utf-8")
