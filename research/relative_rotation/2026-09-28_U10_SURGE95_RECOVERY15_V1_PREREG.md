@@ -64,11 +64,13 @@ This is intentionally conservative:
 
 Both paths may exist after day 15.
 
-At every session:
-- if a previously active fractal buy-stop fills at the current open/high, fractal wins and fallback is cancelled;
-- otherwise any fallback signal generated at the prior close executes at the current open and cancels the fractal path.
+Causal execution priority:
 
-The earlier executable re-entry wins.
+1. If a fallback signal was generated at the PRIOR daily close, execute full fallback re-entry at the CURRENT open and cancel the fractal order before any current-session intraday high is observed.
+2. Otherwise, a previously active fractal buy-stop may fill at the current open or later current-session high under the existing fractal rules.
+3. If fractal fills, cancel the fallback state.
+
+This prevents using the current day's future high to decide whether a fallback that was already due at the open should have executed.
 
 A fallback signal is generated only at a daily close and can execute only on the following open.
 
