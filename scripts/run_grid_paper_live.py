@@ -107,6 +107,237 @@ def _safe_concat(frames: Iterable[pd.DataFrame]) -> pd.DataFrame:
     return pd.concat(usable, ignore_index=True) if usable else pd.DataFrame()
 
 
+def _is_calendar_month_end(timestamp) -> bool:
+    ts = _utc(timestamp).normalize()
+    return (ts + pd.Timedelta(days=1)).month != ts.month
+
+
+def _profile_equity_frame(profile: str, result) -> pd.DataFrame:
+    frame = result.equity_curve.copy()
+    frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True)
+
+    if _profile_engine(profile) == "OSS_FORWARD_CANDIDATE":
+        column = "mid_equity"
+        scale = 1.0
+    else:
+        layer = _profile_layer(profile)
+        if layer == "BOTH":
+            column = "total_equity"
+            scale = 1.0
+        elif layer == "MICRO":
+            column = "micro_equity"
+            scale = 2.0
+        elif layer == "MID":
+            column = "mid_equity"
+            scale = 2.0
+        else:
+            raise ValueError(f"Unknown profile layer: {layer}")
+
+    out = frame.loc[:, ["timestamp", column]].copy()
+    out["equity"] = out[column].astype(float) * scale
+    return out.loc[:, ["timestamp", "equity"]]
+
+
+def _curve_period_metrics(
+    curve: pd.DataFrame,
+    *,
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+    initial_equity: float,
+) -> dict:
+    frame = curve.copy()
+    frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True)
+    frame = frame.sort_values("timestamp", kind="stable").reset_index(drop=True)
+    start = _utc(start)
+    end = _utc(end)
+
+    previous = frame[frame["timestamp"] < start]
+    baseline = (
+        float(previous.iloc[-1]["equity"])
+        if not previous.empty
+        else float(initial_equity)
+    )
+    window = frame[(frame["timestamp"] >= start) & (frame["timestamp"] <= end)]
+    if window.empty:
+        return {
+            "start_equity": baseline,
+            "end_equity": baseline,
+            "return": 0.0,
+            "max_drawdown": 0.0,
+        }
+
+    end_equity = float(window.iloc[-1]["equity"])
+    peak = baseline
+    max_drawdown = 0.0
+    for value in window["equity"].astype(float):
+        peak = max(peak, float(value))
+        max_drawdown = max(max_drawdown, 1.0 - (float(value) / peak))
+
+    return {
+        "start_equity": baseline,
+        "end_equity": end_equity,
+        "return": (end_equity / baseline) - 1.0 if baseline else 0.0,
+        "max_drawdown": max_drawdown,
+    }
+
+
+def _build_calendar_month_report(
+    *,
+    latest_closed: pd.Timestamp | None,
+    paper_start: pd.Timestamp,
+    profiles: tuple[str, ...],
+    symbols: tuple[str, ...],
+    rows_df: pd.DataFrame,
+    events_df: pd.DataFrame,
+    trades_df: pd.DataFrame,
+    equity_frames: dict[tuple[str, str], pd.DataFrame],
+) -> dict | None:
+    if latest_closed is None or not _is_calendar_month_end(latest_closed):
+        return None
+
+    latest = _utc(latest_closed).normalize()
+    month_start = latest.replace(day=1)
+    effective_start = max(month_start, _utc(paper_start).normalize())
+
+    events = events_df.copy()
+    if not events.empty and "timestamp" in events.columns:
+        events["timestamp"] = pd.to_datetime(events["timestamp"], utc=True)
+    trades = trades_df.copy()
+    if not trades.empty and "exit_timestamp" in trades.columns:
+        trades["exit_timestamp"] = pd.to_datetime(trades["exit_timestamp"], utc=True)
+
+    profile_summary: list[dict] = []
+    asset_summary: list[dict] = []
+
+    for profile in profiles:
+        symbol_curves = []
+        for symbol in symbols:
+            curve = equity_frames.get((profile, symbol))
+            if curve is None or curve.empty:
+                continue
+            series = curve.set_index("timestamp")["equity"].rename(symbol)
+            symbol_curves.append(series)
+
+            metrics = _curve_period_metrics(
+                curve,
+                start=effective_start,
+                end=latest,
+                initial_equity=2000.0,
+            )
+            scoped_row = rows_df[
+                (rows_df["profile"] == profile) & (rows_df["symbol"] == symbol)
+            ]
+            row = scoped_row.iloc[0] if not scoped_row.empty else None
+
+            month_events = events
+            if not events.empty:
+                month_events = events[
+                    (events["profile"] == profile)
+                    & (events["symbol"] == symbol)
+                    & (events["timestamp"] >= effective_start)
+                    & (events["timestamp"] <= latest)
+                ]
+            month_trades = trades
+            if not trades.empty:
+                month_trades = trades[
+                    (trades["profile"] == profile)
+                    & (trades["symbol"] == symbol)
+                    & (trades["exit_timestamp"] >= effective_start)
+                    & (trades["exit_timestamp"] <= latest)
+                ]
+
+            asset_summary.append(
+                {
+                    "profile": profile,
+                    "symbol": symbol,
+                    "month_return": metrics["return"],
+                    "month_max_drawdown": metrics["max_drawdown"],
+                    "inception_return": float(row["return"]) if row is not None else 0.0,
+                    "inception_max_drawdown": float(row["max_drawdown"]) if row is not None else 0.0,
+                    "month_buys": int((month_events["event_type"] == "BUY").sum()) if not month_events.empty else 0,
+                    "month_sells": int((month_events["event_type"] == "SELL").sum()) if not month_events.empty else 0,
+                    "month_closed_trades": int(len(month_trades)),
+                    "open_micro_lots": int(row["open_micro_lots"]) if row is not None else 0,
+                    "open_mid_lots": int(row["open_mid_lots"]) if row is not None else 0,
+                }
+            )
+
+        if not symbol_curves:
+            continue
+
+        portfolio_curve = pd.concat(symbol_curves, axis=1).sort_index().ffill()
+        portfolio_curve = portfolio_curve.dropna(how="any")
+        aggregate = pd.DataFrame(
+            {
+                "timestamp": portfolio_curve.index,
+                "equity": portfolio_curve.sum(axis=1).astype(float),
+            }
+        ).reset_index(drop=True)
+
+        month_metrics = _curve_period_metrics(
+            aggregate,
+            start=effective_start,
+            end=latest,
+            initial_equity=2000.0 * len(symbol_curves),
+        )
+        inception_metrics = _curve_period_metrics(
+            aggregate,
+            start=_utc(paper_start),
+            end=latest,
+            initial_equity=2000.0 * len(symbol_curves),
+        )
+
+        scoped_events = events
+        if not events.empty:
+            scoped_events = events[
+                (events["profile"] == profile)
+                & (events["timestamp"] >= effective_start)
+                & (events["timestamp"] <= latest)
+            ]
+        scoped_trades = trades
+        if not trades.empty:
+            scoped_trades = trades[
+                (trades["profile"] == profile)
+                & (trades["exit_timestamp"] >= effective_start)
+                & (trades["exit_timestamp"] <= latest)
+            ]
+        current_rows = rows_df[rows_df["profile"] == profile]
+
+        profile_summary.append(
+            {
+                "profile": profile,
+                "month_start_equity": month_metrics["start_equity"],
+                "month_end_equity": month_metrics["end_equity"],
+                "month_return": month_metrics["return"],
+                "month_max_drawdown": month_metrics["max_drawdown"],
+                "inception_return": inception_metrics["return"],
+                "inception_max_drawdown": inception_metrics["max_drawdown"],
+                "month_buys": int((scoped_events["event_type"] == "BUY").sum()) if not scoped_events.empty else 0,
+                "month_sells": int((scoped_events["event_type"] == "SELL").sum()) if not scoped_events.empty else 0,
+                "month_closed_trades": int(len(scoped_trades)),
+                "open_micro_lots": int(current_rows["open_micro_lots"].sum()) if not current_rows.empty else 0,
+                "open_mid_lots": int(current_rows["open_mid_lots"].sum()) if not current_rows.empty else 0,
+            }
+        )
+
+    best_profile = None
+    worst_profile = None
+    if profile_summary:
+        best_profile = max(profile_summary, key=lambda row: row["month_return"])["profile"]
+        worst_profile = min(profile_summary, key=lambda row: row["month_return"])["profile"]
+
+    return {
+        "period": latest.strftime("%Y-%m"),
+        "month_start": effective_start.isoformat(),
+        "month_end": latest.isoformat(),
+        "profile_summary": profile_summary,
+        "asset_summary": asset_summary,
+        "highest_month_return_profile": best_profile,
+        "lowest_month_return_profile": worst_profile,
+        "paper_only": True,
+    }
+
+
 def _profile_layer(profile: str) -> str:
     return str(PROFILES[profile]["layer"])
 
@@ -295,6 +526,45 @@ def _build_report_markdown(payload: dict) -> str:
     for symbol, anchors in payload["initial_ranges"].items():
         lines.append(f"| {symbol} | {anchors['high']:.8f} | {anchors['low']:.8f} |")
 
+    monthly = payload.get("monthly_report")
+    if monthly:
+        lines.extend(
+            [
+                "",
+                f"## Calendar monthly report — {monthly['period']}",
+                "",
+                "| Profile | Month return | Month max DD | Since start | Inception max DD | BUY | SELL | Closed trades | Open Micro | Open Mid |",
+                "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+            ]
+        )
+        for row in monthly["profile_summary"]:
+            lines.append(
+                f"| {row['profile']} | {_pct(row['month_return'])} | "
+                f"{_pct(row['month_max_drawdown'])} | {_pct(row['inception_return'])} | "
+                f"{_pct(row['inception_max_drawdown'])} | {row['month_buys']} | "
+                f"{row['month_sells']} | {row['month_closed_trades']} | "
+                f"{row['open_micro_lots']} | {row['open_mid_lots']} |"
+            )
+        lines.extend(
+            [
+                "",
+                f"Highest monthly return profile: **{monthly['highest_month_return_profile']}**",
+                f"Lowest monthly return profile: **{monthly['lowest_month_return_profile']}**",
+                "",
+                "### Monthly per-asset detail",
+                "",
+                "| Profile | Symbol | Month | Since start | Month DD | BUY | SELL | Closed | Open Micro | Open Mid |",
+                "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+            ]
+        )
+        for row in monthly["asset_summary"]:
+            lines.append(
+                f"| {row['profile']} | {row['symbol']} | {_pct(row['month_return'])} | "
+                f"{_pct(row['inception_return'])} | {_pct(row['month_max_drawdown'])} | "
+                f"{row['month_buys']} | {row['month_sells']} | {row['month_closed_trades']} | "
+                f"{row['open_micro_lots']} | {row['open_mid_lots']} |"
+            )
+
     if payload.get("milestone"):
         lines.extend(["", f"## Milestone: {payload['milestone']}", ""])
         lines.append("This is a forward paper observation milestone, not a live-money approval.")
@@ -320,6 +590,27 @@ def _build_report_markdown(payload: dict) -> str:
 
 def _notification_text(payload: dict) -> str:
     latest = payload.get("latest_closed_candle") or "waiting"
+    monthly = payload.get("monthly_report")
+    if monthly:
+        lines = [
+            f"Grid Paper Live — monthly report {monthly['period']}",
+            f"Closed candle: {latest}",
+        ]
+        for row in monthly["profile_summary"]:
+            lines.append(
+                f"{row['profile']}: month {_pct(row['month_return'])}, "
+                f"since start {_pct(row['inception_return'])}, "
+                f"DD {_pct(row['month_max_drawdown'])}, "
+                f"BUY {row['month_buys']}, SELL {row['month_sells']}, "
+                f"closed {row['month_closed_trades']}"
+            )
+        lines.append(
+            f"Highest month return: {monthly['highest_month_return_profile']}; "
+            f"lowest: {monthly['lowest_month_return_profile']}"
+        )
+        lines.append("PAPER ONLY — no real orders.")
+        return "\n".join(lines)
+
     lines = [
         "Grid Paper Live v1",
         f"Closed candle: {latest}",
@@ -356,6 +647,28 @@ def _notification_text(payload: dict) -> str:
 
 def _notification_text_ru(payload: dict) -> str:
     latest = payload.get("latest_closed_candle") or "ожидание"
+    monthly = payload.get("monthly_report")
+    if monthly:
+        lines = [
+            f"📊 Сетка — месячный бумажный отчёт {monthly['period']}",
+            f"Закрытая свеча: {latest}",
+        ]
+        for row in monthly["profile_summary"]:
+            lines.append(
+                f"{row['profile']}: месяц {_pct(row['month_return'])}, "
+                f"с начала {_pct(row['inception_return'])}, "
+                f"DD месяца {_pct(row['month_max_drawdown'])}, "
+                f"BUY {row['month_buys']}, SELL {row['month_sells']}, "
+                f"закрыто {row['month_closed_trades']}, "
+                f"открыто Mµ {row['open_micro_lots']} / Mid {row['open_mid_lots']}"
+            )
+        lines.append(
+            f"Макс. доходность месяца: {monthly['highest_month_return_profile']}; "
+            f"мин.: {monthly['lowest_month_return_profile']}"
+        )
+        lines.append("БУМАЖНЫЙ РЕЖИМ — реальные ордера не отправляются.")
+        return "\n".join(lines)
+
     active_rows = [
         row for row in payload.get("rows", [])
         if int(row.get("today_events", 0)) > 0
@@ -432,6 +745,7 @@ def main(argv: list[str] | None = None) -> int:
     rows: list[dict] = []
     event_frames: list[pd.DataFrame] = []
     trade_frames: list[pd.DataFrame] = []
+    equity_frames: dict[tuple[str, str], pd.DataFrame] = {}
     initial_ranges: dict[str, dict] = {}
     completed_counts: list[int] = []
     latest_closed: pd.Timestamp | None = None
@@ -525,6 +839,7 @@ def main(argv: list[str] | None = None) -> int:
                 events = _scale_single_layer_frame(profile, result.events)
                 trades = _scale_single_layer_frame(profile, result.trades)
 
+            equity_frames[(profile, symbol)] = _profile_equity_frame(profile, result)
             latest_eval = pd.Timestamp(result.equity_curve.iloc[-1]["timestamp"])
 
             if not events.empty:
@@ -581,8 +896,23 @@ def main(argv: list[str] | None = None) -> int:
     elif completed_paper_candles == 30:
         milestone = "MONTH_1"
 
+    monthly_report = _build_calendar_month_report(
+        latest_closed=latest_closed,
+        paper_start=paper_start,
+        profiles=profiles,
+        symbols=symbols,
+        rows_df=rows_df,
+        events_df=events_df,
+        trades_df=trades_df,
+        equity_frames=equity_frames,
+    )
+
     total_today_events = int(rows_df["today_events"].sum()) if not rows_df.empty else 0
-    should_notify = total_today_events > 0 or milestone is not None
+    should_notify = (
+        total_today_events > 0
+        or milestone is not None
+        or monthly_report is not None
+    )
 
     payload = {
         "status": "PAPER_LIVE_WAITING" if completed_paper_candles == 0 else "PAPER_LIVE_OBSERVATION",
@@ -599,6 +929,7 @@ def main(argv: list[str] | None = None) -> int:
         "initial_ranges": initial_ranges,
         "today_event_count": total_today_events,
         "milestone": milestone,
+        "monthly_report": monthly_report,
         "should_notify": should_notify,
         "notification_text": "",
         "telegram_text_ru": "",
@@ -641,6 +972,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"latest_closed_candle={payload['latest_closed_candle']}")
     print(f"today_event_count={total_today_events}")
     print(f"milestone={milestone or 'NONE'}")
+    print(
+        "monthly_report="
+        + (monthly_report["period"] if monthly_report is not None else "NONE")
+    )
     print(f"should_notify={'true' if should_notify else 'false'}")
     for item in portfolio:
         print(

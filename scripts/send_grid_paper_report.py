@@ -88,7 +88,10 @@ def main(argv: list[str] | None = None) -> int:
     signal_notify = bool(report.get("should_notify", False))
 
     subject_bits = ["Grid Paper Live"]
-    if report.get("milestone"):
+    monthly = report.get("monthly_report")
+    if monthly:
+        subject_bits.append(f"MONTHLY {monthly.get('period')}")
+    elif report.get("milestone"):
         subject_bits.append(str(report["milestone"]))
     elif report.get("latest_closed_candle"):
         subject_bits.append(str(report["latest_closed_candle"])[:10])
