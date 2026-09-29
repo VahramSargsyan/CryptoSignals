@@ -7,6 +7,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+STATE_SCHEMA_VERSION = 1
+MAX_SENT_EVENT_IDS = 500
+
 
 def _send_telegram(text: str) -> None:
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
@@ -28,33 +31,140 @@ def _send_telegram(text: str) -> None:
             raise RuntimeError(f"Telegram HTTP {response.status}")
 
 
+def _load_state(path: Path | None) -> dict:
+    if path is None or not path.exists():
+        return {"schema_version": STATE_SCHEMA_VERSION, "sent_event_ids": []}
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    ids = [str(value) for value in payload.get("sent_event_ids", []) if str(value).strip()]
+    return {
+        "schema_version": STATE_SCHEMA_VERSION,
+        "sent_event_ids": ids[-MAX_SENT_EVENT_IDS:],
+    }
+
+
+def _save_state(path: Path | None, state: dict) -> None:
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": STATE_SCHEMA_VERSION,
+        "sent_event_ids": [str(value) for value in state.get("sent_event_ids", [])][-MAX_SENT_EVENT_IDS:],
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _book_position_ru(book: dict) -> str:
+    asset = str(book.get("held_asset") or "")
+    quantity = book.get("quantity")
+    if quantity is None:
+        return asset
+    return f"{float(quantity):g} {asset}"
+
+
+def _event_line_ru(event: dict) -> str:
+    event_type = str(event.get("event") or "")
+    prefix = "🚨 CONFIRMED" if event_type == "CONFIRMED" else "⚠️ ARM / PREWATCH"
+    max_dislocation = event.get("max_dislocation")
+    reversal = event.get("reversal_from_extreme")
+    max_text = "n/a" if max_dislocation is None else f"{float(max_dislocation) * 100:.2f}%"
+    rev_text = "n/a" if reversal is None else f"{float(reversal) * 100:.2f}%"
+    return (
+        f"{prefix}: {event.get('from_asset')} -> {event.get('to_asset')} "
+        f"({event.get('pair')}; отклонение {max_text}; разворот {rev_text})"
+    )
+
+
+def _pending_candidates(report: dict, state: dict) -> list[dict]:
+    sent = set(str(value) for value in state.get("sent_event_ids", []))
+    pending = []
+    for item in report.get("notification_candidates", []):
+        event_id = str(item.get("event_id") or "")
+        if not event_id or event_id in sent:
+            continue
+        pending.append(item)
+    return pending
+
+
+def build_pending_notification_ru(report: dict, pending: list[dict]) -> str:
+    lines = [
+        "Relative Rotation — новое/восстановленное уведомление",
+        f"Последняя закрытая свеча: {report.get('latest_closed_candle')}",
+    ]
+
+    for item in pending:
+        book = item.get("book", {})
+        event = item.get("event", {})
+        lines.extend(
+            [
+                "",
+                f"{item.get('book_id')} — текущая позиция: {_book_position_ru(book)}",
+                f"Свеча события: {event.get('date')}",
+                _event_line_ru(event),
+            ]
+        )
+        if event.get("event") == "CONFIRMED":
+            lines.append("Сигнал модели подтверждён; исполнение остаётся ручным.")
+        else:
+            lines.append("Это PREWATCH: ротации пока нет, ждём подтверждение 3%.")
+
+    lines.extend(
+        [
+            "",
+            "БУМАЖНЫЙ/РУЧНОЙ РЕЖИМ — реальные ордера не отправляются.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Send Relative Rotation paper-live Telegram alert.")
     parser.add_argument("--report-json", type=Path, required=True)
     parser.add_argument("--notification-text", type=Path, required=True)
+    parser.add_argument("--state-file", type=Path)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     report = json.loads(args.report_json.read_text(encoding="utf-8"))
-
-    if not bool(report.get("should_notify", False)):
-        print("notification=SKIPPED_POLICY")
-        return 0
+    state = _load_state(args.state_file)
+    pending = _pending_candidates(report, state)
 
     legacy_text = args.notification_text.read_text(encoding="utf-8").strip()
-    text = str(report.get("telegram_text_ru") or legacy_text).strip()
+    fallback_text = str(report.get("telegram_text_ru") or legacy_text).strip()
+
+    if pending:
+        text = build_pending_notification_ru(report, pending).strip()
+    elif bool(report.get("should_notify", False)):
+        text = fallback_text
+    else:
+        print("notification=SKIPPED_POLICY")
+        _save_state(args.state_file, state)
+        return 0
+
     if not text:
         raise RuntimeError("notification text is empty")
 
     if not os.environ.get("TELEGRAM_BOT_TOKEN", "").strip() or not os.environ.get("TELEGRAM_CHAT_ID", "").strip():
         print("notification=SKIPPED_MISSING_TELEGRAM_SECRETS")
+        _save_state(args.state_file, state)
         return 0
 
     _send_telegram(text)
+
+    if pending:
+        sent_ids = [str(value) for value in state.get("sent_event_ids", [])]
+        sent_ids.extend(str(item["event_id"]) for item in pending)
+        state["sent_event_ids"] = sent_ids[-MAX_SENT_EVENT_IDS:]
+        _save_state(args.state_file, state)
+        print(f"notification_events_sent={len(pending)}")
+        print("notification=REPLAY_OR_NEW_SIGNAL")
+    else:
+        _save_state(args.state_file, state)
+        print("notification=SIGNAL_OR_FORCE_NOTIFY")
+
     print("telegram=SENT")
-    print("notification=SIGNAL_OR_FORCE_NOTIFY")
     return 0
 
 
