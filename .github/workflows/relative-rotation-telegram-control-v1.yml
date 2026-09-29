@@ -1,0 +1,213 @@
+name: Relative Rotation Telegram Control v1
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Allowed control action"
+        required: true
+        type: choice
+        options:
+          - CONFIRM_EXECUTION
+      book_id:
+        description: "Live book ID"
+        required: true
+        type: string
+      signal_date:
+        description: "CONFIRMED signal date YYYYMMDD"
+        required: true
+        type: string
+      from_asset:
+        description: "Current held asset"
+        required: true
+        type: string
+      to_asset:
+        description: "Confirmed destination asset"
+        required: true
+        type: string
+      sent_quantity:
+        description: "Actual quantity sent"
+        required: true
+        type: string
+      received_quantity:
+        description: "Actual quantity received"
+        required: true
+        type: string
+      confirmed_at:
+        description: "Telegram confirmation timestamp"
+        required: true
+        type: string
+      telegram_update_id:
+        description: "Telegram update id for idempotency"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: relative-rotation-telegram-control-${{ inputs.book_id }}
+  cancel-in-progress: false
+
+jobs:
+  confirm-execution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+
+      - name: Validate control implementation
+        run: |
+          python -m unittest tests.test_relative_rotation_execution_control -v
+          python -m unittest tests.test_relative_rotation_paper_live -v
+          python -m unittest tests.test_send_relative_rotation_report -v
+
+      - name: Rebuild current RR evidence
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: |
+          rm -rf control_artifacts/rr_control
+          python -m scripts.run_relative_rotation_paper_live \
+            --output-root control_artifacts/rr_control
+          REPORT_JSON="$(find control_artifacts/rr_control -name report.json -type f | sort | tail -1)"
+          test -n "$REPORT_JSON"
+          echo "REPORT_JSON=$REPORT_JSON" >> "$GITHUB_ENV"
+
+      - name: Apply explicit Telegram execution confirmation
+        env:
+          ACTION: ${{ inputs.action }}
+          BOOK_ID: ${{ inputs.book_id }}
+          SIGNAL_DATE: ${{ inputs.signal_date }}
+          FROM_ASSET: ${{ inputs.from_asset }}
+          TO_ASSET: ${{ inputs.to_asset }}
+          SENT_QUANTITY: ${{ inputs.sent_quantity }}
+          RECEIVED_QUANTITY: ${{ inputs.received_quantity }}
+          CONFIRMED_AT: ${{ inputs.confirmed_at }}
+          TELEGRAM_UPDATE_ID: ${{ inputs.telegram_update_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ACTION" = "CONFIRM_EXECUTION"
+          python -m scripts.apply_relative_rotation_manual_execution \
+            --report-json "$REPORT_JSON" \
+            --book-id "$BOOK_ID" \
+            --signal-date "$SIGNAL_DATE" \
+            --from-asset "$FROM_ASSET" \
+            --to-asset "$TO_ASSET" \
+            --sent-quantity "$SENT_QUANTITY" \
+            --received-quantity "$RECEIVED_QUANTITY" \
+            --confirmed-at "$CONFIRMED_AT" \
+            --telegram-update-id "$TELEGRAM_UPDATE_ID" | tee /tmp/rr-control-result.txt
+          if grep -q '^changed=False$' /tmp/rr-control-result.txt; then
+            echo "RR_CONTROL_NO_CHANGE=true" >> "$GITHUB_ENV"
+          else
+            echo "RR_CONTROL_NO_CHANGE=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Re-run state tests after mutation
+        run: |
+          python -m unittest tests.test_relative_rotation_execution_control -v
+          python -m unittest tests.test_relative_rotation_paper_live -v
+          python -m unittest tests.test_send_relative_rotation_report -v
+
+      - name: Commit canonical position state
+        env:
+          BOOK_ID: ${{ inputs.book_id }}
+          FROM_ASSET: ${{ inputs.from_asset }}
+          TO_ASSET: ${{ inputs.to_asset }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t CHANGED < <(git diff --name-only)
+          for path in "${CHANGED[@]}"; do
+            case "$path" in
+              config/relative_rotation_paper_live_v1.json|research/relative_rotation/REAL_ROTATION_LOG.md)
+                ;;
+              *)
+                echo "Unexpected mutated file: $path" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+          if [ "${RR_CONTROL_NO_CHANGE:-false}" = "true" ]; then
+            echo "Execution update already applied; no commit required."
+            exit 0
+          fi
+
+          test "${#CHANGED[@]}" -gt 0
+
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
+            echo "main advanced during execution validation; refusing stale state mutation" >&2
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            config/relative_rotation_paper_live_v1.json \
+            research/relative_rotation/REAL_ROTATION_LOG.md
+          git commit -m "state: ${BOOK_ID} ${FROM_ASSET} to ${TO_ASSET} via Telegram"
+          git push origin HEAD:main
+
+      - name: Telegram success acknowledgement
+        if: success()
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BOOK_ID: ${{ inputs.book_id }}
+          FROM_ASSET: ${{ inputs.from_asset }}
+          TO_ASSET: ${{ inputs.to_asset }}
+          SENT_QUANTITY: ${{ inputs.sent_quantity }}
+          RECEIVED_QUANTITY: ${{ inputs.received_quantity }}
+        run: |
+          python - <<'PY'
+          import os
+          from scripts.send_relative_rotation_report import _send_telegram
+          status = "уже была записана" if os.environ.get("RR_CONTROL_NO_CHANGE") == "true" else "записана"
+          text = (
+              "✅ GitHub: ручная ротация " + status + ".\n"
+              + os.environ["BOOK_ID"] + ": "
+              + os.environ["SENT_QUANTITY"] + " " + os.environ["FROM_ASSET"]
+              + " → " + os.environ["RECEIVED_QUANTITY"] + " " + os.environ["TO_ASSET"]
+              + "\nBOOK обновлён только после проверки CONFIRMED-сигнала."
+          )
+          _send_telegram(text)
+          PY
+
+      - name: Telegram failure acknowledgement
+        if: failure()
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BOOK_ID: ${{ inputs.book_id }}
+          FROM_ASSET: ${{ inputs.from_asset }}
+          TO_ASSET: ${{ inputs.to_asset }}
+        run: |
+          python - <<'PY'
+          import os
+          from scripts.send_relative_rotation_report import _send_telegram
+          _send_telegram(
+              "❌ GitHub отклонил/не завершил подтверждение ротации.\n"
+              + os.environ["BOOK_ID"] + ": " + os.environ["FROM_ASSET"]
+              + " → " + os.environ["TO_ASSET"]
+              + "\nКаноническая позиция не считается обновлённой. Проверь workflow или повтори действие."
+          )
+          PY

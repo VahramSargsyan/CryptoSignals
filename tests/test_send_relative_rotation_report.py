@@ -619,5 +619,50 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         self.assertEqual(selected[0]["event_id"], "new-stronger")
 
 
+    def test_execution_reply_markup_is_disabled_by_default(self):
+        candidate = {
+            "book_id": "BOOK_2",
+            "book": {"held_asset": "ALGO", "quantity": 10723.76037691},
+            "event": {
+                "date": "2026-09-28T00:00:00+00:00",
+                "event": "CONFIRMED",
+                "from_asset": "ALGO",
+                "to_asset": "FIL",
+            },
+        }
+        with mock.patch.dict("os.environ", {"RR_TELEGRAM_CONTROL_ENABLED": ""}, clear=False):
+            self.assertIsNone(sender._execution_reply_markup([candidate]))
+
+    def test_execution_reply_markup_builds_done_and_later_buttons(self):
+        candidate = {
+            "book_id": "BOOK_2",
+            "book": {"held_asset": "ALGO", "quantity": 10723.76037691},
+            "event": {
+                "date": "2026-09-28T00:00:00+00:00",
+                "event": "CONFIRMED",
+                "from_asset": "ALGO",
+                "to_asset": "FIL",
+            },
+        }
+        with mock.patch.dict(
+            "os.environ",
+            {"RR_TELEGRAM_CONTROL_ENABLED": "true"},
+            clear=False,
+        ):
+            markup = sender._execution_reply_markup([candidate])
+
+        self.assertIsNotNone(markup)
+        row = markup["inline_keyboard"][0]
+        self.assertEqual(row[0]["text"], "✅ Выполнено BOOK_2")
+        self.assertEqual(row[1]["text"], "⏰ Позже BOOK_2")
+        self.assertTrue(
+            row[0]["callback_data"].startswith(
+                "rrd|BOOK_2|ALGO|FIL|20260928|"
+            )
+        )
+        self.assertEqual(row[1]["callback_data"], "rrl|BOOK_2")
+        self.assertLessEqual(len(row[0]["callback_data"].encode("utf-8")), 64)
+
+
 if __name__ == "__main__":
     unittest.main()

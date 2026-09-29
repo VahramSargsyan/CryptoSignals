@@ -1,0 +1,41 @@
+name: RR Telegram Bridge Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "apps/rr-telegram-bridge/**"
+      - ".github/workflows/rr-telegram-bridge-tests.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/rr-telegram-bridge/**"
+      - ".github/workflows/rr-telegram-bridge-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  node-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Syntax check
+        working-directory: apps/rr-telegram-bridge
+        run: |
+          node --check api/telegram.js
+          node --check api/health.js
+
+      - name: Run bridge tests
+        working-directory: apps/rr-telegram-bridge
+        run: npm test
