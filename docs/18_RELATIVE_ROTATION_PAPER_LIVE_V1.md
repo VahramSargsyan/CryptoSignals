@@ -66,13 +66,19 @@ Migration guard:
 
 ## Telegram notification policy
 
-Telegram is sent only when at least one of these events happens on the latest closed daily candle:
+Telegram policy has two scheduled layers:
 
-1. a new TARGET-bound `ARMED` event exists from the configured held asset;
-2. a new TARGET-bound `CONFIRMED` event exists from the configured held asset;
-3. a new TARGET-bound outbound `ARMED` or `CONFIRMED` event exists from a persistent sunset watch asset;
-4. a manual verification run uses `--force-notify`;
-5. the dedicated 22:30 Yerevan evening schedule may repeat only a same-candle
+1. the morning `00:20 UTC` run always sends one useful status message;
+2. if a new TARGET-bound `ARMED` or `CONFIRMED` event exists, the existing
+   event alert keeps priority;
+3. if there is no new event, the morning message shows the strongest current
+   outbound Relative Rotation candidates for each live book, their percentage
+   dislocation from the 180-day pair median, and the remaining distance to the
+   15% ARM threshold;
+4. persistent sunset-watch `ARMED`/`CONFIRMED` events keep their existing
+   alert behavior;
+5. a manual verification run may use `--force-notify`;
+6. the dedicated 22:30 Yerevan evening schedule may repeat only a same-candle
    live-book `CONFIRMED` event as an execution reminder.
 
 The evening reminder is deliberately separate from the morning event identity:
@@ -84,7 +90,14 @@ trade; update the real position/log as part of the manual execution procedure.
 
 The defensive overlay is disabled during the membership migration so it cannot conflict with the target/sunset routing rules.
 
-No repeated daily warning is sent merely because a pair remains armed. The monitor recomputes the complete state from historical closed candles on every run, so it does not need hidden mutable workflow state for deduplication.
+The morning quiet-market snapshot is informational only. A line such as
+`ALGO -> FIL: 8.40% отклонение; до ARM 15%: 6.60 п.п.` means the current pair
+ratio is 8.40% away from its 180-day median in the model's prospective outbound
+direction. It is not an `ARMED` or `CONFIRMED` signal.
+
+No repeated event warning is created merely because a pair remains armed. The
+morning status may still display the current state, while event deduplication
+continues to use stable event IDs.
 
 ## Defensive research overlay
 
@@ -239,8 +252,11 @@ Watch ARMED messages must explicitly say:
 - current held asset is unchanged;
 - 3% reversal confirmation is still required.
 
-Telegram sender must obey `report.should_notify`; no-signal scheduled runs are
-not sent unless force-notify is explicitly requested.
+The morning scheduled run is allowed to send the informational rotation
+snapshot even when `report.should_notify=false`. Manual/no-schedule runs still
+obey `report.should_notify` unless `--force-notify` is explicitly requested.
+The 22:30 schedule remains CONFIRMED-only and does not send a quiet-market
+snapshot.
 
 The meaningful D1 live cadence remains once after the Binance daily close.
 Repeated intraday runs evaluate the same closed candle and are not treated as
