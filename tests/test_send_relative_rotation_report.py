@@ -41,6 +41,36 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         send.assert_not_called()
 
+    def test_sender_morning_snapshot_sends_when_policy_has_no_signal(self):
+        temp, report_path, notification_path = self._files(
+            {
+                "should_notify": False,
+                "telegram_text_ru": "morning rotation snapshot",
+            }
+        )
+        self.addCleanup(temp.cleanup)
+
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "TELEGRAM_BOT_TOKEN": "fake-token",
+                "TELEGRAM_CHAT_ID": "fake-chat",
+            },
+            clear=False,
+        ), mock.patch.object(sender, "_send_telegram") as send:
+            rc = sender.main(
+                [
+                    "--report-json",
+                    str(report_path),
+                    "--notification-text",
+                    str(notification_path),
+                    "--morning-rotation-snapshot",
+                ]
+            )
+
+        self.assertEqual(rc, 0)
+        send.assert_called_once_with("morning rotation snapshot")
+
     def test_sender_sends_when_policy_allows(self):
         temp, report_path, notification_path = self._files(
             {
