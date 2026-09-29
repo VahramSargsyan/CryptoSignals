@@ -10,6 +10,7 @@ on:
         default: false
   schedule:
     - cron: "20 0 * * *"
+    - cron: "30 18 * * *"
   pull_request:
     branches:
       - main
@@ -112,8 +113,14 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE_EXPRESSION: ${{ github.event.schedule }}
         run: |
-          python -m scripts.send_relative_rotation_report             --report-json "$PAPER_RUN_DIR/report.json"             --notification-text "$PAPER_RUN_DIR/notification.txt"             --state-file "paper_state/relative_rotation_notification_state.json"
+          SENDER_EXTRA=""
+          if [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPRESSION" = "30 18 * * *" ]; then
+            SENDER_EXTRA="--evening-confirmed-reminder"
+          fi
+          python -m scripts.send_relative_rotation_report             --report-json "$PAPER_RUN_DIR/report.json"             --notification-text "$PAPER_RUN_DIR/notification.txt"             --state-file "paper_state/relative_rotation_notification_state.json"             $SENDER_EXTRA
 
       - name: Persist Telegram dedupe state
         if: always() && github.event_name != 'pull_request'

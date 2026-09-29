@@ -71,7 +71,16 @@ Telegram is sent only when at least one of these events happens on the latest cl
 1. a new TARGET-bound `ARMED` event exists from the configured held asset;
 2. a new TARGET-bound `CONFIRMED` event exists from the configured held asset;
 3. a new TARGET-bound outbound `ARMED` or `CONFIRMED` event exists from a persistent sunset watch asset;
-4. a manual verification run uses `--force-notify`.
+4. a manual verification run uses `--force-notify`;
+5. the dedicated 22:30 Yerevan evening schedule may repeat only a same-candle
+   live-book `CONFIRMED` event as an execution reminder.
+
+The evening reminder is deliberately separate from the morning event identity:
+the morning alert remains preserved in dedupe state and one evening repeat is
+allowed for the same `CONFIRMED`. It never repeats `ARMED / PREWATCH`, never
+creates a new signal, and never changes the frozen D1 signal candle. If the real
+trade has already been executed, the reminder must not be treated as a second
+trade; update the real position/log as part of the manual execution procedure.
 
 The defensive overlay is disabled during the membership migration so it cannot conflict with the target/sunset routing rules.
 
@@ -100,11 +109,17 @@ Workflow:
 
 `.github/workflows/relative-rotation-paper-live-v1.yml`
 
-Scheduled time after merge to the default branch:
+Scheduled times after merge to the default branch:
 
-`00:20 UTC` daily, shortly after the Binance daily candle closes.
+- `00:20 UTC` daily, shortly after the Binance daily candle closes
+  (normally about `04:20` in Armenia);
+- `18:30 UTC` daily (normally `22:30` in Armenia) for the execution fallback
+  reminder.
 
-For Armenia this is normally around `04:20` local time.
+The 22:30 run recomputes the same already-closed D1 state. It sends only a
+same-candle live-book `CONFIRMED` reminder and does not create additional
+forward evidence. GitHub Actions cron can start later than the nominal minute
+when the hosted runner queue is busy.
 
 Each run:
 
@@ -228,8 +243,10 @@ Telegram sender must obey `report.should_notify`; no-signal scheduled runs are
 not sent unless force-notify is explicitly requested.
 
 The meaningful D1 live cadence remains once after the Binance daily close.
-Repeated intraday runs would evaluate the same closed candle and are not treated
-as new forward evidence.
+Repeated intraday runs evaluate the same closed candle and are not treated as
+new forward evidence. The scheduled 22:30 Yerevan run is the explicit exception
+to ordinary notification dedupe: it may repeat the morning same-candle
+`CONFIRMED` once as an execution reminder, with a separate reminder event ID.
 
 
 ## 2026-09-29 — Two real live books
