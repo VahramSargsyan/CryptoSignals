@@ -86,6 +86,57 @@ def _pending_candidates(report: dict, state: dict) -> list[dict]:
     return pending
 
 
+def _evening_reminder_id(item: dict) -> str:
+    return f"EVENING_REMINDER|{item.get('event_id') or ''}"
+
+
+def _evening_confirmed_candidates(report: dict, state: dict) -> list[dict]:
+    """Return same-candle CONFIRMED events not yet repeated by the evening reminder."""
+    latest = str(report.get("latest_closed_candle") or "")
+    sent = set(str(value) for value in state.get("sent_event_ids", []))
+    pending = []
+    for item in report.get("notification_candidates", []):
+        event = item.get("event", {})
+        if event.get("event") != "CONFIRMED":
+            continue
+        if str(event.get("date") or "") != latest:
+            continue
+        reminder_id = _evening_reminder_id(item)
+        if not item.get("event_id") or reminder_id in sent:
+            continue
+        pending.append(item)
+    return pending
+
+
+def build_evening_reminder_ru(report: dict, pending: list[dict]) -> str:
+    lines = [
+        "🌙 Relative Rotation — вечернее напоминание 22:30 Ереван",
+        f"Утренний сигнал рассчитан по закрытой D1-свече: {report.get('latest_closed_candle')}",
+        "Это НЕ новый сигнал: повторяется только сегодняшний CONFIRMED для текущей позиции.",
+    ]
+
+    for item in pending:
+        book = item.get("book", {})
+        event = item.get("event", {})
+        lines.extend(
+            [
+                "",
+                f"{item.get('book_id')} — текущая позиция: {_book_position_ru(book)}",
+                _event_line_ru(event),
+                "Если утром не успел исполнить, это вечерний fallback перед поздним окном исполнения.",
+            ]
+        )
+
+    lines.extend(
+        [
+            "",
+            "Если сделка уже выполнена — НЕ повторяй её; обнови позицию/реальный лог.",
+            "БУМАЖНЫЙ/РУЧНОЙ РЕЖИМ — реальные ордера не отправляются.",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def build_pending_notification_ru(report: dict, pending: list[dict]) -> str:
     lines = [
         "Relative Rotation — новое/восстановленное уведомление",
@@ -133,6 +184,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--report-json", type=Path, required=True)
     parser.add_argument("--notification-text", type=Path, required=True)
     parser.add_argument("--state-file", type=Path)
+    parser.add_argument(
+        "--evening-confirmed-reminder",
+        action="store_true",
+        help=(
+            "At the 22:30 Yerevan scheduled run, repeat only same-candle "
+            "CONFIRMED events for currently configured live books."
+        ),
+    )
     return parser
 
 
@@ -145,7 +204,14 @@ def main(argv: list[str] | None = None) -> int:
     legacy_text = args.notification_text.read_text(encoding="utf-8").strip()
     fallback_text = str(report.get("telegram_text_ru") or legacy_text).strip()
 
-    if pending:
+    if args.evening_confirmed_reminder:
+        evening_pending = _evening_confirmed_candidates(report, state)
+        if not evening_pending:
+            print("notification=SKIPPED_EVENING_NO_CONFIRMED")
+            _save_state(args.state_file, state)
+            return 0
+        text = build_evening_reminder_ru(report, evening_pending).strip()
+    elif pending:
         text = build_pending_notification_ru(report, pending).strip()
     elif bool(report.get("should_notify", False)):
         text = fallback_text
@@ -164,7 +230,14 @@ def main(argv: list[str] | None = None) -> int:
 
     _send_telegram(text)
 
-    if pending:
+    if args.evening_confirmed_reminder:
+        sent_ids = [str(value) for value in state.get("sent_event_ids", [])]
+        sent_ids.extend(_evening_reminder_id(item) for item in evening_pending)
+        state["sent_event_ids"] = sent_ids[-MAX_SENT_EVENT_IDS:]
+        _save_state(args.state_file, state)
+        print(f"notification_events_sent={len(evening_pending)}")
+        print("notification=EVENING_CONFIRMED_REMINDER")
+    elif pending:
         sent_ids = [str(value) for value in state.get("sent_event_ids", [])]
         sent_ids.extend(str(item["event_id"]) for item in pending)
         state["sent_event_ids"] = sent_ids[-MAX_SENT_EVENT_IDS:]
