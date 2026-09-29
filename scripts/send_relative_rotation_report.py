@@ -133,58 +133,113 @@ def _pending_candidates(report: dict, state: dict) -> list[dict]:
     return pending
 
 
-def _evening_reminder_id(item: dict) -> str:
-    return f"EVENING_REMINDER|{item.get('event_id') or ''}"
+def _latest_confirmed_by_book(report: dict) -> list[dict]:
+    """Return the latest strongest unresolved CONFIRMED candidate per live book.
 
-
-def _evening_confirmed_candidates(report: dict, state: dict) -> list[dict]:
-    """Return same-candle CONFIRMED events not yet repeated by the evening reminder."""
-    latest = str(report.get("latest_closed_candle") or "")
-    sent = set(str(value) for value in state.get("sent_event_ids", []))
-    pending = []
+    notification_candidates are already restricted by the monitor to routes whose
+    from_asset equals the book's currently configured held_asset. Therefore an
+    executed trade disappears from this set as soon as the book is updated.
+    """
+    grouped: dict[str, list[dict]] = {}
     for item in report.get("notification_candidates", []):
         event = item.get("event", {})
         if event.get("event") != "CONFIRMED":
             continue
-        if str(event.get("date") or "") != latest:
+        event_id = str(item.get("event_id") or "")
+        book_id = str(item.get("book_id") or "")
+        if not event_id or not book_id:
             continue
-        reminder_id = _evening_reminder_id(item)
-        if not item.get("event_id") or reminder_id in sent:
+        grouped.setdefault(book_id, []).append(item)
+
+    selected: list[dict] = []
+    for book_id in sorted(grouped):
+        rows = grouped[book_id]
+        latest_date = max(str(row.get("event", {}).get("date") or "") for row in rows)
+        same_date = [
+            row
+            for row in rows
+            if str(row.get("event", {}).get("date") or "") == latest_date
+        ]
+        same_date.sort(
+            key=lambda row: (
+                -float(row.get("event", {}).get("max_dislocation") or 0.0),
+                str(row.get("event", {}).get("to_asset") or ""),
+                str(row.get("event", {}).get("pair") or ""),
+            )
+        )
+        if same_date:
+            selected.append(same_date[0])
+    return selected
+
+
+def _execution_reminder_id(kind: str, report: dict, item: dict) -> str:
+    slot = str(report.get("latest_closed_candle") or "")
+    return f"{kind.upper()}_PENDING|{slot}|{item.get('event_id') or ''}"
+
+
+def _pending_execution_candidates(report: dict, state: dict, *, kind: str) -> list[dict]:
+    """Repeat unresolved CONFIRMED routes once per closed candle/reminder kind."""
+    sent = set(str(value) for value in state.get("sent_event_ids", []))
+    pending = []
+    for item in _latest_confirmed_by_book(report):
+        reminder_id = _execution_reminder_id(kind, report, item)
+        if reminder_id in sent:
             continue
         pending.append(item)
     return pending
 
 
-def build_evening_reminder_ru(report: dict, pending: list[dict]) -> str:
+def _evening_confirmed_candidates(report: dict, state: dict) -> list[dict]:
+    """Compatibility wrapper for the evening unresolved-execution reminder."""
+    return _pending_execution_candidates(report, state, kind="EVENING")
+
+
+def build_execution_reminder_ru(report: dict, pending: list[dict], *, kind: str) -> str:
+    is_evening = kind.upper() == "EVENING"
+    header = (
+        "🌙 Relative Rotation — вечернее напоминание об НЕИСПОЛНЕННОЙ ротации"
+        if is_evening
+        else "⏰ Relative Rotation — повтор НЕИСПОЛНЕННОЙ ротации"
+    )
     lines = [
-        "🌙 Relative Rotation — вечернее напоминание 22:30 Ереван",
-        f"Утренний сигнал рассчитан по закрытой D1-свече: {report.get('latest_closed_candle')}",
-        "Это НЕ новый сигнал: повторяется только сегодняшний CONFIRMED для текущей позиции.",
+        header,
+        f"Последняя закрытая D1-свеча: {report.get('latest_closed_candle')}",
+        "Это не новый сигнал. Напоминание остаётся активным, пока BOOK всё ещё держит исходный актив.",
     ]
 
     for item in pending:
         book = item.get("book", {})
         event = item.get("event", {})
+        event_date = str(event.get("date") or "")
         lines.extend(
             [
                 "",
                 f"{item.get('book_id')} — текущая позиция: {_book_position_ru(book)}",
+                f"CONFIRMED-свеча: {event_date}",
                 _event_line_ru(event),
             ]
         )
         price_line = _current_event_price_line_ru(report, event)
         if price_line:
             lines.append(price_line)
-        lines.append("Если утром не успел исполнить, это вечерний fallback перед поздним окном исполнения.")
+        if is_evening:
+            lines.append("Если утром не исполнил сигнал — это вечерний fallback.")
+        else:
+            lines.append("Сигнал всё ещё считается неисполненным, потому что текущий актив BOOK не изменён.")
 
     lines.extend(
         [
             "",
-            "Если сделка уже выполнена — НЕ повторяй её; обнови позицию/реальный лог.",
+            "Если сделка уже выполнена — НЕ повторяй её; зафиксируй сделку и обнови held_asset/quantity.",
+            "После смены held_asset это напоминание прекращается автоматически.",
             "БУМАЖНЫЙ/РУЧНОЙ РЕЖИМ — реальные ордера не отправляются.",
         ]
     )
     return "\n".join(lines)
+
+
+def build_evening_reminder_ru(report: dict, pending: list[dict]) -> str:
+    return build_execution_reminder_ru(report, pending, kind="EVENING")
 
 
 def build_pending_notification_ru(report: dict, pending: list[dict]) -> str:
@@ -249,8 +304,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--evening-confirmed-reminder",
         action="store_true",
         help=(
-            "At the 22:30 Yerevan scheduled run, repeat only same-candle "
-            "CONFIRMED events for currently configured live books."
+            "At the evening scheduled/retry runs, repeat the latest unresolved "
+            "CONFIRMED route for each currently configured live book."
         ),
     )
     return parser
@@ -265,16 +320,25 @@ def main(argv: list[str] | None = None) -> int:
     legacy_text = args.notification_text.read_text(encoding="utf-8").strip()
     fallback_text = str(report.get("telegram_text_ru") or legacy_text).strip()
 
+    morning_pending: list[dict] = []
+    evening_pending: list[dict] = []
+
     if args.evening_confirmed_reminder:
-        evening_pending = _evening_confirmed_candidates(report, state)
+        evening_pending = _pending_execution_candidates(report, state, kind="EVENING")
         if not evening_pending:
-            print("notification=SKIPPED_EVENING_NO_CONFIRMED")
+            print("notification=SKIPPED_EVENING_NO_PENDING_EXECUTION")
             _save_state(args.state_file, state)
             return 0
-        text = build_evening_reminder_ru(report, evening_pending).strip()
+        text = build_execution_reminder_ru(report, evening_pending, kind="EVENING").strip()
     elif pending:
         text = build_pending_notification_ru(report, pending).strip()
-    elif bool(report.get("should_notify", False)) or args.morning_rotation_snapshot:
+    elif args.morning_rotation_snapshot:
+        morning_pending = _pending_execution_candidates(report, state, kind="MORNING")
+        if morning_pending:
+            text = build_execution_reminder_ru(report, morning_pending, kind="MORNING").strip()
+        else:
+            text = fallback_text
+    elif bool(report.get("should_notify", False)):
         text = fallback_text
     else:
         print("notification=SKIPPED_POLICY")
@@ -293,11 +357,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.evening_confirmed_reminder:
         sent_ids = [str(value) for value in state.get("sent_event_ids", [])]
-        sent_ids.extend(_evening_reminder_id(item) for item in evening_pending)
+        sent_ids.extend(
+            _execution_reminder_id("EVENING", report, item)
+            for item in evening_pending
+        )
         state["sent_event_ids"] = sent_ids[-MAX_SENT_EVENT_IDS:]
         _save_state(args.state_file, state)
         print(f"notification_events_sent={len(evening_pending)}")
-        print("notification=EVENING_CONFIRMED_REMINDER")
+        print("notification=EVENING_PENDING_EXECUTION_REMINDER")
     elif pending:
         sent_ids = [str(value) for value in state.get("sent_event_ids", [])]
         sent_ids.extend(str(item["event_id"]) for item in pending)
@@ -306,11 +373,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"notification_events_sent={len(pending)}")
         print("notification=REPLAY_OR_NEW_SIGNAL")
     else:
-        _save_state(args.state_file, state)
-        if args.morning_rotation_snapshot and not bool(report.get("should_notify", False)):
-            print("notification=MORNING_ROTATION_SNAPSHOT")
+        if args.morning_rotation_snapshot and morning_pending:
+            sent_ids = [str(value) for value in state.get("sent_event_ids", [])]
+            sent_ids.extend(
+                _execution_reminder_id("MORNING", report, item)
+                for item in morning_pending
+            )
+            state["sent_event_ids"] = sent_ids[-MAX_SENT_EVENT_IDS:]
+            _save_state(args.state_file, state)
+            print(f"notification_events_sent={len(morning_pending)}")
+            print("notification=MORNING_PENDING_EXECUTION_REMINDER")
         else:
-            print("notification=SIGNAL_OR_FORCE_NOTIFY")
+            _save_state(args.state_file, state)
+            if args.morning_rotation_snapshot and not bool(report.get("should_notify", False)):
+                print("notification=MORNING_ROTATION_SNAPSHOT")
+            else:
+                print("notification=SIGNAL_OR_FORCE_NOTIFY")
 
     print("telegram=SENT")
     return 0
