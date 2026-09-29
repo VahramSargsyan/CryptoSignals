@@ -11,21 +11,28 @@ STATE_SCHEMA_VERSION = 1
 MAX_SENT_EVENT_IDS = 500
 
 
-def _send_telegram(text: str) -> None:
+def _send_telegram(text: str, *, reply_markup: dict | None = None) -> None:
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
     if not token or not chat_id:
         raise RuntimeError("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID are not configured")
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = urllib.parse.urlencode(
-        {
-            "chat_id": chat_id,
-            "text": text,
-            "disable_web_page_preview": "true",
-        }
-    ).encode("utf-8")
-    request = urllib.request.Request(url, data=data, method="POST")
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "disable_web_page_preview": True,
+    }
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
+
+    data = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
     with urllib.request.urlopen(request, timeout=20) as response:
         if response.status >= 300:
             raise RuntimeError(f"Telegram HTTP {response.status}")
@@ -170,6 +177,75 @@ def _latest_confirmed_by_book(report: dict) -> list[dict]:
         if same_date:
             selected.append(same_date[0])
     return selected
+
+
+def _telegram_control_enabled() -> bool:
+    return os.environ.get("RR_TELEGRAM_CONTROL_ENABLED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _callback_quantity(book: dict) -> str:
+    quantity = book.get("quantity")
+    if quantity is None:
+        return "-"
+    text = f"{float(quantity):.12g}"
+    return text if len(text) <= 20 else "-"
+
+
+def _callback_date_token(event: dict) -> str:
+    raw = str(event.get("date") or "")
+    if len(raw) < 10:
+        return ""
+    return raw[:10].replace("-", "")
+
+
+def _execution_reply_markup(items: list[dict]) -> dict | None:
+    if not _telegram_control_enabled():
+        return None
+
+    rows = []
+    for item in items:
+        event = item.get("event", {})
+        if event.get("event") != "CONFIRMED":
+            continue
+        book = item.get("book", {})
+        book_id = str(item.get("book_id") or "")
+        from_asset = str(event.get("from_asset") or "").upper()
+        to_asset = str(event.get("to_asset") or "").upper()
+        date_token = _callback_date_token(event)
+        quantity = _callback_quantity(book)
+        if not book_id or not from_asset or not to_asset or not date_token:
+            continue
+
+        done_data = "|".join(
+            ["rrd", book_id, from_asset, to_asset, date_token, quantity]
+        )
+        if len(done_data.encode("utf-8")) > 64:
+            done_data = "|".join(
+                ["rrd", book_id, from_asset, to_asset, date_token, "-"]
+            )
+        if len(done_data.encode("utf-8")) > 64:
+            continue
+
+        later_data = f"rrl|{book_id}"
+        rows.append(
+            [
+                {
+                    "text": f"✅ Выполнено {book_id}",
+                    "callback_data": done_data,
+                },
+                {
+                    "text": f"⏰ Позже {book_id}",
+                    "callback_data": later_data,
+                },
+            ]
+        )
+
+    return {"inline_keyboard": rows} if rows else None
 
 
 def _execution_reminder_id(kind: str, report: dict, item: dict) -> str:
@@ -322,6 +398,7 @@ def main(argv: list[str] | None = None) -> int:
 
     morning_pending: list[dict] = []
     evening_pending: list[dict] = []
+    reply_markup: dict | None = None
 
     if args.evening_confirmed_reminder:
         evening_pending = _pending_execution_candidates(report, state, kind="EVENING")
@@ -330,12 +407,18 @@ def main(argv: list[str] | None = None) -> int:
             _save_state(args.state_file, state)
             return 0
         text = build_execution_reminder_ru(report, evening_pending, kind="EVENING").strip()
+        reply_markup = _execution_reply_markup(evening_pending)
     elif pending:
         text = build_pending_notification_ru(report, pending).strip()
+        confirmed_pending = _latest_confirmed_by_book(
+            {"notification_candidates": pending}
+        )
+        reply_markup = _execution_reply_markup(confirmed_pending)
     elif args.morning_rotation_snapshot:
         morning_pending = _pending_execution_candidates(report, state, kind="MORNING")
         if morning_pending:
             text = build_execution_reminder_ru(report, morning_pending, kind="MORNING").strip()
+            reply_markup = _execution_reply_markup(morning_pending)
         else:
             text = fallback_text
     elif bool(report.get("should_notify", False)):
@@ -353,7 +436,10 @@ def main(argv: list[str] | None = None) -> int:
         _save_state(args.state_file, state)
         return 0
 
-    _send_telegram(text)
+    if reply_markup:
+        _send_telegram(text, reply_markup=reply_markup)
+    else:
+        _send_telegram(text)
 
     if args.evening_confirmed_reminder:
         sent_ids = [str(value) for value in state.get("sent_event_ids", [])]
