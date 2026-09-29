@@ -73,8 +73,9 @@ Telegram policy has two scheduled layers:
    event alert keeps priority;
 3. if there is no new event, the morning message shows the strongest current
    outbound Relative Rotation candidates for each live book, their percentage
-   dislocation from the 180-day pair median, and the remaining distance to the
-   15% ARM threshold;
+   dislocation from the 180-day pair median, the remaining distance to the
+   15% ARM threshold, both assets' USDT close prices from the same closed D1
+   candle, and the implied direct conversion rate `1 FROM = X TO`;
 4. persistent sunset-watch `ARMED`/`CONFIRMED` events keep their existing
    alert behavior;
 5. a manual verification run may use `--force-notify`;
@@ -94,6 +95,16 @@ The morning quiet-market snapshot is informational only. A line such as
 `ALGO -> FIL: 8.40% отклонение; до ARM 15%: 6.60 п.п.` means the current pair
 ratio is 8.40% away from its 180-day median in the model's prospective outbound
 direction. It is not an `ARMED` or `CONFIRMED` signal.
+
+Price context is taken from the exact same closed Binance D1 candle used by the
+signal engine. Example:
+
+`Цена закрытия: LINK $15; ALGO $0.15; 1 LINK = 100 ALGO.`
+
+This is a signal-candle reference snapshot, not a live execution quote. It is
+also shown beside current ARMED/CONFIRMED Telegram events. The 22:30 reminder
+repeats the same signal-candle price reference; it does not claim to show the
+22:30 market price.
 
 No repeated event warning is created merely because a pair remains armed. The
 morning status may still display the current state, while event deduplication
@@ -142,9 +153,10 @@ Each run:
 4. filters held-asset events so only TARGET destinations are actionable;
 5. independently filters sunset-watch events so only TARGET destinations are actionable;
 6. blocks sunset re-entry at the recommendation layer;
-7. writes JSON/Markdown/CSV evidence;
-8. sends Telegram only if notification policy allows it;
-9. uploads the evidence as a GitHub Actions artifact.
+7. stores the latest closed-candle USDT price snapshot in `report.json`;
+8. writes JSON/Markdown/CSV evidence;
+9. sends Telegram only if notification policy allows it;
+10. uploads the evidence as a GitHub Actions artifact.
 
 ## Output evidence
 
