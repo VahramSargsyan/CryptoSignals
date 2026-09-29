@@ -1,0 +1,52 @@
+name: Diagnostic Current LINK HBAR Signal
+
+on:
+  push:
+    branches:
+      - diagnostic/link-hbar-current-signal-2026-09-29
+    paths:
+      - ".github/workflows/diagnostic-current-link-hbar.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install "pandas==2.2.3"
+      - name: Run current monitor
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: |
+          python -m scripts.run_relative_rotation_paper_live \
+            --force-notify \
+            --output-root diagnostic_artifacts/current_signal
+          RUN_DIR="$(find diagnostic_artifacts/current_signal -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          python - "$RUN_DIR/report.json" <<'PY'
+          import json, sys
+          p=json.load(open(sys.argv[1], encoding="utf-8"))
+          print("latest_closed_candle=",p["latest_closed_candle"])
+          b=p["book_events"]["BOOK_2"]
+          print("book2_held=",b["book"]["held_asset"])
+          print("book2_quantity=",b["book"].get("quantity"))
+          print("book2_primary=",b["events"].get("primary_confirmed"))
+          print("book2_confirmed=",b["events"].get("confirmed"))
+          print("book2_armed=",b["events"].get("armed"))
+          for row in p["book_pair_states"]["BOOK_2"]:
+              if row["pair"]=="HBAR/LINK":
+                  print("HBAR_LINK_STATE=",row)
+          print("--- TELEGRAM ---")
+          print(p["telegram_text_ru"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-current-link-hbar
+          path: diagnostic_artifacts/current_signal/**
+          if-no-files-found: error
+          retention-days: 7
