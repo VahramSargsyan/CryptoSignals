@@ -25,7 +25,7 @@ jobs:
           python - <<'PY'
           import requests, json, datetime as dt
 
-          BASE="https://api.binance.com"
+          BASE="https://data-api.binance.vision"
           def kline(symbol, start_iso):
               ts=int(dt.datetime.fromisoformat(start_iso.replace("Z","+00:00")).timestamp()*1000)
               r=requests.get(BASE+"/api/v3/klines",params={
