@@ -198,7 +198,7 @@ async function dispatchExecution(signal, quantities, update) {
       headers: {
         authorization: `Bearer ${token}`,
         accept: "application/vnd.github+json",
-        "x-github-api-version": "2022-11-28",
+        "x-github-api-version": "2026-03-10",
         "content-type": "application/json",
         "user-agent": "rr-telegram-control-bridge"
       },
@@ -219,7 +219,7 @@ async function dispatchExecution(signal, quantities, update) {
     }
   );
 
-  if (response.status !== 204) {
+  if (![200, 204].includes(response.status)) {
     const body = await response.text();
     throw new Error(
       `GitHub workflow dispatch failed: HTTP ${response.status} ${body}`
