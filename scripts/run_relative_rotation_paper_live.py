@@ -226,6 +226,52 @@ def _pct(value: float | None) -> str:
     return "n/a" if value is None else f"{value * 100:+.2f}%"
 
 
+def _format_usdt_price(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    price = float(value)
+    if price >= 100:
+        digits = 2
+    elif price >= 1:
+        digits = 4
+    elif price >= 0.01:
+        digits = 6
+    elif price >= 0.0001:
+        digits = 8
+    else:
+        digits = 10
+    text = f"{price:.{digits}f}".rstrip("0").rstrip(".")
+    return f"${text}"
+
+
+def _format_relative_units(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    units = float(value)
+    if units >= 1000:
+        return f"{units:,.2f}".replace(",", " ").rstrip("0").rstrip(".")
+    if units >= 1:
+        return f"{units:.4f}".rstrip("0").rstrip(".")
+    if units >= 0.01:
+        return f"{units:.6f}".rstrip("0").rstrip(".")
+    return f"{units:.8f}".rstrip("0").rstrip(".")
+
+
+def _price_line_ru(payload: dict, from_asset: str, to_asset: str) -> str | None:
+    prices = payload.get("latest_close_prices_usdt", {})
+    from_price = prices.get(from_asset)
+    to_price = prices.get(to_asset)
+    if from_price is None or to_price is None:
+        return None
+
+    rate = float(from_price) / float(to_price)
+    return (
+        f"Цена закрытия: {from_asset} {_format_usdt_price(float(from_price))}; "
+        f"{to_asset} {_format_usdt_price(float(to_price))}; "
+        f"1 {from_asset} = {_format_relative_units(rate)} {to_asset}."
+    )
+
+
 def _event_line(event: dict) -> str:
     return (
         f"{event['from_asset']} -> {event['to_asset']} "
@@ -580,6 +626,9 @@ def build_notification_ru(payload: dict) -> str:
                         f"{candidate['dislocation'] * 100:.2f}% отклонение; "
                         f"до ARM 15%: {gap * 100:.2f} п.п."
                     )
+                    price_line = _price_line_ru(payload, held, candidate["to_asset"])
+                    if price_line:
+                        lines.append(f"  {price_line}")
             else:
                 lines.append("- Нет исходящих TARGET-кандидатов в текущем направлении относительной силы.")
             lines.append(
@@ -610,6 +659,9 @@ def build_notification_ru(payload: dict) -> str:
                         f"{candidate['dislocation'] * 100:.2f}% отклонение; "
                         f"до ARM 15%: {gap * 100:.2f} п.п."
                     )
+                    price_line = _price_line_ru(payload, book["held_asset"], candidate["to_asset"])
+                    if price_line:
+                        lines.append(f"  {price_line}")
             else:
                 lines.append("- Нет исходящих TARGET-кандидатов в текущем направлении относительной силы.")
         lines.append(
@@ -652,6 +704,11 @@ def build_notification_ru(payload: dict) -> str:
                 [
                     heading,
                     _event_line_ru(primary),
+                    *(
+                        [_price_line_ru(payload, primary["from_asset"], primary["to_asset"])]
+                        if _price_line_ru(payload, primary["from_asset"], primary["to_asset"])
+                        else []
+                    ),
                     (
                         "Сигнал модели — требуется ручное подтверждение."
                         if legacy_mode
@@ -662,10 +719,18 @@ def build_notification_ru(payload: dict) -> str:
             extra = [event for event in selected.get("confirmed", []) if event is not primary]
             if extra:
                 lines.append("Другие подтверждённые кандидаты на выход:")
-                lines.extend(f"- {_event_line_ru(event)}" for event in extra)
+                for event in extra:
+                    lines.append(f"- {_event_line_ru(event)}")
+                    price_line = _price_line_ru(payload, event["from_asset"], event["to_asset"])
+                    if price_line:
+                        lines.append(f"  {price_line}")
             if armed:
                 lines.append("Другие ARM / PREWATCH по этой ветке (ещё НЕ подтверждены):")
-                lines.extend(f"- {_event_line_ru(event)}" for event in armed)
+                for event in armed:
+                    lines.append(f"- {_event_line_ru(event)}")
+                    price_line = _price_line_ru(payload, event["from_asset"], event["to_asset"])
+                    if price_line:
+                        lines.append(f"  {price_line}")
             continue
 
         if armed:
@@ -675,7 +740,11 @@ def build_notification_ru(payload: dict) -> str:
                 else f"⚠️ {book_id} — ARM 15% / PREWATCH"
             )
             lines.append(heading)
-            lines.extend(f"- {_event_line_ru(event)}" for event in armed)
+            for event in armed:
+                lines.append(f"- {_event_line_ru(event)}")
+                price_line = _price_line_ru(payload, event["from_asset"], event["to_asset"])
+                if price_line:
+                    lines.append(f"  {price_line}")
             lines.append("Порог 15% достигнут; ротации пока нет. Ждём разворот от экстремума минимум 3%.")
             continue
 
@@ -697,6 +766,11 @@ def build_notification_ru(payload: dict) -> str:
                             f"Возможное направление при дальнейшем подтверждении: "
                             f"{book['held_asset']} -> {strongest['to_asset']}."
                         ),
+                        *(
+                            [_price_line_ru(payload, book["held_asset"], strongest["to_asset"])]
+                            if _price_line_ru(payload, book["held_asset"], strongest["to_asset"])
+                            else []
+                        ),
                         "Порог наблюдения 10% достигнут. Торгового сигнала пока нет; ARM включается с 15%.",
                     ]
                 )
@@ -714,6 +788,11 @@ def build_notification_ru(payload: dict) -> str:
                             f"{strongest['max_dislocation'] * 100:.2f}%."
                         ),
                         f"Ожидаем направление {book['held_asset']} -> {strongest['to_asset']} после подтверждения.",
+                        *(
+                            [_price_line_ru(payload, book["held_asset"], strongest["to_asset"])]
+                            if _price_line_ru(payload, book["held_asset"], strongest["to_asset"])
+                            else []
+                        ),
                         "Ждём разворот от экстремума минимум 3%.",
                     ]
                 )
@@ -726,6 +805,9 @@ def build_notification_ru(payload: dict) -> str:
                         f"- {book['held_asset']}/{event['to_asset']}: "
                         f"{event['dislocation'] * 100:.2f}%{suffix}"
                     )
+                    price_line = _price_line_ru(payload, book["held_asset"], event["to_asset"])
+                    if price_line:
+                        lines.append(f"  {price_line}")
         elif not legacy_mode:
             lines.append("Новых ARMED/CONFIRMED событий по этой ветке нет.")
 
@@ -736,6 +818,11 @@ def build_notification_ru(payload: dict) -> str:
                 [
                     f"🚨 WATCH {asset} — ВЫХОД ПОДТВЕРЖДЁН ДЛЯ {asset}",
                     _event_line_ru(primary_watch),
+                    *(
+                        [_price_line_ru(payload, primary_watch["from_asset"], primary_watch["to_asset"])]
+                        if _price_line_ru(payload, primary_watch["from_asset"], primary_watch["to_asset"])
+                        else []
+                    ),
                 ]
             )
             if legacy_mode:
@@ -748,14 +835,26 @@ def build_notification_ru(payload: dict) -> str:
             extra_watch = [event for event in watched.get("confirmed", []) if event is not primary_watch]
             if extra_watch:
                 lines.append(f"Другие подтверждённые кандидаты на выход для {asset}:")
-                lines.extend(f"- {_event_line_ru(event)}" for event in extra_watch)
+                for event in extra_watch:
+                    lines.append(f"- {_event_line_ru(event)}")
+                    price_line = _price_line_ru(payload, event["from_asset"], event["to_asset"])
+                    if price_line:
+                        lines.append(f"  {price_line}")
             armed_watch = watched.get("armed", [])
             if armed_watch:
                 lines.append(f"Другие {asset} ARM / PREWATCH (ещё НЕ подтверждены):")
-                lines.extend(f"- {_event_line_ru(event)}" for event in armed_watch)
+                for event in armed_watch:
+                    lines.append(f"- {_event_line_ru(event)}")
+                    price_line = _price_line_ru(payload, event["from_asset"], event["to_asset"])
+                    if price_line:
+                        lines.append(f"  {price_line}")
         elif watched.get("armed"):
             lines.append(f"⚠️ WATCH {asset} — ARM / PREWATCH, ЭТО НЕ СИГНАЛ НА ОБМЕН")
-            lines.extend(f"- {_event_line_ru(event)}" for event in watched["armed"])
+            for event in watched["armed"]:
+                lines.append(f"- {_event_line_ru(event)}")
+                price_line = _price_line_ru(payload, event["from_asset"], event["to_asset"])
+                if price_line:
+                    lines.append(f"  {price_line}")
             if legacy_mode:
                 lines.append(
                     f"Текущий актив {payload['held_asset']} не меняется. "
@@ -969,6 +1068,11 @@ def main(argv: list[str] | None = None) -> int:
 
     panel, data_metadata = download_panel(start=history_start, cutoff=cutoff)
     latest = pd.Timestamp(panel.iloc[-1]["timestamp"])
+    latest_row = panel.iloc[-1]
+    latest_close_prices_usdt = {
+        asset: float(latest_row[f"{asset}_close"])
+        for asset in ASSETS
+    }
     events, pair_states = build_pair_monitor(panel)
 
     book_events = {}
@@ -1086,6 +1190,7 @@ def main(argv: list[str] | None = None) -> int:
         "watch_assets": config["watch_assets"],
         "monitor_start": config["monitor_start"].isoformat(),
         "latest_closed_candle": latest_iso,
+        "latest_close_prices_usdt": latest_close_prices_usdt,
         "force_notify": bool(args.force_notify),
         "should_notify": should_notify,
         "notification_replay_days": NOTIFICATION_REPLAY_DAYS,
