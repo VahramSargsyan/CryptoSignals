@@ -275,6 +275,10 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
             {
                 "should_notify": False,
                 "latest_closed_candle": "2026-09-28T00:00:00+00:00",
+                "latest_close_prices_usdt": {
+                    "ALGO": 0.15,
+                    "FIL": 3.0,
+                },
                 "notification_candidates": [candidate],
                 "telegram_text_ru": "fallback",
             }
