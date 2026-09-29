@@ -296,6 +296,13 @@ def build_notification_candidates(
             if event_ts < floor or event_ts > latest:
                 continue
 
+            # CONFIRMED events are replayable because missing one can strand an
+            # actionable manual signal. ARMED/PREWATCH is transient; only keep
+            # it when it belongs to the latest closed candle so stale prewatch
+            # does not get delivered days later.
+            if event.get("event") == "ARMED" and event_ts != latest:
+                continue
+
             candidates.append(
                 {
                     "event_id": _notification_event_id(book_id, event),
