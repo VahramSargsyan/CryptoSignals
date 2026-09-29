@@ -92,21 +92,32 @@ def build_pending_notification_ru(report: dict, pending: list[dict]) -> str:
         f"Последняя закрытая свеча: {report.get('latest_closed_candle')}",
     ]
 
+    latest = str(report.get("latest_closed_candle") or "")
     for item in pending:
         book = item.get("book", {})
         event = item.get("event", {})
+        event_date = str(event.get("date") or "")
+        is_stale = bool(latest and event_date and event_date != latest)
+
         lines.extend(
             [
                 "",
                 f"{item.get('book_id')} — текущая позиция: {_book_position_ru(book)}",
-                f"Свеча события: {event.get('date')}",
-                _event_line_ru(event),
+                f"Свеча события: {event_date}",
             ]
         )
+
+        if is_stale:
+            lines.append("↩️ ВОССТАНОВЛЕННОЕ ПРОПУЩЕННОЕ СОБЫТИЕ — не считать текущей командой.")
+        lines.append(_event_line_ru(event))
+
         if event.get("event") == "CONFIRMED":
-            lines.append("Сигнал модели подтверждён; исполнение остаётся ручным.")
+            if is_stale:
+                lines.append("Это исторически пропущенный подтверждённый сигнал; смотри текущую последнюю свечу отдельно.")
+            else:
+                lines.append("Сигнал модели подтверждён на последней закрытой свече; исполнение остаётся ручным.")
         else:
-            lines.append("Это PREWATCH: ротации пока нет, ждём подтверждение 3%.")
+            lines.append("Это текущий PREWATCH: ротации пока нет, ждём подтверждение 3%.")
 
     lines.extend(
         [
