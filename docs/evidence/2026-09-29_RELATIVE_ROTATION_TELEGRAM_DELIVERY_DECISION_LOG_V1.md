@@ -54,11 +54,7 @@ It does not:
 
 ## Expected recovery
 
-The historical-but-still-operational 2026-09-27 BOOK_2 events fall inside the replay window:
-- LINK -> HBAR CONFIRMED
-- LINK -> FIL ARMED / PREWATCH
-
-If no matching sent-state artifact exists, the first promoted main run should send them once and then persist their event IDs.
+The missed 2026-09-27 BOOK_2 LINK -> HBAR CONFIRMED event falls inside the replay window and should be delivered once as a clearly labelled recovered historical event. Stale ARMED/PREWATCH events are not replayed. Current-candle BOOK_2 events remain eligible normally. If no matching sent-state artifact exists, the first promoted main run should persist the delivered event IDs after successful Telegram acceptance.
 
 ## Promotion gate
 
