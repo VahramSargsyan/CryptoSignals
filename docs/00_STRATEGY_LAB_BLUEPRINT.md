@@ -95,7 +95,7 @@ Additional market/macro sources are future work and require source/license/relia
 
 ### Telegram
 
-Telegram is a notification surface only.
+Telegram is primarily a notification surface.
 
 Initial scope:
 
@@ -107,6 +107,11 @@ Initial scope:
 - market regime;
 - signal timestamp;
 - duplicate suppression.
+
+Relative Rotation has one explicitly documented inbound-control exception:
+`docs/16_RELATIVE_ROTATION_TELEGRAM_CONTROL_V1.md`.
+
+That bridge may accept an explicit user acknowledgement of a **manual exchange already performed**, then ask GitHub to validate and record the execution. It is not an exchange-order interface and must not place real-money orders.
 
 No automatic real-money order execution is part of v1.
 
