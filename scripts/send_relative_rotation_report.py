@@ -185,6 +185,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--notification-text", type=Path, required=True)
     parser.add_argument("--state-file", type=Path)
     parser.add_argument(
+        "--morning-rotation-snapshot",
+        action="store_true",
+        help=(
+            "At the morning scheduled run, send the current Relative Rotation "
+            "snapshot even when there is no new ARMED/CONFIRMED event."
+        ),
+    )
+    parser.add_argument(
         "--evening-confirmed-reminder",
         action="store_true",
         help=(
@@ -213,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
         text = build_evening_reminder_ru(report, evening_pending).strip()
     elif pending:
         text = build_pending_notification_ru(report, pending).strip()
-    elif bool(report.get("should_notify", False)):
+    elif bool(report.get("should_notify", False)) or args.morning_rotation_snapshot:
         text = fallback_text
     else:
         print("notification=SKIPPED_POLICY")
@@ -246,7 +254,10 @@ def main(argv: list[str] | None = None) -> int:
         print("notification=REPLAY_OR_NEW_SIGNAL")
     else:
         _save_state(args.state_file, state)
-        print("notification=SIGNAL_OR_FORCE_NOTIFY")
+        if args.morning_rotation_snapshot and not bool(report.get("should_notify", False)):
+            print("notification=MORNING_ROTATION_SNAPSHOT")
+        else:
+            print("notification=SIGNAL_OR_FORCE_NOTIFY")
 
     print("telegram=SENT")
     return 0
