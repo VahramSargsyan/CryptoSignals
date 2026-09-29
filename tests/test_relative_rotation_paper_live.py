@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from scripts.run_relative_rotation_paper_live import _read_config, build_notification_ru
+from scripts.run_relative_rotation_paper_live import _read_config, build_notification_candidates, build_notification_ru
 from strategies.crypto.relative_rotation.paper_live import (
     ASSETS,
     TARGET_ASSETS,
@@ -599,6 +599,104 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertEqual(events[0]["defensive_asset"], "TRX")
         self.assertTrue(state["active"])
         self.assertEqual(state["defensive_asset"], "TRX")
+
+
+    def test_notification_candidates_replay_recent_link_signal_for_book2(self):
+        latest = pd.Timestamp("2026-09-28", tz="UTC")
+        events = [
+            {
+                "date": pd.Timestamp("2026-09-27", tz="UTC").isoformat(),
+                "event": "CONFIRMED",
+                "pair": "HBAR/LINK",
+                "from_asset": "LINK",
+                "to_asset": "HBAR",
+                "max_dislocation": 0.3840,
+                "reversal_from_extreme": 0.0330,
+            },
+            {
+                "date": pd.Timestamp("2026-09-28", tz="UTC").isoformat(),
+                "event": "ARMED",
+                "pair": "FIL/LINK",
+                "from_asset": "LINK",
+                "to_asset": "FIL",
+                "max_dislocation": 0.1968,
+                "reversal_from_extreme": 0.0,
+            },
+        ]
+        books = [
+            {
+                "book_id": "BOOK_1",
+                "held_asset": "ATOM",
+                "quantity": None,
+                "tracking_start": pd.Timestamp("2026-09-29", tz="UTC"),
+            },
+            {
+                "book_id": "BOOK_2",
+                "held_asset": "LINK",
+                "quantity": 100.0,
+                "tracking_start": pd.Timestamp("2026-09-29", tz="UTC"),
+            },
+        ]
+
+        candidates = build_notification_candidates(
+            events,
+            position_books=books,
+            target_assets=TARGET_ASSETS,
+            latest=latest,
+            monitor_start=pd.Timestamp("2026-09-27", tz="UTC"),
+            replay_days=7,
+        )
+
+        self.assertEqual(len(candidates), 2)
+        self.assertTrue(all(row["book_id"] == "BOOK_2" for row in candidates))
+        self.assertEqual(
+            {row["event"]["event"] for row in candidates},
+            {"ARMED", "CONFIRMED"},
+        )
+        self.assertEqual(
+            {row["event"]["to_asset"] for row in candidates},
+            {"HBAR", "FIL"},
+        )
+        self.assertEqual(len({row["event_id"] for row in candidates}), 2)
+
+    def test_notification_candidates_ignore_untracked_sol_watch(self):
+        latest = pd.Timestamp("2026-09-28", tz="UTC")
+        events = [
+            {
+                "date": latest.isoformat(),
+                "event": "CONFIRMED",
+                "pair": "SOL/TWT",
+                "from_asset": "SOL",
+                "to_asset": "TWT",
+                "max_dislocation": 0.25,
+                "reversal_from_extreme": 0.04,
+            }
+        ]
+        books = [
+            {
+                "book_id": "BOOK_1",
+                "held_asset": "ATOM",
+                "quantity": None,
+                "tracking_start": pd.Timestamp("2026-09-29", tz="UTC"),
+            },
+            {
+                "book_id": "BOOK_2",
+                "held_asset": "LINK",
+                "quantity": 100.0,
+                "tracking_start": pd.Timestamp("2026-09-29", tz="UTC"),
+            },
+        ]
+
+        candidates = build_notification_candidates(
+            events,
+            position_books=books,
+            target_assets=TARGET_ASSETS,
+            latest=latest,
+            monitor_start=pd.Timestamp("2026-09-27", tz="UTC"),
+            replay_days=7,
+        )
+
+        self.assertEqual(candidates, [])
 
 
 if __name__ == "__main__":

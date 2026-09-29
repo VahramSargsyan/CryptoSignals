@@ -22,13 +22,9 @@
     "SOL",
     "LINK"
   ],
-  "watch_assets": [
-    "ATOM",
-    "SOL",
-    "LINK"
-  ],
+  "watch_assets": [],
   "defensive_overlay_enabled": false,
-  "notes": "Final TARGET U10 frozen for forward/paper observation from 2026-09-29T00:00:00Z. Canonical live state now has two manual books: BOOK_1 holds ATOM; BOOK_2 holds 100 LINK at tracking start. Top-level held_asset=ATOM is retained only as a legacy BOOK_1 alias. No pre-freeze candle counts as forward evidence. Manual execution only; no exchange API trading keys.",
+  "notes": "Final TARGET U10 frozen for forward/paper observation from 2026-09-29T00:00:00Z. Canonical live state has exactly two tracked manual books: BOOK_1=ATOM and BOOK_2=100 LINK. Top-level held_asset=ATOM is retained only as a legacy BOOK_1 alias. Independent sunset-watch alerts are disabled; ATOM and LINK are monitored through their books. No pre-freeze candle counts as forward evidence. Manual execution only; no exchange API trading keys.",
   "universe_version": "RR_TARGET_U10_FROZEN_V1",
   "forward_validation_enabled": true,
   "forward_validation_start": "2026-09-29T00:00:00Z",

@@ -71,5 +71,156 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         send.assert_called_once_with("send me")
 
 
+    def test_sender_replays_unsent_candidate_and_persists_event_id(self):
+        candidate = {
+            "event_id": "BOOK_2|CONFIRMED|2026-09-27T00:00:00+00:00|LINK|HBAR|HBAR/LINK",
+            "book_id": "BOOK_2",
+            "book": {"held_asset": "LINK", "quantity": 100},
+            "event": {
+                "date": "2026-09-27T00:00:00+00:00",
+                "event": "CONFIRMED",
+                "pair": "HBAR/LINK",
+                "from_asset": "LINK",
+                "to_asset": "HBAR",
+                "max_dislocation": 0.3840,
+                "reversal_from_extreme": 0.0330,
+            },
+        }
+        temp, report_path, notification_path = self._files(
+            {
+                "should_notify": False,
+                "latest_closed_candle": "2026-09-28T00:00:00+00:00",
+                "notification_candidates": [candidate],
+                "telegram_text_ru": "fallback",
+            }
+        )
+        self.addCleanup(temp.cleanup)
+        state_path = Path(temp.name) / "state.json"
+
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "TELEGRAM_BOT_TOKEN": "fake-token",
+                "TELEGRAM_CHAT_ID": "fake-chat",
+            },
+            clear=False,
+        ), mock.patch.object(sender, "_send_telegram") as send:
+            rc = sender.main(
+                [
+                    "--report-json",
+                    str(report_path),
+                    "--notification-text",
+                    str(notification_path),
+                    "--state-file",
+                    str(state_path),
+                ]
+            )
+
+        self.assertEqual(rc, 0)
+        text = send.call_args.args[0]
+        self.assertIn("BOOK_2", text)
+        self.assertIn("100 LINK", text)
+        self.assertIn("LINK -> HBAR", text)
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertIn(candidate["event_id"], state["sent_event_ids"])
+
+    def test_sender_deduplicates_previously_sent_candidate(self):
+        candidate = {
+            "event_id": "BOOK_2|CONFIRMED|2026-09-27T00:00:00+00:00|LINK|HBAR|HBAR/LINK",
+            "book_id": "BOOK_2",
+            "book": {"held_asset": "LINK", "quantity": 100},
+            "event": {
+                "date": "2026-09-27T00:00:00+00:00",
+                "event": "CONFIRMED",
+                "pair": "HBAR/LINK",
+                "from_asset": "LINK",
+                "to_asset": "HBAR",
+                "max_dislocation": 0.3840,
+                "reversal_from_extreme": 0.0330,
+            },
+        }
+        temp, report_path, notification_path = self._files(
+            {
+                "should_notify": False,
+                "latest_closed_candle": "2026-09-28T00:00:00+00:00",
+                "notification_candidates": [candidate],
+                "telegram_text_ru": "fallback",
+            }
+        )
+        self.addCleanup(temp.cleanup)
+        state_path = Path(temp.name) / "state.json"
+        state_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "sent_event_ids": [candidate["event_id"]],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with mock.patch.object(sender, "_send_telegram") as send:
+            rc = sender.main(
+                [
+                    "--report-json",
+                    str(report_path),
+                    "--notification-text",
+                    str(notification_path),
+                    "--state-file",
+                    str(state_path),
+                ]
+            )
+
+        self.assertEqual(rc, 0)
+        send.assert_not_called()
+
+    def test_missing_secrets_does_not_mark_candidate_sent(self):
+        candidate = {
+            "event_id": "BOOK_1|ARMED|2026-09-28T00:00:00+00:00|ATOM|AVAX|ATOM/AVAX",
+            "book_id": "BOOK_1",
+            "book": {"held_asset": "ATOM", "quantity": None},
+            "event": {
+                "date": "2026-09-28T00:00:00+00:00",
+                "event": "ARMED",
+                "pair": "ATOM/AVAX",
+                "from_asset": "ATOM",
+                "to_asset": "AVAX",
+                "max_dislocation": 0.16,
+                "reversal_from_extreme": 0.0,
+            },
+        }
+        temp, report_path, notification_path = self._files(
+            {
+                "should_notify": True,
+                "latest_closed_candle": "2026-09-28T00:00:00+00:00",
+                "notification_candidates": [candidate],
+                "telegram_text_ru": "fallback",
+            }
+        )
+        self.addCleanup(temp.cleanup)
+        state_path = Path(temp.name) / "state.json"
+
+        with mock.patch.dict(
+            "os.environ",
+            {"TELEGRAM_BOT_TOKEN": "", "TELEGRAM_CHAT_ID": ""},
+            clear=False,
+        ), mock.patch.object(sender, "_send_telegram") as send:
+            rc = sender.main(
+                [
+                    "--report-json",
+                    str(report_path),
+                    "--notification-text",
+                    str(notification_path),
+                    "--state-file",
+                    str(state_path),
+                ]
+            )
+
+        self.assertEqual(rc, 0)
+        send.assert_not_called()
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertNotIn(candidate["event_id"], state["sent_event_ids"])
+
+
 if __name__ == "__main__":
     unittest.main()
