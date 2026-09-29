@@ -169,6 +169,13 @@ Milestones:
 - WEEK_1 after 7 completed paper candles;
 - MONTH_1 after 30 completed paper candles.
 
+Calendar reporting:
+
+- after every fully closed UTC calendar month, generate a full monthly report;
+- the first report for September 2026 covers only the forward paper period from 2026-09-26 through 2026-09-30;
+- later reports compare the month-end paper equity with the last available paper equity before that calendar month;
+- month-end reporting is independent of BUY/SELL activity and is sent even when the final candle has no trade event.
+
 ## Notification channels
 
 Optional notification transport:
@@ -197,11 +204,14 @@ The runtime must continue successfully when notification secrets are absent.
 
 ## Notification policy
 
-To avoid daily spam, notification is sent when:
+Notification/report events are generated when:
 
 - the latest closed candle generated at least one BUY or SELL event in any observed profile; or
 - exactly 7 completed paper candles are available; or
-- exactly 30 completed paper candles are available.
+- exactly 30 completed paper candles are available; or
+- the latest closed candle is the final UTC calendar day of a month.
+
+The calendar month-end message is a dedicated monthly report containing profile returns, month drawdown, BUY/SELL counts, closed trades, open lots, inception comparison and full per-asset detail in the stored report artifact.
 
 For event-driven notifications, Telegram/email text identifies the profile and symbol that generated the BUY/SELL event. Profiles without an event on that candle are omitted from the compact event message.
 
