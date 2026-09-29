@@ -201,7 +201,7 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertEqual(atom_watch["primary_confirmed"]["to_asset"], "FIL")
 
 
-    def test_russian_telegram_notification_is_short_when_no_signal(self):
+    def test_russian_telegram_quiet_market_shows_rotation_percentages(self):
         payload = {
             "held_asset": "ATOM",
             "latest_closed_candle": "2026-09-26T00:00:00+00:00",
@@ -217,19 +217,41 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
                 "breadth": 8,
             },
             "latest_defensive_events": [],
-            "latest_pair_states": [],
+            "latest_pair_states": [
+                {
+                    "pair": "ATOM/TWT",
+                    "mode": "NONE",
+                    "deviation": -0.086,
+                    "reversal_from_extreme": None,
+                },
+                {
+                    "pair": "ATOM/AVAX",
+                    "mode": "NONE",
+                    "deviation": -0.063,
+                    "reversal_from_extreme": None,
+                },
+                {
+                    "pair": "ATOM/BNB",
+                    "mode": "NONE",
+                    "deviation": 0.091,
+                    "reversal_from_extreme": None,
+                },
+            ],
             "force_notify": True,
         }
 
         text = build_notification_ru(payload)
 
-        self.assertIn("Relative Rotation: сигналов нет.", text)
+        self.assertIn("Relative Rotation — утренний снимок", text)
         self.assertIn("Закрытая свеча: 2026-09-26T00:00:00+00:00", text)
         self.assertIn("Текущий актив: ATOM", text)
-        self.assertIn("Наблюдение 10%+: нет.", text)
-        self.assertNotIn("Защитный режим:", text)
+        self.assertIn("ATOM -> TWT: 8.60% отклонение", text)
+        self.assertIn("до ARM 15%: 6.40 п.п.", text)
+        self.assertIn("ATOM -> AVAX: 6.30% отклонение", text)
+        self.assertNotIn("ATOM -> BNB", text)
+        self.assertIn("это ещё не CONFIRMED", text)
+        self.assertNotIn("сигналов нет", text)
         self.assertNotIn("Closed candle:", text)
-        self.assertLess(len(text), 250)
 
     def test_russian_telegram_starts_observation_at_ten_percent(self):
         payload = {
