@@ -31,6 +31,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = REPO_ROOT / "config" / "relative_rotation_paper_live_v1.json"
 DEFAULT_HISTORY_START = "2023-05-05T00:00:00Z"
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "paper_artifacts" / "relative_rotation_paper_live_v1"
+NOTIFICATION_REPLAY_DAYS = 7
 SYMBOLS = {asset: f"{asset}USDT" for asset in ASSETS}
 
 
@@ -239,6 +240,82 @@ def _event_line_ru(event: dict) -> str:
         f"({event['pair']}; отклонение {_pct(event.get('max_dislocation'))}; "
         f"разворот от экстремума {_pct(event.get('reversal_from_extreme'))})"
     )
+
+
+def _notification_event_id(book_id: str, event: dict) -> str:
+    """Stable notification identity for cross-run duplicate suppression."""
+    return "|".join(
+        [
+            str(book_id).upper(),
+            str(event.get("event") or "").upper(),
+            str(event.get("date") or ""),
+            str(event.get("from_asset") or "").upper(),
+            str(event.get("to_asset") or "").upper(),
+            str(event.get("pair") or ""),
+        ]
+    )
+
+
+def build_notification_candidates(
+    events: list[dict],
+    *,
+    position_books: list[dict],
+    target_assets: tuple[str, ...] | list[str],
+    latest: pd.Timestamp,
+    monitor_start: pd.Timestamp,
+    replay_days: int = NOTIFICATION_REPLAY_DAYS,
+) -> list[dict]:
+    """Build a bounded replay window for live-book ARMED/CONFIRMED alerts.
+
+    Notification recovery deliberately starts from monitor_start rather than the
+    book tracking_start. This lets a newly registered live book recover a signal
+    that was already present when the book was registered, without changing any
+    forward-evidence semantics.
+    """
+    if replay_days < 1:
+        raise ValueError("replay_days must be >= 1")
+
+    latest = _utc(latest)
+    monitor_start = _utc(monitor_start)
+    floor = max(monitor_start, latest - pd.Timedelta(days=replay_days))
+    allowed_to = {str(asset).upper() for asset in target_assets}
+    candidates: list[dict] = []
+
+    for book in position_books:
+        book_id = str(book["book_id"]).upper()
+        held_asset = str(book["held_asset"]).upper()
+        for event in events:
+            if event.get("event") not in {"ARMED", "CONFIRMED"}:
+                continue
+            if str(event.get("from_asset") or "").upper() != held_asset:
+                continue
+            if str(event.get("to_asset") or "").upper() not in allowed_to:
+                continue
+
+            event_ts = _utc(str(event["date"]))
+            if event_ts < floor or event_ts > latest:
+                continue
+
+            candidates.append(
+                {
+                    "event_id": _notification_event_id(book_id, event),
+                    "book_id": book_id,
+                    "book": _book_payload(book),
+                    "event": dict(event),
+                }
+            )
+
+    event_rank = {"ARMED": 0, "CONFIRMED": 1}
+    candidates.sort(
+        key=lambda item: (
+            str(item["event"].get("date") or ""),
+            str(item["book_id"]),
+            event_rank.get(str(item["event"].get("event") or ""), 9),
+            str(item["event"].get("to_asset") or ""),
+            str(item["event"].get("pair") or ""),
+        )
+    )
+    return candidates
 
 
 def build_notification(payload: dict) -> str:
@@ -909,6 +986,14 @@ def main(argv: list[str] | None = None) -> int:
 
     held_pair_states = book_pair_states[primary_book_id]
 
+    notification_candidates = build_notification_candidates(
+        events,
+        position_books=config["position_books"],
+        target_assets=config["target_assets"],
+        latest=latest,
+        monitor_start=config["monitor_start"],
+    )
+
     after_monitor_start = latest >= config["monitor_start"]
     book_signal = any(
         details["events"]["armed"] or details["events"]["confirmed"]
@@ -919,7 +1004,11 @@ def main(argv: list[str] | None = None) -> int:
         for watched in watch_events.values()
     )
     new_signal = bool(book_signal or watch_signal or latest_defensive_events)
-    should_notify = bool(args.force_notify or (after_monitor_start and new_signal))
+    replay_signal = bool(notification_candidates)
+    should_notify = bool(
+        args.force_notify
+        or (after_monitor_start and (new_signal or replay_signal))
+    )
 
     generated_at = pd.Timestamp.now(tz="UTC")
     run_id = generated_at.strftime("%Y%m%dT%H%M%SZ")
@@ -952,6 +1041,8 @@ def main(argv: list[str] | None = None) -> int:
         "latest_closed_candle": latest_iso,
         "force_notify": bool(args.force_notify),
         "should_notify": should_notify,
+        "notification_replay_days": NOTIFICATION_REPLAY_DAYS,
+        "notification_candidates": notification_candidates,
         "notification_reason": {
             "after_monitor_start": after_monitor_start,
             "held_armed": len(held_events["armed"]),
@@ -972,6 +1063,7 @@ def main(argv: list[str] | None = None) -> int:
                 for asset, watched in watch_events.items()
             },
             "defensive_events": len(latest_defensive_events),
+            "replay_candidates": len(notification_candidates),
             "force_notify": bool(args.force_notify),
         },
         "frozen_parameters": {
@@ -1027,6 +1119,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"watch_{asset}_confirmed={len(watched['confirmed'])}")
     print(f"defensive_active={defensive['active']}")
     print(f"defensive_breadth={defensive.get('breadth')}")
+    print(f"notification_candidates={len(notification_candidates)}")
     print(f"should_notify={should_notify}")
     return 0
 
