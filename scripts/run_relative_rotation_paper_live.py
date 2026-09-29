@@ -560,22 +560,62 @@ def build_notification_ru(payload: dict) -> str:
     if not detailed:
         if legacy_mode:
             held = payload["held_asset"]
-            return (
-                "Relative Rotation: сигналов нет.\n"
-                f"Закрытая свеча: {latest}\n"
-                f"Текущий актив: {held}\n"
-                "Наблюдение 10%+: нет."
+            snapshot = _observation_candidates(
+                payload,
+                held,
+                threshold=0.0,
+                allowed_to_assets=payload.get("target_assets"),
             )
+            lines = [
+                "Relative Rotation — утренний снимок",
+                f"Закрытая свеча: {latest}",
+                f"Текущий актив: {held}",
+                "Ближайшие потенциальные ротации:",
+            ]
+            if snapshot:
+                for candidate in snapshot[:3]:
+                    gap = max(0.0, ARM_THRESHOLD - candidate["dislocation"])
+                    lines.append(
+                        f"- {held} -> {candidate['to_asset']}: "
+                        f"{candidate['dislocation'] * 100:.2f}% отклонение; "
+                        f"до ARM 15%: {gap * 100:.2f} п.п."
+                    )
+            else:
+                lines.append("- Нет исходящих TARGET-кандидатов в текущем направлении относительной силы.")
+            lines.append(
+                "Проценты — отклонение отношения цен от 180-дневной медианы; "
+                "это ещё не CONFIRMED."
+            )
+            return "\n".join(lines)
 
         lines = [
-            "Relative Rotation: сигналов нет.",
+            "Relative Rotation — утренний снимок",
             f"Закрытая свеча: {latest}",
-            "Реальные ветки:",
+            "Текущие ветки и ближайшие потенциальные ротации:",
         ]
         for book_id, details in book_events.items():
             book = details["book"]
-            lines.append(f"- {book_id}: {_book_position_ru(book)}")
-        lines.append("Наблюдение 10%+: нет.")
+            snapshot = _observation_candidates(
+                payload,
+                book["held_asset"],
+                threshold=0.0,
+                allowed_to_assets=payload.get("target_assets"),
+            )
+            lines.append(f"{book_id} — {_book_position_ru(book)}")
+            if snapshot:
+                for candidate in snapshot[:3]:
+                    gap = max(0.0, ARM_THRESHOLD - candidate["dislocation"])
+                    lines.append(
+                        f"- {book['held_asset']} -> {candidate['to_asset']}: "
+                        f"{candidate['dislocation'] * 100:.2f}% отклонение; "
+                        f"до ARM 15%: {gap * 100:.2f} п.п."
+                    )
+            else:
+                lines.append("- Нет исходящих TARGET-кандидатов в текущем направлении относительной силы.")
+        lines.append(
+            "Проценты — отклонение отношения цен от 180-дневной медианы; "
+            "это ещё не CONFIRMED."
+        )
         return "\n".join(lines)
 
     lines = [
