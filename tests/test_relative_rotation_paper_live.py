@@ -217,6 +217,12 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
                 "breadth": 8,
             },
             "latest_defensive_events": [],
+            "latest_close_prices_usdt": {
+                "ATOM": 15.0,
+                "TWT": 0.15,
+                "AVAX": 30.0,
+                "BNB": 600.0,
+            },
             "latest_pair_states": [
                 {
                     "pair": "ATOM/TWT",
@@ -248,6 +254,8 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertIn("ATOM -> TWT: 8.60% отклонение", text)
         self.assertIn("до ARM 15%: 6.40 п.п.", text)
         self.assertIn("ATOM -> AVAX: 6.30% отклонение", text)
+        self.assertIn("Цена закрытия: ATOM $15; TWT $0.15; 1 ATOM = 100 TWT.", text)
+        self.assertIn("Цена закрытия: ATOM $15; AVAX $30; 1 ATOM = 0.5 AVAX.", text)
         self.assertNotIn("ATOM -> BNB", text)
         self.assertIn("это ещё не CONFIRMED", text)
         self.assertNotIn("сигналов нет", text)
@@ -353,6 +361,10 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
                 "breadth": 7,
             },
             "latest_defensive_events": [],
+            "latest_close_prices_usdt": {
+                "ATOM": 15.0,
+                "TWT": 0.15,
+            },
             "force_notify": False,
         }
 
@@ -362,6 +374,7 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertIn("ATOM -> TWT", text)
         self.assertIn("отклонение +21.00%", text)
         self.assertIn("разворот от экстремума +4.00%", text)
+        self.assertIn("Цена закрытия: ATOM $15; TWT $0.15; 1 ATOM = 100 TWT.", text)
         self.assertIn("требуется ручное подтверждение", text)
 
     def test_russian_watch_arm_is_explicitly_not_current_held_signal(self):

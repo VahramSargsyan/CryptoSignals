@@ -120,6 +120,10 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
             {
                 "should_notify": False,
                 "latest_closed_candle": "2026-09-28T00:00:00+00:00",
+                "latest_close_prices_usdt": {
+                    "ALGO": 0.15,
+                    "FIL": 3.0,
+                },
                 "notification_candidates": [candidate],
                 "telegram_text_ru": "fallback",
             }
@@ -271,6 +275,10 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
             {
                 "should_notify": False,
                 "latest_closed_candle": "2026-09-28T00:00:00+00:00",
+                "latest_close_prices_usdt": {
+                    "ALGO": 0.15,
+                    "FIL": 3.0,
+                },
                 "notification_candidates": [candidate],
                 "telegram_text_ru": "fallback",
             }
@@ -312,6 +320,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         text = send.call_args.args[0]
         self.assertIn("вечернее напоминание 22:30 Ереван", text)
         self.assertIn("ALGO -> FIL", text)
+        self.assertIn("Цена закрытия: ALGO $0.15; FIL $3; 1 ALGO = 0.05 FIL.", text)
         state = json.loads(state_path.read_text(encoding="utf-8"))
         self.assertIn(candidate["event_id"], state["sent_event_ids"])
         self.assertIn(

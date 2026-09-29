@@ -75,6 +75,53 @@ def _event_line_ru(event: dict) -> str:
     )
 
 
+def _format_usdt_price(value: float) -> str:
+    if value >= 100:
+        digits = 2
+    elif value >= 1:
+        digits = 4
+    elif value >= 0.01:
+        digits = 6
+    elif value >= 0.0001:
+        digits = 8
+    else:
+        digits = 10
+    text = f"{value:.{digits}f}".rstrip("0").rstrip(".")
+    return f"${text}"
+
+
+def _format_relative_units(value: float) -> str:
+    if value >= 1000:
+        return f"{value:,.2f}".replace(",", " ").rstrip("0").rstrip(".")
+    if value >= 1:
+        return f"{value:.4f}".rstrip("0").rstrip(".")
+    if value >= 0.01:
+        return f"{value:.6f}".rstrip("0").rstrip(".")
+    return f"{value:.8f}".rstrip("0").rstrip(".")
+
+
+def _current_event_price_line_ru(report: dict, event: dict) -> str | None:
+    if str(event.get("date") or "") != str(report.get("latest_closed_candle") or ""):
+        return None
+
+    prices = report.get("latest_close_prices_usdt", {})
+    from_asset = str(event.get("from_asset") or "")
+    to_asset = str(event.get("to_asset") or "")
+    from_price = prices.get(from_asset)
+    to_price = prices.get(to_asset)
+    if from_price is None or to_price is None:
+        return None
+
+    from_price = float(from_price)
+    to_price = float(to_price)
+    rate = from_price / to_price
+    return (
+        f"Цена закрытия: {from_asset} {_format_usdt_price(from_price)}; "
+        f"{to_asset} {_format_usdt_price(to_price)}; "
+        f"1 {from_asset} = {_format_relative_units(rate)} {to_asset}."
+    )
+
+
 def _pending_candidates(report: dict, state: dict) -> list[dict]:
     sent = set(str(value) for value in state.get("sent_event_ids", []))
     pending = []
@@ -123,9 +170,12 @@ def build_evening_reminder_ru(report: dict, pending: list[dict]) -> str:
                 "",
                 f"{item.get('book_id')} — текущая позиция: {_book_position_ru(book)}",
                 _event_line_ru(event),
-                "Если утром не успел исполнить, это вечерний fallback перед поздним окном исполнения.",
             ]
         )
+        price_line = _current_event_price_line_ru(report, event)
+        if price_line:
+            lines.append(price_line)
+        lines.append("Если утром не успел исполнить, это вечерний fallback перед поздним окном исполнения.")
 
     lines.extend(
         [
@@ -161,6 +211,9 @@ def build_pending_notification_ru(report: dict, pending: list[dict]) -> str:
         if is_stale:
             lines.append("↩️ ВОССТАНОВЛЕННОЕ ПРОПУЩЕННОЕ СОБЫТИЕ — не считать текущей командой.")
         lines.append(_event_line_ru(event))
+        price_line = _current_event_price_line_ru(report, event)
+        if price_line:
+            lines.append(price_line)
 
         if event.get("event") == "CONFIRMED":
             if is_stale:
