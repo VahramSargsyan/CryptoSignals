@@ -5,7 +5,9 @@ import pandas as pd
 
 from scripts.run_grid_paper_live import (
     PROFILES,
+    _build_calendar_month_report,
     _config,
+    _is_calendar_month_end,
     _notification_text,
     _notification_text_ru,
     _profile_engine,
@@ -197,6 +199,113 @@ class GridPaperLiveTests(unittest.TestCase):
         self.assertIn("БУМАЖНЫЙ РЕЖИМ", text)
         self.assertNotIn("Closed candle:", text)
         self.assertLess(len(text), 1000)
+
+    def test_calendar_month_end_detection(self):
+        self.assertTrue(_is_calendar_month_end(pd.Timestamp("2026-09-30", tz="UTC")))
+        self.assertTrue(_is_calendar_month_end(pd.Timestamp("2026-02-28", tz="UTC")))
+        self.assertFalse(_is_calendar_month_end(pd.Timestamp("2026-09-29", tz="UTC")))
+
+    def test_calendar_monthly_report_aggregates_forward_paper_metrics(self):
+        rows_df = pd.DataFrame(
+            [
+                {
+                    "profile": "CONTROL_BASE",
+                    "symbol": "LINKUSDT",
+                    "equity": 2040.0,
+                    "return": 0.02,
+                    "max_drawdown": 0.01,
+                    "open_micro_lots": 2,
+                    "open_mid_lots": 1,
+                    "closed_trade_count": 1,
+                    "today_events": 1,
+                    "today_buys": 0,
+                    "today_sells": 1,
+                }
+            ]
+        )
+        events_df = pd.DataFrame(
+            [
+                {
+                    "profile": "CONTROL_BASE",
+                    "symbol": "LINKUSDT",
+                    "timestamp": pd.Timestamp("2026-09-27", tz="UTC"),
+                    "event_type": "BUY",
+                },
+                {
+                    "profile": "CONTROL_BASE",
+                    "symbol": "LINKUSDT",
+                    "timestamp": pd.Timestamp("2026-09-30", tz="UTC"),
+                    "event_type": "SELL",
+                },
+            ]
+        )
+        trades_df = pd.DataFrame(
+            [
+                {
+                    "profile": "CONTROL_BASE",
+                    "symbol": "LINKUSDT",
+                    "exit_timestamp": pd.Timestamp("2026-09-30", tz="UTC"),
+                }
+            ]
+        )
+        equity_frames = {
+            ("CONTROL_BASE", "LINKUSDT"): pd.DataFrame(
+                {
+                    "timestamp": pd.to_datetime(
+                        ["2026-09-26", "2026-09-27", "2026-09-30"], utc=True
+                    ),
+                    "equity": [2000.0, 2020.0, 2040.0],
+                }
+            )
+        }
+
+        report = _build_calendar_month_report(
+            latest_closed=pd.Timestamp("2026-09-30", tz="UTC"),
+            paper_start=pd.Timestamp("2026-09-26", tz="UTC"),
+            profiles=("CONTROL_BASE",),
+            symbols=("LINKUSDT",),
+            rows_df=rows_df,
+            events_df=events_df,
+            trades_df=trades_df,
+            equity_frames=equity_frames,
+        )
+
+        self.assertIsNotNone(report)
+        self.assertEqual(report["period"], "2026-09")
+        self.assertEqual(report["highest_month_return_profile"], "CONTROL_BASE")
+        profile = report["profile_summary"][0]
+        self.assertAlmostEqual(profile["month_return"], 0.02)
+        self.assertEqual(profile["month_buys"], 1)
+        self.assertEqual(profile["month_sells"], 1)
+        self.assertEqual(profile["month_closed_trades"], 1)
+        self.assertEqual(profile["open_micro_lots"], 2)
+        self.assertEqual(profile["open_mid_lots"], 1)
+
+        payload = {
+            "latest_closed_candle": "2026-09-30T00:00:00+00:00",
+            "completed_paper_candles": 5,
+            "milestone": None,
+            "monthly_report": report,
+            "rows": [],
+            "portfolio": [],
+        }
+        text = _notification_text_ru(payload)
+        self.assertIn("месячный бумажный отчёт 2026-09", text)
+        self.assertIn("CONTROL_BASE: месяц +2.00%", text)
+        self.assertIn("BUY 1, SELL 1", text)
+
+    def test_calendar_monthly_report_is_absent_before_month_end(self):
+        report = _build_calendar_month_report(
+            latest_closed=pd.Timestamp("2026-09-29", tz="UTC"),
+            paper_start=pd.Timestamp("2026-09-26", tz="UTC"),
+            profiles=("CONTROL_BASE",),
+            symbols=("LINKUSDT",),
+            rows_df=pd.DataFrame(),
+            events_df=pd.DataFrame(),
+            trades_df=pd.DataFrame(),
+            equity_frames={},
+        )
+        self.assertIsNone(report)
 
     def test_notification_lists_only_profiles_with_today_signals(self):
         payload = {
