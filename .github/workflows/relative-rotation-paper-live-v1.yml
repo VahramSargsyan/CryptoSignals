@@ -11,6 +11,8 @@ on:
   schedule:
     - cron: "20 0 * * *"
     - cron: "30 18 * * *"
+    - cron: "0 19 * * *"
+    - cron: "30 19 * * *"
   pull_request:
     branches:
       - main
@@ -119,8 +121,12 @@ jobs:
           SENDER_EXTRA=""
           if [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPRESSION" = "20 0 * * *" ]; then
             SENDER_EXTRA="--morning-rotation-snapshot"
-          elif [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPRESSION" = "30 18 * * *" ]; then
-            SENDER_EXTRA="--evening-confirmed-reminder"
+          elif [ "$EVENT_NAME" = "schedule" ]; then
+            case "$SCHEDULE_EXPRESSION" in
+              "30 18 * * *"|"0 19 * * *"|"30 19 * * *")
+                SENDER_EXTRA="--evening-confirmed-reminder"
+                ;;
+            esac
           fi
           python -m scripts.send_relative_rotation_report             --report-json "$PAPER_RUN_DIR/report.json"             --notification-text "$PAPER_RUN_DIR/notification.txt"             --state-file "paper_state/relative_rotation_notification_state.json"             $SENDER_EXTRA
 
