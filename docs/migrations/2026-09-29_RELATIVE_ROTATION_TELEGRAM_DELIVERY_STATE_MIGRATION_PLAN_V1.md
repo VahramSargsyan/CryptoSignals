@@ -57,7 +57,8 @@ Each run exposes current-book ARMED/CONFIRMED events from a bounded 7-day replay
 
 Reason:
 - recover a signal if a scheduled run is delayed or skipped;
-- allow the existing LINK -> HBAR event from 2026-09-27 to be delivered after the notification patch;
+- allow the existing LINK -> HBAR CONFIRMED event from 2026-09-27 to be delivered after the notification patch;
+- replay prior CONFIRMED events but keep ARMED/PREWATCH delivery limited to the latest closed candle;
 - prevent unbounded historical replay if the dedupe artifact expires.
 
 Forward-validation semantics remain anchored at 2026-09-29T00:00:00Z and are not backfilled.
