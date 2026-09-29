@@ -10,6 +10,17 @@ on:
         default: false
   schedule:
     - cron: "20 0 * * *"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/relative-rotation-paper-live-v1.yml"
+      - "config/relative_rotation_paper_live_v1.json"
+      - "scripts/run_relative_rotation_paper_live.py"
+      - "scripts/send_relative_rotation_report.py"
+      - "strategies/crypto/relative_rotation/**"
+      - "tests/test_relative_rotation_paper_live.py"
+      - "tests/test_send_relative_rotation_report.py"
   push:
     branches:
       - deploy/relative-rotation-paper-live-v1
@@ -21,9 +32,15 @@ on:
       - "scripts/send_relative_rotation_report.py"
       - "strategies/crypto/relative_rotation/**"
       - "tests/test_relative_rotation_paper_live.py"
+      - "tests/test_send_relative_rotation_report.py"
 
 permissions:
   contents: read
+  actions: read
+
+concurrency:
+  group: relative-rotation-paper-live-v1
+  cancel-in-progress: false
 
 jobs:
   relative-rotation-paper-live:
@@ -45,6 +62,7 @@ jobs:
       - name: Run targeted unit and data-contract tests
         run: |
           python -m unittest tests.test_relative_rotation_paper_live -v
+          python -m unittest tests.test_send_relative_rotation_report -v
           python -m unittest tests.test_binance_historical tests.test_binance_rest_client -v
 
       - name: Run relative-rotation paper-live monitor
@@ -65,16 +83,46 @@ jobs:
           cat "$RUN_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
           echo "PAPER_RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
 
+      - name: Restore Telegram dedupe state
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p paper_state
+          STATE_FILE="paper_state/relative_rotation_notification_state.json"
+          printf '{"schema_version":1,"sent_event_ids":[]}\n' > "$STATE_FILE"
+
+          ARTIFACT_ID="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=relative-rotation-notification-state&per_page=100"               --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .id // empty'
+          )"
+
+          if [ -n "$ARTIFACT_ID" ]; then
+            curl -L -sS               -H "Authorization: Bearer $GH_TOKEN"               -H "Accept: application/vnd.github+json"               -H "X-GitHub-Api-Version: 2022-11-28"               "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip"               -o /tmp/rr-notification-state.zip
+            unzip -q -o /tmp/rr-notification-state.zip -d paper_state
+            echo "notification_state=RESTORED artifact_id=$ARTIFACT_ID"
+          else
+            echo "notification_state=INITIALIZED_EMPTY"
+          fi
+
       - name: Optional Telegram notification
-        if: github.event_name != 'push'
+        if: github.event_name != 'pull_request'
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          python -m scripts.send_relative_rotation_report \
-            --report-json "$PAPER_RUN_DIR/report.json" \
-            --notification-text "$PAPER_RUN_DIR/notification.txt"
+          python -m scripts.send_relative_rotation_report             --report-json "$PAPER_RUN_DIR/report.json"             --notification-text "$PAPER_RUN_DIR/notification.txt"             --state-file "paper_state/relative_rotation_notification_state.json"
+
+      - name: Persist Telegram dedupe state
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: relative-rotation-notification-state
+          path: paper_state/relative_rotation_notification_state.json
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Upload paper evidence
         uses: actions/upload-artifact@v4
