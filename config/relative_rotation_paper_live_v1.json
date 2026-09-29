@@ -24,7 +24,7 @@
   ],
   "watch_assets": [],
   "defensive_overlay_enabled": false,
-  "notes": "Final TARGET U10 frozen for forward/paper observation from 2026-09-29T00:00:00Z. Canonical live state has exactly two tracked manual books: BOOK_1=ATOM and BOOK_2=10723.76037691 ALGO after the user-confirmed manual LINK -> ALGO rotation on 2026-09-29. Top-level held_asset=ATOM is retained only as a legacy BOOK_1 alias. Independent sunset-watch alerts are disabled; ATOM and the current BOOK_2 asset are monitored through their books. No pre-freeze candle counts as forward evidence. Manual execution only; no exchange API trading keys.",
+  "notes": "Final TARGET U10 frozen for forward/paper observation from 2026-09-29T00:00:00Z. Canonical live position state is position_books. Top-level held_asset is retained only as a backward-compatible BOOK_1 alias and must mirror BOOK_1 after any confirmed execution. Independent sunset-watch alerts are disabled; current book assets are monitored through their books. No pre-freeze candle counts as forward evidence. Manual execution only; no exchange API trading keys. Telegram control, when enabled separately, may only record a user-confirmed manual execution after GitHub re-validates the current unresolved CONFIRMED route.",
   "universe_version": "RR_TARGET_U10_FROZEN_V1",
   "forward_validation_enabled": true,
   "forward_validation_start": "2026-09-29T00:00:00Z",
