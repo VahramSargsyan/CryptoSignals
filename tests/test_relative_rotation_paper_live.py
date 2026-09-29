@@ -614,7 +614,7 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
                 "reversal_from_extreme": 0.0330,
             },
             {
-                "date": pd.Timestamp("2026-09-27", tz="UTC").isoformat(),
+                "date": pd.Timestamp("2026-09-28", tz="UTC").isoformat(),
                 "event": "ARMED",
                 "pair": "FIL/LINK",
                 "from_asset": "LINK",
