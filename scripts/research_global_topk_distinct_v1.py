@@ -461,6 +461,22 @@ def main():
     daily_events,daily_active = build_tape(panel)
     packets = build_packets(daily_events,daily_active)
 
+    packet_sizes = [len(p) for p in packets.values()]
+    packet_size_counts = dict(sorted(Counter(packet_sizes).items()))
+    packet_stats = {
+        "packet_count": int(len(packet_sizes)),
+        "size_counts": {str(k): int(v) for k,v in packet_size_counts.items()},
+        "median_distinct_destinations": float(np.median(packet_sizes)) if packet_sizes else 0.0,
+        "share_ge_2": float(np.mean(np.asarray(packet_sizes) >= 2)) if packet_sizes else 0.0,
+        "share_ge_3": float(np.mean(np.asarray(packet_sizes) >= 3)) if packet_sizes else 0.0,
+        "share_ge_4": float(np.mean(np.asarray(packet_sizes) >= 4)) if packet_sizes else 0.0,
+        "share_ge_5": float(np.mean(np.asarray(packet_sizes) >= 5)) if packet_sizes else 0.0,
+    }
+    pd.DataFrame([
+        {"distinct_destinations":int(k),"packet_count":int(v),"share":float(v/len(packet_sizes))}
+        for k,v in packet_size_counts.items()
+    ]).to_csv(OUT/"packet_size_distribution.csv",index=False)
+
     # Canonical path-dependent DDG validation.
     path_runs = [
         simulate_path_rr(panel,ts,daily_events,daily_active,*WINDOWS["MATURE"],a)
@@ -529,6 +545,7 @@ def main():
         },
         "canonical_path_ddg_mature_median_return":path_med,
         "packet_count":len(packets),
+        "packet_stats":packet_stats,
         "results":json.loads(results.to_json(orient="records")),
         "rolling_summary":json.loads(roll_summary_df.to_json(orient="records")),
         "jan2024_packet":jan_rows,
@@ -555,7 +572,14 @@ def main():
             f"{'' if pd.isna(jw) else f'{100*jw:.1f}%'}|"
         )
 
-    lines += ["","## Jan 14 2024 global distinct packet","",
+    lines += ["","## Packet breadth","",
+              f"- total packets: {packet_stats['packet_count']}",
+              f"- median distinct destinations per packet: {packet_stats['median_distinct_destinations']:.1f}",
+              f"- share with >=2 destinations: {100*packet_stats['share_ge_2']:.1f}%",
+              f"- share with >=3 destinations: {100*packet_stats['share_ge_3']:.1f}%",
+              f"- share with >=4 destinations: {100*packet_stats['share_ge_4']:.1f}%",
+              f"- share with >=5 destinations: {100*packet_stats['share_ge_5']:.1f}%",
+              "","## Jan 14 2024 global distinct packet","",
               "|Rank|Route|Destination|Strength|DDG override|",
               "|---:|---|---|---:|---|"]
     for row in jan_rows:
