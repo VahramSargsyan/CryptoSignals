@@ -110,6 +110,129 @@ No repeated event warning is created merely because a pair remains armed. The
 morning status may still display the current state, while event deduplication
 continues to use stable event IDs.
 
+## Route conflict warning rule — 2026-09-30
+
+Status:
+
+`ACCEPTED_SIGNAL_PRESENTATION_RULE / ROUTER_UNCHANGED / RUNTIME_IMPLEMENTATION_PENDING`
+
+Purpose:
+
+Prevent a valid `CONFIRMED` route from being presented in isolation when the
+same market state already shows that another outbound candidate may be the more
+natural final destination.
+
+This rule changes **signal presentation and manual-decision context only**. It
+does not change the frozen Relative Rotation router, does not auto-replace the
+primary `CONFIRMED` route, and does not execute a trade.
+
+### Detection
+
+For every live book with a primary confirmed route:
+
+`SOURCE -> A = CONFIRMED`
+
+the signal layer must also inspect all current outbound candidate states from
+the same `SOURCE`.
+
+A route conflict exists when:
+
+1. another allowed TARGET destination `B` is currently `ARMED` or
+   `CONFIRMED` from the same `SOURCE`;
+2. `SOURCE -> B` has a larger `max_dislocation` than the primary
+   `SOURCE -> A` confirmed route; and
+3. the direct destination pair `A <-> B` is itself currently oriented
+   `A -> B` as `ARMED` or `CONFIRMED`.
+
+Interpretation:
+
+`SOURCE -> A -> B`
+
+may be an avoidable intermediate path while a direct:
+
+`SOURCE -> B`
+
+candidate is already developing or confirmed.
+
+The destination-pair relationship must come from the actual Relative Rotation
+pair state machine for `A/B`. It must never be inferred by mathematical
+transitivity alone.
+
+### Mandatory Telegram content
+
+When a route conflict exists, Telegram must **not** present only the primary
+`SOURCE -> A` confirmation.
+
+The same signal must include a clearly separated warning block containing:
+
+- the primary `SOURCE -> A` route and its status;
+- the stronger competing `SOURCE -> B` candidate;
+- each route's `max_dislocation`;
+- each route's current reversal-from-extreme progress and whether 3% is reached;
+- the direct `A -> B` destination-pair state;
+- `A -> B` `max_dislocation` and reversal progress when available;
+- explicit text that `A` may be an intermediate destination;
+- explicit text that the warning does **not** automatically override the frozen
+  router and manual execution remains a human decision.
+
+Required warning concept:
+
+```text
+⚠️ ROUTE CONFLICT
+
+Primary confirmed route:
+SOURCE -> A
+
+Stronger competing candidate:
+SOURCE -> B
+
+Destination relation:
+A -> B = ARMED / CONFIRMED
+
+Possible intermediate path:
+SOURCE -> A -> B
+
+Direct alternative under observation:
+SOURCE -> B
+
+This warning does not automatically replace the confirmed route.
+Manual execution remains required.
+```
+
+### Severity
+
+- `A -> B = ARMED` -> `ROUTE_CONFLICT_WARNING`
+- `A -> B = CONFIRMED` -> `ROUTE_CONFLICT_HIGH`
+
+A `CONFIRMED` destination-pair conflict is stronger evidence that the primary
+destination may be temporary, but it still does not silently change the
+accepted router.
+
+### Historical stress-test boundary
+
+The 2026-09-30 historical stress test found that using destination dominance as
+an automatic hard-router override was not robust across rolling windows.
+
+Therefore the accepted production rule is:
+
+`NETWORK STATE MUST BE SHOWN -> HUMAN DECIDES`
+
+not:
+
+`NETWORK STATE AUTOMATICALLY OVERRIDES PRIMARY_CONFIRMED`.
+
+The alerting rule may be reconsidered for routing only after separately frozen
+confirmatory/forward evidence.
+
+### Runtime implementation gate
+
+Until the Telegram sender is patched and tested to emit this block, this rule
+is documented but not yet runtime-enforced.
+
+Any signal produced before that implementation must be interpreted using the
+full pair-state evidence rather than assuming the Telegram text already includes
+the route-conflict analysis.
+
 ## Defensive research overlay
 
 The monitor reports the documented candidate:
