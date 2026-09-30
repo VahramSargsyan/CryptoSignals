@@ -1,0 +1,64 @@
+name: Research Total Market Cap Source Smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/research-total-mcap-source-smoke.yml"
+  push:
+    branches:
+      - research/total-mcap-sma-return-breakout-v1
+    paths:
+      - ".github/workflows/research-total-mcap-source-smoke.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch public CoinGecko TOTAL chart JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p research_artifacts/total_mcap_source_smoke
+          PAGE='https://www.coingecko.com/en/charts'
+          DATA='https://www.coingecko.com/etl2/global_charts/usd/total_market_cap?locale=en'
+          UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36'
+
+          PAGE_STATUS="$(curl -L -sS -A "$UA" -c /tmp/cg.cookies -o /tmp/cg_page.html -w '%{http_code}' "$PAGE")"
+          echo "page_status=$PAGE_STATUS"
+          test "$PAGE_STATUS" = "200"
+
+          DATA_STATUS="$(curl -L -sS -A "$UA" -b /tmp/cg.cookies -c /tmp/cg.cookies             -e "$PAGE" -H 'Accept: application/json,text/plain,*/*'             -o research_artifacts/total_mcap_source_smoke/total_market_cap.json             -w '%{http_code}' "$DATA")"
+          echo "data_status=$DATA_STATUS"
+          echo "data_bytes=$(wc -c < research_artifacts/total_mcap_source_smoke/total_market_cap.json)"
+          head -c 800 research_artifacts/total_mcap_source_smoke/total_market_cap.json || true
+          echo
+          test "$DATA_STATUS" = "200"
+
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path("research_artifacts/total_mcap_source_smoke/total_market_cap.json")
+          obj=json.loads(p.read_text(encoding="utf-8"))
+          print("top_type=",type(obj).__name__)
+          if isinstance(obj,dict):
+              print("keys=",sorted(obj.keys()))
+              for k,v in obj.items():
+                  if isinstance(v,list):
+                      print(k,"len=",len(v),"first=",v[:2],"last=",v[-2:])
+          PY
+
+      - name: Upload source evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: total-mcap-source-smoke
+          path: research_artifacts/total_mcap_source_smoke/**
+          retention-days: 7
