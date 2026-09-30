@@ -114,7 +114,7 @@ continues to use stable event IDs.
 
 Status:
 
-`ACCEPTED_SIGNAL_PRESENTATION_RULE / ROUTER_UNCHANGED / RUNTIME_IMPLEMENTATION_PENDING`
+`ACCEPTED_RUNTIME_GUARD / ROUTER_UNCHANGED / ONE_CLICK_EXECUTION_BLOCKED_ON_CONFLICT`
 
 Purpose:
 
@@ -224,14 +224,23 @@ not:
 The alerting rule may be reconsidered for routing only after separately frozen
 confirmatory/forward evidence.
 
-### Runtime implementation gate
+### Runtime implementation — 2026-09-30 patch
 
-Until the Telegram sender is patched and tested to emit this block, this rule
-is documented but not yet runtime-enforced.
+Runtime enforcement is implemented in the paper-live monitor and Telegram
+sender.
 
-Any signal produced before that implementation must be interpreted using the
-full pair-state evidence rather than assuming the Telegram text already includes
-the route-conflict analysis.
+For each live-book primary CONFIRMED route the monitor now:
+- evaluates stronger same-source ARMED/CONFIRMED TARGET candidates;
+- evaluates the real direct pair state between primary and competing
+  destinations;
+- writes route-conflict evidence into report.json and Telegram text;
+- keeps the frozen strongest-CONFIRMED router unchanged;
+- blocks Telegram one-click execution when a route conflict exists;
+- requires a separate manual review before a conflicting route can be recorded
+  through Telegram control.
+
+The guard is intentionally fail-safe at the execution-control layer: a
+conflicting candidate is not silently auto-routed to the alternative token.
 
 ## Defensive research overlay
 
@@ -423,3 +432,37 @@ a confirmed rotation, update only the affected book with:
 - execution timestamp/details in the real rotation log.
 
 The monitor never infers that a Telegram signal was executed.
+
+
+## 2026-09-30 — Route Conflict Guard runtime patch
+
+Strategy runtime identifier:
+
+`RELATIVE_ROTATION_TARGET_U10_FORWARD_V1_1_ROUTE_CONFLICT_GUARD`
+
+Impact:
+- signal-context calculation: changed;
+- Telegram signal presentation: changed;
+- Telegram one-click execution eligibility: changed;
+- 180d / 15% ARM / 3% reversal mechanics: unchanged;
+- strongest-CONFIRMED baseline router: unchanged;
+- TARGET U10 membership: unchanged;
+- persistent position schema: unchanged.
+
+MIGRATION_REQUIRED: NO.
+
+Risk class: L2 — business/safety feature.
+
+Impact map:
+- DIRECTLY_AFFECTED: pair-network route-conflict analysis, report payload,
+  Telegram signal/reminder text, Telegram execution-control eligibility;
+- TRANSITIVE_DEPENDENCIES: manual execution recorder consumes the report
+  candidate and refuses conflicting one-click execution;
+- UNAFFECTED: market-data ingestion, 180d median, ARM/reversal state machine,
+  U10 membership, position quantities, exchange execution (none);
+- SCALE_CRITICAL_TRIGGER: NO.
+
+Rollback:
+revert this patch to restore the previous presentation/control behavior. No
+position data migration is required because the guard does not mutate
+position state by itself.

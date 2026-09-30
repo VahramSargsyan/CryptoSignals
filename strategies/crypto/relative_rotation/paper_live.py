@@ -261,6 +261,176 @@ def choose_held_events(
     }
 
 
+
+def find_route_conflicts(
+    events: Iterable[dict],
+    latest_states: Iterable[dict],
+    *,
+    primary_confirmed: dict | None,
+    latest_date: pd.Timestamp | str,
+    allowed_to_assets: Sequence[str] | None = None,
+) -> list[dict]:
+    """Find network-level route conflicts for one primary CONFIRMED route.
+
+    A conflict is presentation/execution-safety context only. It does not change
+    the frozen strongest-CONFIRMED router. A competing destination B qualifies
+    when:
+      1) SOURCE -> B is currently ARMED or CONFIRMED;
+      2) its max dislocation is stronger than primary SOURCE -> A; and
+      3) the direct A -> B pair is itself ARMED or CONFIRMED.
+
+    CONFIRMED relationships are read from latest-candle events because the pair
+    state resets after confirmation. Ongoing ARMED relationships are read from
+    latest_states so older arms remain visible until their 3% reversal fires.
+    """
+    if not primary_confirmed:
+        return []
+    if str(primary_confirmed.get("event") or "CONFIRMED").upper() != "CONFIRMED":
+        return []
+
+    source = str(primary_confirmed.get("from_asset") or "").upper()
+    primary_to = str(primary_confirmed.get("to_asset") or "").upper()
+    if not source or not primary_to:
+        return []
+
+    primary_strength = float(primary_confirmed.get("max_dislocation") or 0.0)
+    allowed_to = (
+        None
+        if allowed_to_assets is None
+        else {str(asset).upper() for asset in allowed_to_assets}
+    )
+
+    ts = pd.Timestamp(latest_date)
+    latest_iso = (
+        ts.tz_localize("UTC").isoformat()
+        if ts.tzinfo is None
+        else ts.tz_convert("UTC").isoformat()
+    )
+
+    latest_events = [
+        dict(event)
+        for event in events
+        if str(event.get("date") or "") == latest_iso
+        and str(event.get("event") or "").upper() in {"ARMED", "CONFIRMED"}
+    ]
+    state_rows = [dict(row) for row in latest_states]
+
+    def candidate_from_state(row: dict) -> dict | None:
+        mode = str(row.get("mode") or "NONE").upper()
+        from_asset = str(row.get("from_asset") or "").upper()
+        to_asset = str(row.get("to_asset") or "").upper()
+        if mode not in {"HIGH", "LOW"} or not from_asset or not to_asset:
+            return None
+        return {
+            "date": latest_iso,
+            "event": "ARMED",
+            "pair": row.get("pair"),
+            "from_asset": from_asset,
+            "to_asset": to_asset,
+            "deviation": row.get("deviation"),
+            "max_dislocation": float(row.get("max_dislocation") or 0.0),
+            "reversal_from_extreme": row.get("reversal_from_extreme"),
+            "armed_at": row.get("armed_at"),
+            "mode": mode,
+        }
+
+    def better(existing: dict | None, candidate: dict) -> dict:
+        if existing is None:
+            return candidate
+        existing_confirmed = str(existing.get("event") or "").upper() == "CONFIRMED"
+        candidate_confirmed = str(candidate.get("event") or "").upper() == "CONFIRMED"
+        if candidate_confirmed != existing_confirmed:
+            return candidate if candidate_confirmed else existing
+        if float(candidate.get("max_dislocation") or 0.0) > float(
+            existing.get("max_dislocation") or 0.0
+        ):
+            return candidate
+        return existing
+
+    outbound: dict[str, dict] = {}
+    for event in latest_events:
+        if str(event.get("from_asset") or "").upper() != source:
+            continue
+        to_asset = str(event.get("to_asset") or "").upper()
+        if not to_asset or to_asset == primary_to:
+            continue
+        if allowed_to is not None and to_asset not in allowed_to:
+            continue
+        outbound[to_asset] = better(outbound.get(to_asset), event)
+
+    for row in state_rows:
+        candidate = candidate_from_state(row)
+        if candidate is None or candidate["from_asset"] != source:
+            continue
+        to_asset = candidate["to_asset"]
+        if to_asset == primary_to:
+            continue
+        if allowed_to is not None and to_asset not in allowed_to:
+            continue
+        outbound[to_asset] = better(outbound.get(to_asset), candidate)
+
+    def destination_relation(to_asset: str) -> dict | None:
+        relation: dict | None = None
+        for event in latest_events:
+            if (
+                str(event.get("from_asset") or "").upper() == primary_to
+                and str(event.get("to_asset") or "").upper() == to_asset
+            ):
+                relation = better(relation, event)
+        for row in state_rows:
+            candidate = candidate_from_state(row)
+            if candidate is None:
+                continue
+            if (
+                candidate["from_asset"] == primary_to
+                and candidate["to_asset"] == to_asset
+            ):
+                relation = better(relation, candidate)
+        return relation
+
+    conflicts: list[dict] = []
+    for competing_to, competing in outbound.items():
+        competing_strength = float(competing.get("max_dislocation") or 0.0)
+        if competing_strength <= primary_strength:
+            continue
+
+        relation = destination_relation(competing_to)
+        if relation is None:
+            continue
+
+        relation_status = str(relation.get("event") or "ARMED").upper()
+        severity = (
+            "ROUTE_CONFLICT_HIGH"
+            if relation_status == "CONFIRMED"
+            else "ROUTE_CONFLICT_WARNING"
+        )
+        conflicts.append(
+            {
+                "severity": severity,
+                "source_asset": source,
+                "primary": dict(primary_confirmed),
+                "competing_candidate": dict(competing),
+                "destination_relation": dict(relation),
+                "possible_intermediate_path": [source, primary_to, competing_to],
+                "direct_alternative": [source, competing_to],
+                "execution_policy": "REVIEW_REQUIRED",
+                "blocks_one_click_execution": True,
+                "router_override": False,
+            }
+        )
+
+    severity_rank = {"ROUTE_CONFLICT_HIGH": 0, "ROUTE_CONFLICT_WARNING": 1}
+    conflicts.sort(
+        key=lambda row: (
+            severity_rank.get(str(row.get("severity") or ""), 9),
+            -float(
+                row.get("competing_candidate", {}).get("max_dislocation") or 0.0
+            ),
+            str(row.get("competing_candidate", {}).get("to_asset") or ""),
+        )
+    )
+    return conflicts
+
 def _defensive_state_machine(
     dates: Sequence[pd.Timestamp],
     breadth_values: Sequence[int | None],

@@ -25,6 +25,7 @@ from strategies.crypto.relative_rotation.paper_live import (
     build_pair_monitor,
     choose_held_events,
     evaluate_defensive_mode,
+    find_route_conflicts,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -288,6 +289,82 @@ def _event_line_ru(event: dict) -> str:
     )
 
 
+def _route_conflict_lines_ru(conflicts: list[dict]) -> list[str]:
+    if not conflicts:
+        return []
+    lines = [
+        "⚠️ ROUTE CONFLICT — сигнал нельзя исполнять вслепую.",
+    ]
+    for conflict in conflicts:
+        primary = conflict.get("primary", {})
+        competing = conflict.get("competing_candidate", {})
+        relation = conflict.get("destination_relation", {})
+        severity = str(conflict.get("severity") or "ROUTE_CONFLICT_WARNING")
+        lines.extend(
+            [
+                f"{severity}: основной CONFIRMED {primary.get('from_asset')} -> {primary.get('to_asset')}.",
+                (
+                    f"Более сильный кандидат: {competing.get('from_asset')} -> {competing.get('to_asset')} "
+                    f"(отклонение {_pct(competing.get('max_dislocation'))}; "
+                    f"разворот {_pct(competing.get('reversal_from_extreme'))}; "
+                    f"статус {competing.get('event')})."
+                ),
+                (
+                    f"Связь между назначениями: {relation.get('from_asset')} -> {relation.get('to_asset')} "
+                    f"(отклонение {_pct(relation.get('max_dislocation'))}; "
+                    f"разворот {_pct(relation.get('reversal_from_extreme'))}; "
+                    f"статус {relation.get('event')})."
+                ),
+                (
+                    "Возможен промежуточный маршрут: "
+                    + " -> ".join(conflict.get("possible_intermediate_path", []))
+                    + "."
+                ),
+                (
+                    "Прямой альтернативный маршрут под наблюдением: "
+                    + " -> ".join(conflict.get("direct_alternative", []))
+                    + "."
+                ),
+            ]
+        )
+    lines.extend(
+        [
+            "Замороженный router автоматически НЕ переопределён.",
+            "Для конфликтного сигнала требуется отдельная ручная проверка; one-click подтверждение блокируется.",
+        ]
+    )
+    return lines
+
+
+def _route_conflict_lines_en(conflicts: list[dict]) -> list[str]:
+    if not conflicts:
+        return []
+    lines = ["ROUTE CONFLICT — do not execute the primary route blindly."]
+    for conflict in conflicts:
+        primary = conflict.get("primary", {})
+        competing = conflict.get("competing_candidate", {})
+        relation = conflict.get("destination_relation", {})
+        lines.extend(
+            [
+                f"{conflict.get('severity')}: primary {primary.get('from_asset')} -> {primary.get('to_asset')}.",
+                (
+                    f"Stronger competing candidate: {competing.get('from_asset')} -> {competing.get('to_asset')} "
+                    f"(max dislocation {_pct(competing.get('max_dislocation'))}; "
+                    f"reversal {_pct(competing.get('reversal_from_extreme'))}; "
+                    f"state {competing.get('event')})."
+                ),
+                (
+                    f"Destination relation: {relation.get('from_asset')} -> {relation.get('to_asset')} "
+                    f"(max dislocation {_pct(relation.get('max_dislocation'))}; "
+                    f"reversal {_pct(relation.get('reversal_from_extreme'))}; "
+                    f"state {relation.get('event')})."
+                ),
+            ]
+        )
+    lines.append("Frozen router is unchanged; manual review is required and one-click execution is blocked.")
+    return lines
+
+
 def _notification_event_id(book_id: str, event: dict) -> str:
     """Stable notification identity for cross-run duplicate suppression."""
     return "|".join(
@@ -419,6 +496,9 @@ def build_notification(payload: dict) -> str:
             if extra:
                 lines.append(f"Other {book_id} confirmed outbound candidates:")
                 lines.extend(f"- {_event_line(event)}" for event in extra)
+            conflicts = details.get("route_conflicts") or payload.get("route_conflicts", {}).get(book_id, [])
+            if conflicts:
+                lines.extend(_route_conflict_lines_en(conflicts))
             armed = selected.get("armed", [])
             if armed:
                 lines.append(f"Other {book_id} ARMED / PREWATCH candidates (not confirmed):")
@@ -716,6 +796,9 @@ def build_notification_ru(payload: dict) -> str:
                     ),
                 ]
             )
+            conflicts = details.get("route_conflicts") or payload.get("route_conflicts", {}).get(book_id, [])
+            if conflicts:
+                lines.extend(_route_conflict_lines_ru(conflicts))
             extra = [event for event in selected.get("confirmed", []) if event is not primary]
             if extra:
                 lines.append("Другие подтверждённые кандидаты на выход:")
@@ -1076,15 +1159,26 @@ def main(argv: list[str] | None = None) -> int:
     events, pair_states = build_pair_monitor(panel)
 
     book_events = {}
+    route_conflicts = {}
     for book in config["position_books"]:
+        selected = choose_held_events(
+            events,
+            held_asset=book["held_asset"],
+            latest_date=latest,
+            allowed_to_assets=config["target_assets"],
+        )
+        conflicts = find_route_conflicts(
+            events,
+            pair_states,
+            primary_confirmed=selected.get("primary_confirmed"),
+            latest_date=latest,
+            allowed_to_assets=config["target_assets"],
+        )
+        route_conflicts[book["book_id"]] = conflicts
         book_events[book["book_id"]] = {
             "book": _book_payload(book),
-            "events": choose_held_events(
-                events,
-                held_asset=book["held_asset"],
-                latest_date=latest,
-                allowed_to_assets=config["target_assets"],
-            ),
+            "events": selected,
+            "route_conflicts": conflicts,
         }
 
     primary_book_id = config["position_books"][0]["book_id"]
@@ -1144,6 +1238,19 @@ def main(argv: list[str] | None = None) -> int:
         latest=latest,
         monitor_start=config["monitor_start"],
     )
+    for item in notification_candidates:
+        event = item.get("event", {})
+        item["route_conflicts"] = (
+            find_route_conflicts(
+                events,
+                pair_states,
+                primary_confirmed=event,
+                latest_date=latest,
+                allowed_to_assets=config["target_assets"],
+            )
+            if event.get("event") == "CONFIRMED"
+            else []
+        )
 
     after_monitor_start = latest >= config["monitor_start"]
     book_signal = any(
@@ -1169,7 +1276,7 @@ def main(argv: list[str] | None = None) -> int:
     payload = {
         "schema_version": 1,
         "strategy": config.get("strategy", "RELATIVE_ROTATION_TARGET_U10_FORWARD_V1"),
-        "status": "FROZEN_U10_FORWARD_MULTIBOOK_PAPER_LIVE / MANUAL_EXECUTION_ONLY",
+        "status": "FROZEN_U10_FORWARD_MULTIBOOK_PAPER_LIVE / ROUTE_CONFLICT_GUARD / MANUAL_EXECUTION_ONLY",
         "universe_version": config.get("universe_version", ""),
         "forward_validation_enabled": config.get("forward_validation_enabled", False),
         "forward_validation_start": (
@@ -1195,6 +1302,7 @@ def main(argv: list[str] | None = None) -> int:
         "should_notify": should_notify,
         "notification_replay_days": NOTIFICATION_REPLAY_DAYS,
         "notification_candidates": notification_candidates,
+        "route_conflicts": route_conflicts,
         "notification_reason": {
             "after_monitor_start": after_monitor_start,
             "held_armed": len(held_events["armed"]),
@@ -1230,6 +1338,7 @@ def main(argv: list[str] | None = None) -> int:
             "target_pair_count": len(config["target_assets"]) * (len(config["target_assets"]) - 1) // 2,
             "sunset_assets": list(config["sunset_assets"]),
             "destination_guard": "TARGET_ONLY",
+            "route_conflict_guard": "NETWORK_CONTEXT_REQUIRED / ROUTER_UNCHANGED / ONE_CLICK_BLOCKED_ON_CONFLICT",
         },
         "held_events": held_events,
         "book_events": book_events,
@@ -1272,6 +1381,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"defensive_active={defensive['active']}")
     print(f"defensive_breadth={defensive.get('breadth')}")
     print(f"notification_candidates={len(notification_candidates)}")
+    for book_id, conflicts in route_conflicts.items():
+        print(f"book_{book_id}_route_conflicts={len(conflicts)}")
     print(f"should_notify={should_notify}")
     return 0
 
