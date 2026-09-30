@@ -317,6 +317,9 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         self.assertIn("вечернее напоминание об НЕИСПОЛНЕННОЙ ротации", text)
         self.assertIn("ALGO -> FIL", text)
         self.assertIn("Цена закрытия: ALGO $0.15; FIL $3; 1 ALGO = 0.05 FIL.", text)
+        self.assertIn("основной слот 04:20", text)
+        self.assertIn("резервное окно 23:00–24:00", text)
+        self.assertIn("сигнал не догоняем", text)
         state = json.loads(state_path.read_text(encoding="utf-8"))
         self.assertIn(candidate["event_id"], state["sent_event_ids"])
         self.assertIn(
@@ -564,6 +567,8 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         text = send.call_args.args[0]
         self.assertIn("повтор НЕИСПОЛНЕННОЙ ротации", text)
         self.assertIn("LINK -> ALGO", text)
+        self.assertIn("утренний слот 04:20", text)
+        self.assertIn("следующее окно 23:00–24:00", text)
         state = json.loads(state_path.read_text(encoding="utf-8"))
         self.assertIn(
             "MORNING_PENDING|2026-09-29T00:00:00+00:00|" + candidate["event_id"],
@@ -677,6 +682,14 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
             clear=False,
         ):
             self.assertIsNone(sender._execution_reply_markup([candidate]))
+
+    def test_workflow_schedules_fallback_only_inside_23_24_yerevan(self):
+        workflow = Path(".github/workflows/relative-rotation-paper-live-v1.yml").read_text(encoding="utf-8")
+        self.assertIn('cron: "20 0 * * *"', workflow)
+        self.assertIn('cron: "0 19 * * *"', workflow)
+        self.assertIn('cron: "30 19 * * *"', workflow)
+        self.assertIn('cron: "50 19 * * *"', workflow)
+        self.assertNotIn('cron: "30 18 * * *"', workflow)
 
     def test_execution_reply_markup_is_disabled_by_default(self):
         candidate = {
