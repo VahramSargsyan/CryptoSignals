@@ -1,3 +1,3 @@
-run: 2026-10-01
+run: 2026-10-01-r2
 mode: STRESS_TEST_ONLY
-purpose: global top-k distinct confirmed rotations stress test
+purpose: rerun after causal flat-start initialization fix
