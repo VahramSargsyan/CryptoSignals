@@ -98,6 +98,18 @@ def log_entry(rotation_id, book_id, event, confirmed_at, sent, received, update_
     deviation_line = (
         f"- deviation from 180d median: {pct(deviation)};\n" if deviation is not None else ""
     )
+    override_line = ""
+    if event.get("route_override"):
+        trigger = event.get("route_override_trigger", {})
+        relation = event.get("destination_relation", {})
+        override_line = (
+            f"- route selection: {event.get('route_override_rule')};\n"
+            f"- baseline confirmed trigger: {trigger.get('from_asset')} -> {trigger.get('to_asset')} "
+            f"(max dislocation {pct(trigger.get('max_dislocation'))});\n"
+            f"- competing route own state at selection: {event.get('competing_original_state')};\n"
+            f"- destination relation: {relation.get('from_asset')} -> {relation.get('to_asset')} "
+            f"({relation.get('event')}, max dislocation {pct(relation.get('max_dislocation'))});\n"
+        )
     return f"""
 ### {rotation_id} - {source} -> {target}
 
@@ -110,7 +122,7 @@ Signal evidence:
 - model pair: {event.get('pair')};
 - route: {source} -> {target};
 - maximum dislocation: {pct(event.get('max_dislocation'))};
-{deviation_line}- reversal from post-ARM extreme: {pct(event.get('reversal_from_extreme'))};
+{deviation_line}{override_line}- reversal from post-ARM extreme: {pct(event.get('reversal_from_extreme'))};
 - strategy threshold: 15% ARM / 3% reversal confirmation.
 
 Manual execution confirmation:
@@ -131,7 +143,7 @@ Position after execution:
 - configured held asset: {target};
 - configured quantity: {received:.12g} {target};
 - execution remains manual-only; no exchange API order was placed;
-- GitHub re-validated this as the latest strongest unresolved CONFIRMED route.
+- GitHub re-validated this as the latest canonical effective route under the active Relative Rotation routing rules.
 """
 
 
@@ -186,16 +198,15 @@ def apply_execution(
 
     item = latest_confirmed(report, book_id)
     conflicts = item.get("route_conflicts") or []
-    if conflicts:
+    event = item["event"]
+    if conflicts and not event.get("route_override"):
         competing = conflicts[0].get("competing_candidate", {})
         relation = conflicts[0].get("destination_relation", {})
         raise ValueError(
-            f"{book_id}: ROUTE_CONFLICT blocks Telegram one-click execution; "
+            f"{book_id}: unresolved ROUTE_CONFLICT has no canonical override; "
             f"stronger candidate {competing.get('from_asset')} -> {competing.get('to_asset')} "
-            f"and destination relation {relation.get('from_asset')} -> {relation.get('to_asset')} "
-            "require separate manual review"
+            f"and destination relation {relation.get('from_asset')} -> {relation.get('to_asset')}"
         )
-    event = item["event"]
     if str(event.get("date") or "") != signal_iso(signal_date):
         raise ValueError(f"{book_id}: signal date is no longer canonical")
     if str(event.get("from_asset") or "").upper() != from_asset:

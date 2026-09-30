@@ -24,6 +24,7 @@ from strategies.crypto.relative_rotation.paper_live import (
     SUNSET_ASSETS,
     build_pair_monitor,
     choose_held_events,
+    choose_destination_dominance_override,
     evaluate_defensive_mode,
     find_route_conflicts,
 )
@@ -277,16 +278,18 @@ def _price_line_ru(payload: dict, from_asset: str, to_asset: str) -> str | None:
 
 
 def _event_line(event: dict) -> str:
+    prefix = "AUTO ROUTE: " if event.get("route_override") else ""
     return (
-        f"{event['from_asset']} -> {event['to_asset']} "
+        f"{prefix}{event['from_asset']} -> {event['to_asset']} "
         f"({event['pair']}; dislocation {_pct(event.get('max_dislocation'))}; "
         f"reversal {_pct(event.get('reversal_from_extreme'))})"
     )
 
 
 def _event_line_ru(event: dict) -> str:
+    prefix = "AUTO ROUTE: " if event.get("route_override") else ""
     return (
-        f"{event['from_asset']} -> {event['to_asset']} "
+        f"{prefix}{event['from_asset']} -> {event['to_asset']} "
         f"({event['pair']}; отклонение {_pct(event.get('max_dislocation'))}; "
         f"разворот от экстремума {_pct(event.get('reversal_from_extreme'))})"
     )
@@ -296,7 +299,7 @@ def _route_conflict_lines_ru(conflicts: list[dict]) -> list[str]:
     if not conflicts:
         return []
     lines = [
-        "⚠️ ROUTE CONFLICT — сигнал нельзя исполнять вслепую.",
+        "🔀 DESTINATION DOMINANCE — маршрут автоматически переопределён.",
     ]
     for conflict in conflicts:
         primary = conflict.get("primary", {})
@@ -330,10 +333,14 @@ def _route_conflict_lines_ru(conflicts: list[dict]) -> list[str]:
                 ),
             ]
         )
+    chosen = conflicts[0]
+    chosen_source = chosen.get("source_asset") or chosen.get("primary", {}).get("from_asset")
+    chosen_to = chosen.get("competing_candidate", {}).get("to_asset")
     lines.extend(
         [
-            "Замороженный router автоматически НЕ переопределён.",
-            "Для конфликтного сигнала требуется отдельная ручная проверка; one-click подтверждение блокируется.",
+            f"Исполняемый маршрут стратегии: {chosen_source} -> {chosen_to}.",
+            "Основание: основной CONFIRMED + более сильный same-source кандидат + реальная связь между назначениями.",
+            "⚠️ FORWARD WATCH: исторически правило улучшило агрегатные результаты, но rolling-окна были нестабильны; это место нужно отслеживать отдельно.",
         ]
     )
     return lines
@@ -342,7 +349,7 @@ def _route_conflict_lines_ru(conflicts: list[dict]) -> list[str]:
 def _route_conflict_lines_en(conflicts: list[dict]) -> list[str]:
     if not conflicts:
         return []
-    lines = ["ROUTE CONFLICT — do not execute the primary route blindly."]
+    lines = ["DESTINATION DOMINANCE — route automatically overridden."]
     for conflict in conflicts:
         primary = conflict.get("primary", {})
         competing = conflict.get("competing_candidate", {})
@@ -364,7 +371,15 @@ def _route_conflict_lines_en(conflicts: list[dict]) -> list[str]:
                 ),
             ]
         )
-    lines.append("Frozen router is unchanged; manual review is required and one-click execution is blocked.")
+    chosen = conflicts[0]
+    chosen_source = chosen.get("source_asset") or chosen.get("primary", {}).get("from_asset")
+    lines.append(
+        f"Effective strategy route: {chosen_source} -> "
+        f"{chosen.get('competing_candidate', {}).get('to_asset')}."
+    )
+    lines.append(
+        "Forward watch: aggregate history improved, but rolling-window behavior was unstable and must be monitored."
+    )
     return lines
 
 
@@ -1174,18 +1189,27 @@ def main(argv: list[str] | None = None) -> int:
             latest_date=latest,
             allowed_to_assets=config["target_assets"],
         )
+        baseline_primary = selected.get("primary_confirmed")
         conflicts = find_route_conflicts(
             events,
             pair_states,
-            primary_confirmed=selected.get("primary_confirmed"),
+            primary_confirmed=baseline_primary,
             latest_date=latest,
             allowed_to_assets=config["target_assets"],
         )
+        effective_primary, route_override = choose_destination_dominance_override(
+            baseline_primary,
+            conflicts,
+        )
+        selected["baseline_primary_confirmed"] = baseline_primary
+        selected["primary_confirmed"] = effective_primary
+        selected["route_override"] = route_override
         route_conflicts[book["book_id"]] = conflicts
         book_events[book["book_id"]] = {
             "book": _book_payload(book),
             "events": selected,
             "route_conflicts": conflicts,
+            "route_override": route_override,
         }
 
     primary_book_id = config["position_books"][0]["book_id"]
@@ -1246,18 +1270,51 @@ def main(argv: list[str] | None = None) -> int:
         monitor_start=config["monitor_start"],
     )
     for item in notification_candidates:
-        event = item.get("event", {})
-        item["route_conflicts"] = (
-            find_route_conflicts(
-                events,
-                pair_states,
-                primary_confirmed=event,
-                latest_date=latest,
-                allowed_to_assets=config["target_assets"],
-            )
-            if event.get("event") == "CONFIRMED"
-            else []
+        item["route_conflicts"] = []
+        item["route_override"] = None
+
+    for book_id, details in book_events.items():
+        selected = details["events"]
+        baseline = selected.get("baseline_primary_confirmed")
+        effective = selected.get("primary_confirmed")
+        override = selected.get("route_override")
+        if baseline is None or effective is None:
+            continue
+        for item in notification_candidates:
+            event = item.get("event", {})
+            if str(item.get("book_id") or "") != str(book_id):
+                continue
+            if event.get("event") != "CONFIRMED":
+                continue
+            if str(event.get("date") or "") != str(baseline.get("date") or ""):
+                continue
+            if str(event.get("pair") or "") != str(baseline.get("pair") or ""):
+                continue
+            item["route_conflicts"] = details.get("route_conflicts", [])
+            item["route_override"] = override
+            if override:
+                item["baseline_event"] = dict(event)
+                item["event"] = dict(effective)
+                item["event_id"] = _notification_event_id(book_id, item["event"])
+            break
+
+    # If the override target was also independently CONFIRMED on the same candle,
+    # keep one canonical notification candidate and prefer the explicit override.
+    deduped_candidates = {}
+    for item in notification_candidates:
+        key = str(item.get("event_id") or "")
+        existing = deduped_candidates.get(key)
+        if existing is None or (item.get("route_override") and not existing.get("route_override")):
+            deduped_candidates[key] = item
+    notification_candidates = list(deduped_candidates.values())
+    notification_candidates.sort(
+        key=lambda item: (
+            str(item.get("event", {}).get("date") or ""),
+            str(item.get("book_id") or ""),
+            str(item.get("event", {}).get("event") or ""),
+            str(item.get("event", {}).get("to_asset") or ""),
         )
+    )
 
     after_monitor_start = latest >= config["monitor_start"]
     book_signal = any(
@@ -1283,7 +1340,7 @@ def main(argv: list[str] | None = None) -> int:
     payload = {
         "schema_version": 1,
         "strategy": config.get("strategy", "RELATIVE_ROTATION_TARGET_U10_FORWARD_V1"),
-        "status": "FROZEN_U10_FORWARD_MULTIBOOK_PAPER_LIVE / ROUTE_CONFLICT_GUARD / MANUAL_EXECUTION_ONLY",
+        "status": "FROZEN_U10_FORWARD_MULTIBOOK_PAPER_LIVE / DESTINATION_DOMINANCE_AUTO_ROUTE / MANUAL_EXECUTION_ONLY",
         "universe_version": config.get("universe_version", ""),
         "forward_validation_enabled": config.get("forward_validation_enabled", False),
         "forward_validation_start": (
@@ -1352,7 +1409,7 @@ def main(argv: list[str] | None = None) -> int:
             "target_pair_count": len(config["target_assets"]) * (len(config["target_assets"]) - 1) // 2,
             "sunset_assets": list(config["sunset_assets"]),
             "destination_guard": "TARGET_ONLY",
-            "route_conflict_guard": "NETWORK_CONTEXT_REQUIRED / ROUTER_UNCHANGED / ONE_CLICK_BLOCKED_ON_CONFLICT",
+            "route_conflict_guard": "DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1 / AUTO_ROUTE_OVERRIDE / FORWARD_WATCH_REQUIRED",
             "execution_timing_policy": "04:20 YEREVAN PRIMARY / 23:00-24:00 YEREVAN FALLBACK / NO MIDDAY CHASE",
         },
         "held_events": held_events,

@@ -624,7 +624,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         self.assertEqual(selected[0]["event_id"], "new-stronger")
 
 
-    def test_route_conflict_is_rendered_and_blocks_execution_button(self):
+    def test_destination_dominance_is_rendered_and_allows_effective_route_button(self):
         primary = {
             "date": "2026-09-28T00:00:00+00:00",
             "event": "CONFIRMED",
@@ -655,12 +655,27 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
             },
             "possible_intermediate_path": ["LINK", "ALGO", "TRX"],
         }
+        effective = dict(primary)
+        effective.update(
+            {
+                "pair": "TRX/LINK",
+                "to_asset": "TRX",
+                "max_dislocation": 0.7065,
+                "reversal_from_extreme": 0.0,
+                "route_override": True,
+                "route_override_rule": "DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1",
+                "route_override_trigger": primary,
+                "competing_original_state": "ARMED",
+                "destination_relation": conflict["destination_relation"],
+            }
+        )
         candidate = {
-            "event_id": "BOOK_2|CONFIRMED|2026-09-28T00:00:00+00:00|LINK|ALGO|ALGO/LINK",
+            "event_id": "BOOK_2|CONFIRMED|2026-09-28T00:00:00+00:00|LINK|TRX|TRX/LINK",
             "book_id": "BOOK_2",
             "book": {"held_asset": "LINK", "quantity": 100},
-            "event": primary,
+            "event": effective,
             "route_conflicts": [conflict],
+            "route_override": conflict,
         }
 
         text = sender.build_pending_notification_ru(
@@ -670,18 +685,20 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
             },
             [candidate],
         )
-        self.assertIn("ROUTE CONFLICT", text)
-        self.assertIn("LINK -> TRX", text)
+        self.assertIn("DESTINATION DOMINANCE", text)
+        self.assertIn("CONFIRMED / AUTO ROUTE: LINK -> TRX", text)
         self.assertIn("ALGO -> TRX", text)
-        self.assertIn("LINK -> ALGO -> TRX", text)
-        self.assertIn("One-click", text)
+        self.assertIn("Исполняемый маршрут: LINK -> TRX", text)
+        self.assertIn("FORWARD WATCH", text)
 
         with mock.patch.dict(
             "os.environ",
             {"RR_TELEGRAM_CONTROL_ENABLED": "true"},
             clear=False,
         ):
-            self.assertIsNone(sender._execution_reply_markup([candidate]))
+            markup = sender._execution_reply_markup([candidate])
+        self.assertIsNotNone(markup)
+        self.assertIn("|LINK|TRX|", markup["inline_keyboard"][0][0]["callback_data"])
 
     def test_workflow_schedules_fallback_only_inside_23_24_yerevan(self):
         workflow = Path(".github/workflows/relative-rotation-paper-live-v1.yml").read_text(encoding="utf-8")

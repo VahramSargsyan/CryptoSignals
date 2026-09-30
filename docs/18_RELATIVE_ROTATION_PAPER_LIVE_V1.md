@@ -98,7 +98,7 @@ Execution timing is a manual-discipline rule, not a new market signal. A missed
 04:20 slot does not create permission to chase the move at arbitrary daytime
 prices. The next strategy window is 23:00–24:00 Yerevan, provided the route is
 still unresolved and the current report does not block it with
-`ROUTE_CONFLICT`.
+`DESTINATION DOMINANCE` routing.
 
 The defensive overlay is disabled during the membership migration so it cannot conflict with the target/sunset routing rules.
 
@@ -121,137 +121,118 @@ No repeated event warning is created merely because a pair remains armed. The
 morning status may still display the current state, while event deduplication
 continues to use stable event IDs.
 
-## Route conflict warning rule — 2026-09-30
+## Destination Dominance automatic route rule — 2026-09-30
 
 Status:
 
-`ACCEPTED_RUNTIME_GUARD / ROUTER_UNCHANGED / ONE_CLICK_EXECUTION_BLOCKED_ON_CONFLICT`
+`ACTIVE_PRODUCTION_ROUTER / FORWARD_WATCH_REQUIRED`
 
-Purpose:
+Runtime rule:
 
-Prevent a valid `CONFIRMED` route from being presented in isolation when the
-same market state already shows that another outbound candidate may be the more
-natural final destination.
+`DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1`
 
-This rule changes **signal presentation and manual-decision context only**. It
-does not change the frozen Relative Rotation router, does not auto-replace the
-primary `CONFIRMED` route, and does not execute a trade.
+### Detection and automatic selection
 
-### Detection
-
-For every live book with a primary confirmed route:
+For a live book, let the baseline strongest-CONFIRMED router produce:
 
 `SOURCE -> A = CONFIRMED`
 
-the signal layer must also inspect all current outbound candidate states from
-the same `SOURCE`.
+The strategy then inspects the network before presenting the actionable route.
 
-A route conflict exists when:
+Automatic override occurs when:
 
 1. another allowed TARGET destination `B` is currently `ARMED` or
    `CONFIRMED` from the same `SOURCE`;
-2. `SOURCE -> B` has a larger `max_dislocation` than the primary
-   `SOURCE -> A` confirmed route; and
-3. the direct destination pair `A <-> B` is itself currently oriented
+2. `SOURCE -> B` has larger `max_dislocation` than the baseline
+   `SOURCE -> A`;
+3. the actual direct destination pair is currently oriented
    `A -> B` as `ARMED` or `CONFIRMED`.
 
-Interpretation:
-
-`SOURCE -> A -> B`
-
-may be an avoidable intermediate path while a direct:
+When all three conditions are true, the effective strategy route becomes:
 
 `SOURCE -> B`
 
-candidate is already developing or confirmed.
+instead of:
 
-The destination-pair relationship must come from the actual Relative Rotation
-pair state machine for `A/B`. It must never be inferred by mathematical
-transitivity alone.
+`SOURCE -> A`.
 
-### Mandatory Telegram content
+If more than one destination qualifies, choose the qualifying `B` with the
+largest `SOURCE -> B max_dislocation`.
 
-When a route conflict exists, Telegram must **not** present only the primary
-`SOURCE -> A` confirmation.
+The actual `A/B` pair state is mandatory. The strategy must never infer this
+relationship from mathematical transitivity alone.
 
-The same signal must include a clearly separated warning block containing:
+### Evidence preservation
 
-- the primary `SOURCE -> A` route and its status;
-- the stronger competing `SOURCE -> B` candidate;
-- each route's `max_dislocation`;
-- each route's current reversal-from-extreme progress and whether 3% is reached;
-- the direct `A -> B` destination-pair state;
-- `A -> B` `max_dislocation` and reversal progress when available;
-- explicit text that `A` may be an intermediate destination;
-- explicit text that the warning does **not** automatically override the frozen
-  router and manual execution remains a human decision.
+The effective event remains actionable as `CONFIRMED`, but its evidence must
+preserve:
 
-Required warning concept:
+- the original baseline `SOURCE -> A CONFIRMED` trigger;
+- the original state of `SOURCE -> B` at override time
+  (`ARMED` or `CONFIRMED`);
+- the direct `A -> B` pair state;
+- the selected override rule;
+- the effective `SOURCE -> B` route.
 
-```text
-⚠️ ROUTE CONFLICT
+This prevents a future maintainer from incorrectly concluding that the
+`SOURCE -> B` pair necessarily had its own 3% reversal confirmation.
 
-Primary confirmed route:
-SOURCE -> A
+### Telegram / execution behavior
 
-Stronger competing candidate:
-SOURCE -> B
+When the rule fires:
 
-Destination relation:
-A -> B = ARMED / CONFIRMED
+- Telegram must clearly mark `DESTINATION DOMINANCE / AUTO ROUTE`;
+- the displayed actionable route is the effective `SOURCE -> B`;
+- the original `SOURCE -> A` remains visible as the baseline trigger;
+- manual execution remains required;
+- Telegram one-click confirmation, when enabled, refers to the effective
+  `SOURCE -> B` route;
+- no exchange order is placed automatically.
 
-Possible intermediate path:
-SOURCE -> A -> B
+### Why this rule was promoted
 
-Direct alternative under observation:
-SOURCE -> B
+Historical stress testing showed improved primary aggregate results:
 
-This warning does not automatically replace the confirmed route.
-Manual execution remains required.
-```
+| Window | Baseline | DD auto-route |
+|---|---:|---:|
+| 1Y median | +155.75% | +170.78% |
+| 2Y median | +1850.89% | +1945.56% |
+| Mature / approx 3Y median | +3167.27% | +3359.32% |
 
-### Severity
+The rule also reduced median transition counts in the tested paths.
 
-- `A -> B = ARMED` -> `ROUTE_CONFLICT_WARNING`
-- `A -> B = CONFIRMED` -> `ROUTE_CONFLICT_HIGH`
+Real use then exposed an additional reason to care about route length:
+unnecessary intermediate conversions can impose material spread / routing /
+slippage / liquidity costs that were not captured by the historical 0.1%
+transition-cost assumption.
 
-A `CONFIRMED` destination-pair conflict is stronger evidence that the primary
-destination may be temporary, but it still does not silently change the
-accepted router.
+### ⚠️ Mandatory attention: rolling instability
 
-### Historical stress-test boundary
+This rule is **not** treated as universally proven superior.
 
-The 2026-09-30 historical stress test found that using destination dominance as
-an automatic hard-router override was not robust across rolling windows.
+Historical rolling diagnostics were mixed:
 
-Therefore the accepted production rule is:
+- rolling 12m: 9 better / 5 equal / 9 worse;
+- rolling 12m worst delta: about `-30.48 pp`;
+- rolling 24m: 3 better / 4 equal / 4 worse;
+- rolling 24m worst delta: about `-81.53 pp`;
+- LINK-start 1Y diagnostic worsened from about `+229.58%` baseline to
+  `+175.27%` with the auto-route rule.
 
-`NETWORK STATE MUST BE SHOWN -> HUMAN DECIDES`
+Therefore:
 
-not:
+`FORWARD_WATCH_REQUIRED = TRUE`
 
-`NETWORK STATE AUTOMATICALLY OVERRIDES PRIMARY_CONFIRMED`.
+Every real automatic override should later be compared with the skipped
+baseline destination where practical.
 
-The alerting rule may be reconsidered for routing only after separately frozen
-confirmatory/forward evidence.
+This production promotion was an explicit user decision on 2026-09-30 despite
+the known rolling-window instability. The reason must not be forgotten or
+silently rewritten as if the rule had been uniformly dominant historically.
 
-### Runtime implementation — 2026-09-30 patch
+Full preserved evidence:
 
-Runtime enforcement is implemented in the paper-live monitor and Telegram
-sender.
-
-For each live-book primary CONFIRMED route the monitor now:
-- evaluates stronger same-source ARMED/CONFIRMED TARGET candidates;
-- evaluates the real direct pair state between primary and competing
-  destinations;
-- writes route-conflict evidence into report.json and Telegram text;
-- keeps the frozen strongest-CONFIRMED router unchanged;
-- blocks Telegram one-click execution when a route conflict exists;
-- requires a separate manual review before a conflicting route can be recorded
-  through Telegram control.
-
-The guard is intentionally fail-safe at the execution-control layer: a
-conflicting candidate is not silently auto-routed to the alternative token.
+`research/relative_rotation/2026-09-30_DESTINATION_DOMINANCE_AUTO_ROUTE_V1_EVIDENCE.md`
 
 ## Defensive research overlay
 
@@ -614,7 +595,7 @@ FALLBACK: 23:00–24:00 Yerevan
 Fallback eligibility:
 - the BOOK still holds the source asset;
 - the route remains the latest unresolved `CONFIRMED` candidate;
-- `ROUTE_CONFLICT` does not block one-click execution;
+- any qualifying destination-dominance conflict has already been resolved into the effective route;
 - execution remains manual only.
 
 Workflow nominal fallback reminders:
@@ -635,3 +616,53 @@ Impact:
 - automatic exchange execution: still none.
 
 MIGRATION_REQUIRED: NO.
+
+
+## 2026-09-30 — Destination Dominance auto-route promotion
+
+Strategy runtime identifier:
+
+`RELATIVE_ROTATION_TARGET_U10_FORWARD_V1_3_DESTINATION_DOMINANCE_AUTO_ROUTE`
+
+Production change:
+
+```text
+BEFORE:
+SOURCE -> A CONFIRMED
+stronger SOURCE -> B + A -> B active
+=> warning / manual review
+
+NOW:
+SOURCE -> A CONFIRMED
+stronger SOURCE -> B + A -> B active
+=> automatic effective route SOURCE -> B
+```
+
+Selection:
+- strongest qualifying B by max_dislocation;
+- B may itself be ARMED or CONFIRMED;
+- actual A -> B relationship is mandatory;
+- manual exchange execution only.
+
+Known risk:
+- aggregate historical windows improved;
+- rolling-window evidence was mixed and sometimes materially worse;
+- rule is post-selected from historical data;
+- forward monitoring is mandatory.
+
+Impact:
+- route selection: changed;
+- Telegram effective route: changed;
+- Telegram execution confirmation target: changed;
+- 180d median: unchanged;
+- 15% ARM: unchanged;
+- 3% reversal state machine: unchanged;
+- TARGET U10: unchanged;
+- execution timing 04:20 / 23:00–24:00 Yerevan: unchanged;
+- exchange automation: still none.
+
+MIGRATION_REQUIRED: NO.
+
+Rollback:
+revert the V1_3 routing patch to restore warning-only destination dominance
+behavior. Persistent book schema is unchanged.

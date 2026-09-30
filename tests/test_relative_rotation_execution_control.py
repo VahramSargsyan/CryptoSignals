@@ -159,7 +159,7 @@ fixture
                 telegram_update_id="12346",
             )
 
-    def test_rejects_execution_when_route_conflict_requires_review(self):
+    def test_rejects_unresolved_route_conflict_without_canonical_override(self):
         temp, config_path, log_path, report_path = self._fixture()
         self.addCleanup(temp.cleanup)
 
@@ -201,6 +201,76 @@ fixture
                 confirmed_at="2026-09-30T01:30:00+00:00",
                 telegram_update_id="999",
             )
+
+    def test_applies_destination_dominance_override_route(self):
+        temp, config_path, log_path, report_path = self._fixture()
+        self.addCleanup(temp.cleanup)
+
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        strong = next(
+            item
+            for item in report["notification_candidates"]
+            if item["event_id"] == "latest-strong"
+        )
+        baseline = dict(strong["event"])
+        relation = {
+            "from_asset": "AVAX",
+            "to_asset": "TRX",
+            "event": "ARMED",
+            "max_dislocation": 0.40,
+        }
+        strong["route_conflicts"] = [
+            {
+                "severity": "ROUTE_CONFLICT_WARNING",
+                "source_asset": "ALGO",
+                "primary": baseline,
+                "competing_candidate": {
+                    "from_asset": "ALGO",
+                    "to_asset": "TRX",
+                    "pair": "ALGO/TRX",
+                    "event": "ARMED",
+                    "max_dislocation": 0.70,
+                    "reversal_from_extreme": 0.01,
+                },
+                "destination_relation": relation,
+            }
+        ]
+        strong["event"] = {
+            **baseline,
+            "pair": "ALGO/TRX",
+            "to_asset": "TRX",
+            "max_dislocation": 0.70,
+            "reversal_from_extreme": 0.01,
+            "route_override": True,
+            "route_override_rule": "DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1",
+            "route_override_trigger": baseline,
+            "competing_original_state": "ARMED",
+            "destination_relation": relation,
+        }
+        strong["route_override"] = strong["route_conflicts"][0]
+        report_path.write_text(json.dumps(report), encoding="utf-8")
+
+        result = apply_execution(
+            config_path=config_path,
+            log_path=log_path,
+            report_path=report_path,
+            book_id="BOOK_2",
+            signal_date="20260928",
+            from_asset="ALGO",
+            to_asset="TRX",
+            sent_quantity="10723.76037691",
+            received_quantity="9999",
+            confirmed_at="2026-09-30T19:10:00+00:00",
+            telegram_update_id="1001",
+        )
+
+        self.assertTrue(result["changed"])
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        self.assertEqual(config["position_books"][1]["held_asset"], "TRX")
+        log = log_path.read_text(encoding="utf-8")
+        self.assertIn("route selection: DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1", log)
+        self.assertIn("baseline confirmed trigger: ALGO -> AVAX", log)
+        self.assertIn("destination relation: AVAX -> TRX", log)
 
     def test_duplicate_telegram_update_is_idempotent(self):
         temp, config_path, log_path, report_path = self._fixture()
