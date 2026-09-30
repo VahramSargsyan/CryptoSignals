@@ -239,7 +239,7 @@ def simulate_weighted(panel,ts,events,active,vol,start_i,end_i,start_assets,mode
             costs+=fee; turnover+=moved; rebalances+=1
 
             if ts[idx].date().isoformat()=="2024-01-15":
-                jan_weight=float(sum(bw[j] for j,b in enumerate(books) if b["shadow"]=="XRP"))
+                jan_weight=float(aw.get("XRP",0.0))
 
         vals=Counter()
         for a in U10:
