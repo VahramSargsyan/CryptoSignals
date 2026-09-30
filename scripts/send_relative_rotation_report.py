@@ -73,7 +73,10 @@ def _book_position_ru(book: dict) -> str:
 
 def _event_line_ru(event: dict) -> str:
     event_type = str(event.get("event") or "")
-    prefix = "🚨 CONFIRMED" if event_type == "CONFIRMED" else "⚠️ ARM / PREWATCH"
+    if event.get("route_override"):
+        prefix = "🚨 CONFIRMED / AUTO ROUTE"
+    else:
+        prefix = "🚨 CONFIRMED" if event_type == "CONFIRMED" else "⚠️ ARM / PREWATCH"
     max_dislocation = event.get("max_dislocation")
     reversal = event.get("reversal_from_extreme")
     max_text = "n/a" if max_dislocation is None else f"{float(max_dislocation) * 100:.2f}%"
@@ -92,7 +95,8 @@ def _route_conflict_lines_ru(item: dict) -> list[str]:
     conflicts = item.get("route_conflicts") or []
     if not conflicts:
         return []
-    lines = ["⚠️ ROUTE CONFLICT — не исполняй основной сигнал вслепую."]
+    effective = item.get("event", {})
+    lines = ["🔀 DESTINATION DOMINANCE — стратегия автоматически заменила маршрут."]
     for conflict in conflicts:
         primary = conflict.get("primary", {})
         competing = conflict.get("competing_candidate", {})
@@ -124,8 +128,12 @@ def _route_conflict_lines_ru(item: dict) -> list[str]:
         )
     lines.extend(
         [
-            "Frozen router автоматически не переопределён.",
-            "One-click «Выполнено» для этого сигнала заблокирован — сначала нужна отдельная ручная проверка.",
+            (
+                f"Исполняемый маршрут: {effective.get('from_asset')} -> "
+                f"{effective.get('to_asset')}."
+            ),
+            "One-click относится уже к этому эффективному маршруту, а не к исходному промежуточному назначению.",
+            "⚠️ FORWARD WATCH: rolling-окна исторического теста были нестабильны; результат override нужно отслеживать отдельно.",
         ]
     )
     return lines
@@ -261,7 +269,7 @@ def _execution_reply_markup(items: list[dict]) -> dict | None:
         event = item.get("event", {})
         if event.get("event") != "CONFIRMED":
             continue
-        if item.get("route_conflicts"):
+        if item.get("route_conflicts") and not event.get("route_override"):
             continue
         book = item.get("book", {})
         book_id = str(item.get("book_id") or "")
