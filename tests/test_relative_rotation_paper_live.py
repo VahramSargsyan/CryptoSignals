@@ -259,6 +259,8 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
 
         text = build_notification_ru(payload)
         self.assertIn("ROUTE CONFLICT", text)
+        self.assertIn("основной слот 04:20", text)
+        self.assertIn("резервное окно 23:00–24:00", text)
         self.assertIn("LINK -> TRX", text)
         self.assertIn("ALGO -> TRX", text)
         self.assertIn("LINK -> ALGO -> TRX", text)
