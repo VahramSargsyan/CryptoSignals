@@ -407,6 +407,85 @@ Next validation priority:
 
 **temporal holdout / rolling-start validation of frozen P1 and P2**, not further parameter hunting.
 
+## Surge pullback return-cycle completion and temporal holdout
+
+The monthly +100% surge research was extended without changing live/paper U10.
+
+### 65-day timeout fallback
+
+Evidence:
+[U10 Monthly Surge Pullback + 65d Timeout v1](2026-09-27_U10_MONTHLY_SURGE_TIMEOUT65_V1.md)
+
+Result:
+- canonical U10 never required timeout;
+- across alternatives, timeout was useful only in genuinely stranded-cash cases;
+- when a natural -25% re-entry eventually arrived after day 65, forcing re-entry at day 65 was historically worse;
+- fixed elapsed time was rejected as the preferred return rule.
+
+### Exact locked-peak reclaim
+
+Evidence:
+[U10 Monthly Surge Pullback + Peak-Reclaim Fallback v1](2026-09-27_U10_MONTHLY_SURGE_PEAK_RECLAIM_V1.md)
+
+Result:
+- re-entering when reference equity reclaimed the old locked peak was too eager;
+- canonical 2024 cycle reclaimed the old peak, made a new higher peak, and only then produced the large correction;
+- old-peak reclaim was rejected.
+
+### Trailing re-entry peak
+
+Evidence:
+[U10 Monthly Surge Pullback + Trailing Re-entry Peak v1](2026-09-27_U10_MONTHLY_SURGE_TRAILING_REENTRY_PEAK_V1.md)
+
+Frozen rule:
+- cash-out mechanics P1/P2 unchanged;
+- while 30% cash is parked, keep updating the reference running peak;
+- re-enter at -25% from the latest running peak;
+- no timeout and no reclaim trigger.
+
+2023-2026 topology result:
+- P1 trailing final > baseline in 100% of 791 alternatives;
+- P1 both final and max DD better in 90.39%;
+- P2 final > baseline in 100%;
+- P2 both better in 90.52%;
+- no unfinished cash cycles in any alternative.
+
+This rule was frozen before opening older-history validation.
+
+### 2020-2022 temporal holdout
+
+Evidence:
+[OLD10 2020-2022 Temporal Holdout — Monthly Surge Pullback v1](2026-09-27_U10_SURGE_OLD2020_2022_HOLDOUT_V1.md)
+
+OLD10:
+ATOM, BTC, ETH, BNB, XRP, TRX, ADA, LINK, XLM, LTC
+
+Evaluation:
+2020-01-01 -> 2022-12-31
+
+Direct effect:
+- 3 completed +100% surge events;
+- all 3 reached at least -25% running drawdown within 31 days;
+- median worst 31d drawdown -26.87%;
+- median worst 62d drawdown -39.47%.
+
+Portfolio validation:
+- baseline final 56,902.97 USDT;
+- P1 trailing final 55,814.75 / -1.91% vs baseline;
+- P2 trailing final 55,028.40 / -3.29%;
+- max-DD improvement only +0.51 pp;
+- all cash cycles completed.
+
+Interpretation:
+
+The **descriptive surge -> substantial pullback effect replicated on older history**, but the frozen P1/P2 trailing execution overlay **did not demonstrate a portable performance edge**.
+
+Therefore:
+- the market effect remains research-worthy;
+- the current overlay is not promotion-ready;
+- 2020-2022 is now consumed validation evidence and must not be tuned against;
+- no live/paper change is authorized.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.

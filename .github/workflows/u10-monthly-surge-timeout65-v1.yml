@@ -1,0 +1,43 @@
+name: U10 Monthly Surge Timeout65 v1
+
+on:
+  push:
+    branches:
+      - research/u10-monthly-surge-timeout65-v1
+    paths:
+      - "scripts/research_u10_monthly_surge_timeout65_v1.py"
+      - ".github/workflows/u10-monthly-surge-timeout65-v1.yml"
+      - "research/relative_rotation/2026-09-27_U10_MONTHLY_SURGE_TIMEOUT65_V1_PREREG.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+      - name: Compile
+        run: python -m py_compile scripts/research_u10_monthly_surge_timeout65_v1.py
+      - name: Run U10 monthly surge timeout65 stress test
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_u10_monthly_surge_timeout65_v1 --cutoff 2026-09-27T00:00:00Z
+      - name: Publish summary
+        run: |
+          RUN_DIR="$(find research_artifacts/u10_monthly_surge_timeout65_v1 -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          cat "$RUN_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: u10-monthly-surge-timeout65-v1-${{ github.run_number }}
+          path: research_artifacts/u10_monthly_surge_timeout65_v1/**
+          if-no-files-found: error
+          retention-days: 90
