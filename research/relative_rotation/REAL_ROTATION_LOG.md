@@ -29,11 +29,11 @@ Starting-state provenance:
 
 Current held asset:
 
-`ALGO`
+`TRX`
 
 Current tracked quantity:
 
-`10723.76037691 ALGO`
+`3950.7453 TRX`
 
 Starting tracked quantity:
 
@@ -156,3 +156,41 @@ Position after execution:
 - configured quantity: `10723.76037691 ALGO`;
 - BOOK_2 remains manual-execution-only;
 - this execution matches the latest canonical BOOK_2 confirmed route and is not recorded as a strategy divergence.
+
+
+### ROT-BOOK2-20260930-002 — ALGO → TRX
+
+Book:
+
+`BOOK_2`
+
+Execution evidence:
+
+- Vahram explicitly confirmed that the tracked BOOK_2 position was rotated from ALGO into TRX on `2026-09-30`;
+- the pre-rotation canonical BOOK_2 position was `10723.76037691 ALGO`;
+- the provided Binance TRX balance screenshot shows total balance `3950.7453 TRX`;
+- screenshot clock: approximately `23:35` local time (Asia/Yerevan);
+- the exact exchange fill timestamp is not visible in the screenshot;
+- screenshot average cost: approximately `$0.3378 / TRX`;
+- screenshot displayed market value: approximately `$1334.95`;
+- screenshot unrealized PnL is approximately flat immediately after the rotation;
+- fee / slippage / exact execution route / trade ID are not visible in the supplied screenshot.
+
+Signal evidence boundary:
+
+- this update confirms the real execution and current held asset;
+- the Relative Rotation signal state and exact report event for this execution were not re-verified from a GitHub Actions artifact in this update;
+- therefore this entry does not invent a CONFIRMED event payload that is not present in the supplied execution evidence.
+
+Implied conversion from tracked quantities:
+
+- `10723.76037691 ALGO -> 3950.7453 TRX`;
+- aggregate implied ratio: `1 ALGO = 0.3684104419664763 TRX`;
+- inverse ratio: `1 TRX = 2.7143638889882373 ALGO`.
+
+Position after execution:
+
+- configured held asset: `TRX`;
+- configured quantity: `3950.7453 TRX`;
+- future Relative Rotation search for BOOK_2 starts from `TRX`;
+- BOOK_2 remains manual-execution-only.
