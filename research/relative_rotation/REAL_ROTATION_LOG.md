@@ -194,3 +194,31 @@ Position after execution:
 - configured quantity: `3950.7453 TRX`;
 - future Relative Rotation search for BOOK_2 starts from `TRX`;
 - BOOK_2 remains manual-execution-only.
+
+### ROT-BOOK2-20260930-002 — ALGO → TRX
+
+Book:
+
+`BOOK_2`
+
+Execution evidence:
+
+- user explicitly confirmed the real manual rotation into TRX on `2026-09-30`;
+- source position before execution was the canonical tracked BOOK_2 position:
+  `10723.76037691 ALGO`;
+- user-provided Binance TRX balance screenshot shows:
+  - total balance: `3950.7453 TRX`;
+  - displayed average cost: `$0.3378`;
+  - displayed value: approximately `$1334.95`;
+  - screenshot clock: approximately `23:35` local time (Asia/Yerevan);
+- exact exchange fill timestamp, explicit fee, slippage and trade/order ID are not visible in the supplied screenshot;
+- signal state was not independently re-verified as part of this recording update, so this entry records the real execution and position state without inventing missing signal evidence.
+
+Position after execution:
+
+- configured held asset: `TRX`;
+- configured quantity: `3950.7453 TRX`;
+- future Relative Rotation search for BOOK_2 starts from `TRX`;
+- BOOK_2 remains manual-execution-only;
+- BOOK_1 remains unchanged at `ATOM`.
+
