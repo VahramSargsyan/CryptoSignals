@@ -306,6 +306,20 @@ def hold_rule(rule_id, f):
         return int(f["inbound_active_ex_source"])<=1 and float(f["rel30"])<=0.0
     if rule_id=="C7_NO_CONFIRMED_SUPPORT_AND_DEST_NOT_BEATING_SOURCE_60D":
         return int(f["inbound_confirmed_ex_source"])==0 and float(f["rel60"])<=0.0
+    if rule_id=="M1_DEST_WORSE_THAN_SOURCE_30_60_90":
+        return float(f["rel30"])<=0.0 and float(f["rel60"])<=0.0 and float(f["rel90"])<=0.0
+    if rule_id=="M2_DEST_BOTTOM_HALF_30_60_90":
+        return int(f["dest_rank30"])>5 and int(f["dest_rank60"])>5 and int(f["dest_rank90"])>5
+    if rule_id=="M3_DEST_RANK_WORSE_THAN_SOURCE_ALL":
+        return int(f["dest_rank30"])>int(f["source_rank30"]) and int(f["dest_rank60"])>int(f["source_rank60"]) and int(f["dest_rank90"])>int(f["source_rank90"])
+    if rule_id=="S1_SIGNAL_STRENGTH_LT_18PCT":
+        return float(f["effective_strength"])<0.18
+    if rule_id=="S2_SIGNAL_STRENGTH_LT_20PCT":
+        return float(f["effective_strength"])<0.20
+    if rule_id=="S3_SIGNAL_STRENGTH_LT_25PCT":
+        return float(f["effective_strength"])<0.25
+    if rule_id=="MS1_STRENGTH_LT_20_AND_DEST_WORSE_30_60":
+        return float(f["effective_strength"])<0.20 and float(f["rel30"])<=0.0 and float(f["rel60"])<=0.0
     raise ValueError(rule_id)
 
 
@@ -318,6 +332,13 @@ RULES=(
     "C5_NO_SUPPORT_AND_SIGNAL_LT_20PCT",
     "C6_LOW_SUPPORT_AND_DEST_NOT_BEATING_SOURCE_30D",
     "C7_NO_CONFIRMED_SUPPORT_AND_DEST_NOT_BEATING_SOURCE_60D",
+    "M1_DEST_WORSE_THAN_SOURCE_30_60_90",
+    "M2_DEST_BOTTOM_HALF_30_60_90",
+    "M3_DEST_RANK_WORSE_THAN_SOURCE_ALL",
+    "S1_SIGNAL_STRENGTH_LT_18PCT",
+    "S2_SIGNAL_STRENGTH_LT_20PCT",
+    "S3_SIGNAL_STRENGTH_LT_25PCT",
+    "MS1_STRENGTH_LT_20_AND_DEST_WORSE_30_60",
 )
 
 
