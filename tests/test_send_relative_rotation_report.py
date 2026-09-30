@@ -669,7 +669,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         self.assertIn("LINK -> TRX", text)
         self.assertIn("ALGO -> TRX", text)
         self.assertIn("LINK -> ALGO -> TRX", text)
-        self.assertIn("one-click", text)
+        self.assertIn("One-click", text)
 
         with mock.patch.dict(
             "os.environ",
