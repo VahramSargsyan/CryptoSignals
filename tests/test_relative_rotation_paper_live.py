@@ -15,6 +15,7 @@ from strategies.crypto.relative_rotation.paper_live import (
     _defensive_state_machine,
     build_pair_monitor,
     choose_held_events,
+    choose_destination_dominance_override,
     find_route_conflicts,
 )
 
@@ -151,8 +152,59 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
             conflict["possible_intermediate_path"],
             ["LINK", "ALGO", "TRX"],
         )
-        self.assertTrue(conflict["blocks_one_click_execution"])
-        self.assertFalse(conflict["router_override"])
+        self.assertFalse(conflict["blocks_one_click_execution"])
+        self.assertTrue(conflict["router_override"])
+
+    def test_destination_dominance_override_selects_stronger_trx_route(self):
+        latest = pd.Timestamp("2026-09-28", tz="UTC")
+        primary = {
+            "date": latest.isoformat(),
+            "event": "CONFIRMED",
+            "pair": "ALGO/LINK",
+            "from_asset": "LINK",
+            "to_asset": "ALGO",
+            "max_dislocation": 0.3401,
+            "reversal_from_extreme": 0.0506,
+        }
+        conflicts = [
+            {
+                "severity": "ROUTE_CONFLICT_WARNING",
+                "source_asset": "LINK",
+                "primary": primary,
+                "competing_candidate": {
+                    "date": latest.isoformat(),
+                    "event": "ARMED",
+                    "pair": "TRX/LINK",
+                    "from_asset": "LINK",
+                    "to_asset": "TRX",
+                    "deviation": 0.619,
+                    "max_dislocation": 0.7065,
+                    "reversal_from_extreme": 0.051,
+                },
+                "destination_relation": {
+                    "date": latest.isoformat(),
+                    "event": "ARMED",
+                    "pair": "TRX/ALGO",
+                    "from_asset": "ALGO",
+                    "to_asset": "TRX",
+                    "max_dislocation": 0.4195,
+                    "reversal_from_extreme": 0.0,
+                },
+            }
+        ]
+
+        effective, chosen = choose_destination_dominance_override(primary, conflicts)
+
+        self.assertIsNotNone(chosen)
+        self.assertTrue(effective["route_override"])
+        self.assertEqual(effective["route_override_rule"], "DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1")
+        self.assertEqual(effective["from_asset"], "LINK")
+        self.assertEqual(effective["to_asset"], "TRX")
+        self.assertEqual(effective["pair"], "TRX/LINK")
+        self.assertEqual(effective["competing_original_state"], "ARMED")
+        self.assertEqual(effective["route_override_trigger"]["to_asset"], "ALGO")
+        self.assertEqual(effective["destination_relation"]["from_asset"], "ALGO")
+        self.assertEqual(effective["destination_relation"]["to_asset"], "TRX")
 
     def test_route_conflict_ignores_weaker_competing_candidate(self):
         latest = pd.Timestamp("2026-09-28", tz="UTC")
@@ -193,7 +245,7 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
             [],
         )
 
-    def test_russian_notification_shows_route_conflict_and_block(self):
+    def test_russian_notification_shows_destination_dominance_auto_route(self):
         primary = {
             "date": "2026-09-28T00:00:00+00:00",
             "event": "CONFIRMED",
@@ -225,6 +277,9 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
             "possible_intermediate_path": ["LINK", "ALGO", "TRX"],
             "direct_alternative": ["LINK", "TRX"],
         }
+        effective, chosen = choose_destination_dominance_override(primary, [conflict])
+        self.assertIsNotNone(chosen)
+
         payload = {
             "held_asset": "ATOM",
             "latest_closed_candle": "2026-09-28T00:00:00+00:00",
@@ -242,8 +297,15 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
                 },
                 "BOOK_2": {
                     "book": {"book_id": "BOOK_2", "held_asset": "LINK", "quantity": 100.0},
-                    "events": {"primary_confirmed": primary, "confirmed": [primary], "armed": []},
+                    "events": {
+                        "baseline_primary_confirmed": primary,
+                        "primary_confirmed": effective,
+                        "confirmed": [primary],
+                        "armed": [],
+                        "route_override": chosen,
+                    },
                     "route_conflicts": [conflict],
+                    "route_override": chosen,
                 },
             },
             "route_conflicts": {"BOOK_1": [], "BOOK_2": [conflict]},
@@ -258,13 +320,14 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         }
 
         text = build_notification_ru(payload)
-        self.assertIn("ROUTE CONFLICT", text)
+        self.assertIn("DESTINATION DOMINANCE", text)
         self.assertIn("основной слот 04:20", text)
         self.assertIn("резервное окно 23:00–24:00", text)
-        self.assertIn("LINK -> TRX", text)
+        self.assertIn("AUTO ROUTE: LINK -> TRX", text)
+        self.assertIn("основной CONFIRMED LINK -> ALGO", text)
         self.assertIn("ALGO -> TRX", text)
-        self.assertIn("LINK -> ALGO -> TRX", text)
-        self.assertIn("one-click", text)
+        self.assertIn("Исполняемый маршрут стратегии: LINK -> TRX", text)
+        self.assertIn("FORWARD WATCH", text)
 
     def test_transition_monitor_has_frozen_target_u10_plus_three_sunset_assets(self):
         self.assertEqual(
