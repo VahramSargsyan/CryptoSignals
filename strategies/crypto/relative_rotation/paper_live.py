@@ -394,7 +394,8 @@ def find_route_conflicts(
         required_strength = (
             primary_strength * DESTINATION_DOMINANCE_MIN_STRENGTH_RATIO
         )
-        if competing_strength < required_strength:
+        # Treat an exact 1.50x boundary as eligible despite binary float noise.
+        if competing_strength + 1e-12 < required_strength:
             continue
 
         relation = destination_relation(competing_to)
