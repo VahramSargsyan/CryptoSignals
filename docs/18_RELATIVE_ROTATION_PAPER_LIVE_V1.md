@@ -723,3 +723,28 @@ Impact:
 - manual exchange execution only: unchanged.
 
 MIGRATION_REQUIRED: NO.
+
+
+## 2026-09-30 — BOOK_2 real rotation ALGO → TRX
+
+Real manual execution state update:
+
+- BOOK_2 previous held asset: `ALGO`;
+- previous tracked quantity: `10723.76037691 ALGO`;
+- Vahram confirmed manual rotation into `TRX`;
+- new tracked quantity: `3950.7453 TRX`;
+- screenshot reference clock: approximately `23:35` Asia/Yerevan;
+- screenshot average cost: approximately `$0.3378 / TRX`;
+- screenshot displayed value: approximately `$1334.95`.
+
+Operational consequence:
+
+`BOOK_2 CURRENT SOURCE = TRX`
+
+Future Relative Rotation evaluation for BOOK_2 must search outbound rotations from TRX. The workflow does not infer this execution from a Telegram signal; the held position is updated only because the user explicitly confirmed the real manual swap.
+
+Canonical detailed execution record:
+`research/relative_rotation/REAL_ROTATION_LOG.md`
+
+Current live position state:
+`config/relative_rotation_paper_live_v1.json`
