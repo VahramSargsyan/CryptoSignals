@@ -15,6 +15,7 @@ from strategies.crypto.relative_rotation.paper_live import (
     _defensive_state_machine,
     build_pair_monitor,
     choose_held_events,
+    find_route_conflicts,
 )
 
 
@@ -96,6 +97,172 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         selected = choose_held_events(events, held_asset="ATOM", latest_date=latest)
         self.assertEqual(len(selected["confirmed"]), 2)
         self.assertEqual(selected["primary_confirmed"]["to_asset"], "SOL")
+
+    def test_route_conflict_detects_stronger_candidate_and_destination_arm(self):
+        latest = pd.Timestamp("2026-09-28", tz="UTC")
+        primary = {
+            "date": latest.isoformat(),
+            "event": "CONFIRMED",
+            "pair": "ALGO/LINK",
+            "from_asset": "LINK",
+            "to_asset": "ALGO",
+            "max_dislocation": 0.3401,
+            "reversal_from_extreme": 0.0506,
+        }
+        events = [primary]
+        states = [
+            {
+                "pair": "TRX/LINK",
+                "mode": "HIGH",
+                "from_asset": "LINK",
+                "to_asset": "TRX",
+                "armed_at": "2026-09-24T00:00:00+00:00",
+                "deviation": 0.7065,
+                "max_dislocation": 0.7065,
+                "reversal_from_extreme": 0.0,
+            },
+            {
+                "pair": "TRX/ALGO",
+                "mode": "HIGH",
+                "from_asset": "ALGO",
+                "to_asset": "TRX",
+                "armed_at": "2026-09-24T00:00:00+00:00",
+                "deviation": 0.4195,
+                "max_dislocation": 0.4195,
+                "reversal_from_extreme": 0.0,
+            },
+        ]
+
+        conflicts = find_route_conflicts(
+            events,
+            states,
+            primary_confirmed=primary,
+            latest_date=latest,
+            allowed_to_assets=TARGET_ASSETS,
+        )
+
+        self.assertEqual(len(conflicts), 1)
+        conflict = conflicts[0]
+        self.assertEqual(conflict["severity"], "ROUTE_CONFLICT_WARNING")
+        self.assertEqual(conflict["competing_candidate"]["to_asset"], "TRX")
+        self.assertEqual(conflict["destination_relation"]["from_asset"], "ALGO")
+        self.assertEqual(conflict["destination_relation"]["to_asset"], "TRX")
+        self.assertEqual(
+            conflict["possible_intermediate_path"],
+            ["LINK", "ALGO", "TRX"],
+        )
+        self.assertTrue(conflict["blocks_one_click_execution"])
+        self.assertFalse(conflict["router_override"])
+
+    def test_route_conflict_ignores_weaker_competing_candidate(self):
+        latest = pd.Timestamp("2026-09-28", tz="UTC")
+        primary = {
+            "date": latest.isoformat(),
+            "event": "CONFIRMED",
+            "pair": "ALGO/LINK",
+            "from_asset": "LINK",
+            "to_asset": "ALGO",
+            "max_dislocation": 0.50,
+        }
+        states = [
+            {
+                "pair": "TRX/LINK",
+                "mode": "HIGH",
+                "from_asset": "LINK",
+                "to_asset": "TRX",
+                "max_dislocation": 0.40,
+                "reversal_from_extreme": 0.0,
+            },
+            {
+                "pair": "TRX/ALGO",
+                "mode": "HIGH",
+                "from_asset": "ALGO",
+                "to_asset": "TRX",
+                "max_dislocation": 0.30,
+                "reversal_from_extreme": 0.0,
+            },
+        ]
+        self.assertEqual(
+            find_route_conflicts(
+                [primary],
+                states,
+                primary_confirmed=primary,
+                latest_date=latest,
+                allowed_to_assets=TARGET_ASSETS,
+            ),
+            [],
+        )
+
+    def test_russian_notification_shows_route_conflict_and_block(self):
+        primary = {
+            "date": "2026-09-28T00:00:00+00:00",
+            "event": "CONFIRMED",
+            "pair": "ALGO/LINK",
+            "from_asset": "LINK",
+            "to_asset": "ALGO",
+            "max_dislocation": 0.3401,
+            "reversal_from_extreme": 0.0506,
+        }
+        conflict = {
+            "severity": "ROUTE_CONFLICT_WARNING",
+            "primary": primary,
+            "competing_candidate": {
+                "event": "ARMED",
+                "pair": "TRX/LINK",
+                "from_asset": "LINK",
+                "to_asset": "TRX",
+                "max_dislocation": 0.7065,
+                "reversal_from_extreme": 0.0,
+            },
+            "destination_relation": {
+                "event": "ARMED",
+                "pair": "TRX/ALGO",
+                "from_asset": "ALGO",
+                "to_asset": "TRX",
+                "max_dislocation": 0.4195,
+                "reversal_from_extreme": 0.0,
+            },
+            "possible_intermediate_path": ["LINK", "ALGO", "TRX"],
+            "direct_alternative": ["LINK", "TRX"],
+        }
+        payload = {
+            "held_asset": "ATOM",
+            "latest_closed_candle": "2026-09-28T00:00:00+00:00",
+            "target_assets": list(TARGET_ASSETS),
+            "sunset_assets": list(SUNSET_ASSETS),
+            "position_books": [
+                {"book_id": "BOOK_1", "held_asset": "ATOM", "quantity": None},
+                {"book_id": "BOOK_2", "held_asset": "LINK", "quantity": 100.0},
+            ],
+            "book_events": {
+                "BOOK_1": {
+                    "book": {"book_id": "BOOK_1", "held_asset": "ATOM", "quantity": None},
+                    "events": {"primary_confirmed": None, "confirmed": [], "armed": []},
+                    "route_conflicts": [],
+                },
+                "BOOK_2": {
+                    "book": {"book_id": "BOOK_2", "held_asset": "LINK", "quantity": 100.0},
+                    "events": {"primary_confirmed": primary, "confirmed": [primary], "armed": []},
+                    "route_conflicts": [conflict],
+                },
+            },
+            "route_conflicts": {"BOOK_1": [], "BOOK_2": [conflict]},
+            "held_events": {"primary_confirmed": None, "confirmed": [], "armed": []},
+            "watch_events": {},
+            "defensive": {"active": False, "defensive_asset": None, "breadth": None},
+            "latest_defensive_events": [],
+            "latest_pair_states": [],
+            "defensive_overlay_enabled": False,
+            "force_notify": False,
+            "latest_close_prices_usdt": {"LINK": 15.0, "ALGO": 0.15, "TRX": 0.3},
+        }
+
+        text = build_notification_ru(payload)
+        self.assertIn("ROUTE CONFLICT", text)
+        self.assertIn("LINK -> TRX", text)
+        self.assertIn("ALGO -> TRX", text)
+        self.assertIn("LINK -> ALGO -> TRX", text)
+        self.assertIn("one-click", text)
 
     def test_transition_monitor_has_frozen_target_u10_plus_three_sunset_assets(self):
         self.assertEqual(
