@@ -1,0 +1,36 @@
+name: LINK Long D1 Benchmark v1
+
+on:
+  push:
+    branches:
+      - research/link-long-benchmark-v1
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install "pandas==2.2.3"
+      - name: Download LINK D1
+        run: |
+          python -m scripts.download_historical_data \
+            --symbol LINKUSDT \
+            --timeframe 1D \
+            --start "2018-01-01T00:00:00Z" \
+            --end "2026-09-30T00:00:00Z" \
+            --output-root build/link_long/data/historical \
+            --manifest-root build/link_long/evidence/datasets
+      - name: Package
+        run: tar -C build -czf link-long-d1-2018-2026.tar.gz link_long
+      - uses: actions/upload-artifact@v4
+        with:
+          name: link-long-d1-benchmark-v1-${{ github.run_id }}
+          path: link-long-d1-2018-2026.tar.gz
+          retention-days: 90
