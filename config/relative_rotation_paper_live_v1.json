@@ -1,6 +1,6 @@
 {
   "schema_version": 4,
-  "strategy": "RELATIVE_ROTATION_TARGET_U10_FORWARD_V1_2_EXECUTION_WINDOW",
+  "strategy": "RELATIVE_ROTATION_TARGET_U10_FORWARD_V1_3_DESTINATION_DOMINANCE_AUTO_ROUTE",
   "held_asset": "ATOM",
   "monitor_start": "2026-09-27T00:00:00Z",
   "manual_execution_only": true,
@@ -24,7 +24,7 @@
   ],
   "watch_assets": [],
   "defensive_overlay_enabled": false,
-  "notes": "Final TARGET U10 frozen for forward/paper observation from 2026-09-29T00:00:00Z. Canonical live position state is position_books. Top-level held_asset is retained only as a backward-compatible BOOK_1 alias and must mirror BOOK_1 after any confirmed execution. Independent sunset-watch alerts are disabled; current book assets are monitored through their books. No pre-freeze candle counts as forward evidence. Manual execution only; no exchange API trading keys. Telegram control, when enabled separately, may only record a user-confirmed manual execution after GitHub re-validates the current unresolved CONFIRMED route. Route-conflict runtime guard: when a primary CONFIRMED route has a stronger same-source ARMED/CONFIRMED alternative and the destination pair points primary->alternative, Telegram must show ROUTE_CONFLICT context and one-click execution is blocked pending manual review; frozen router itself is unchanged. Execution timing policy: primary manual execution slot is 04:20 Yerevan after the closed D1 signal; if missed, do not chase during daytime and use the 23:00-24:00 Yerevan fallback window if the CONFIRMED route remains unresolved and passes the route-conflict guard.",
+  "notes": "Final TARGET U10 frozen for forward/paper observation from 2026-09-29T00:00:00Z. Canonical live position state is position_books. Top-level held_asset is retained only as a backward-compatible BOOK_1 alias and must mirror BOOK_1 after any confirmed execution. Independent sunset-watch alerts are disabled; current book assets are monitored through their books. No pre-freeze candle counts as forward evidence. Manual execution only; no exchange API trading keys. Telegram control, when enabled separately, may only record a user-confirmed manual execution after GitHub re-validates the current unresolved CONFIRMED route. Route-conflict runtime guard: when a primary CONFIRMED route has a stronger same-source ARMED/CONFIRMED alternative and the destination pair points primary->alternative, Telegram must show ROUTE_CONFLICT context and one-click execution is blocked pending manual review; frozen router itself is unchanged. Execution timing policy: primary manual execution slot is 04:20 Yerevan after the closed D1 signal; if missed, do not chase during daytime and use the 23:00-24:00 Yerevan fallback window if the CONFIRMED route remains unresolved and passes the route-conflict guard. Destination-dominance auto-route is now active: when SOURCE->A is baseline CONFIRMED, a stronger active SOURCE->B exists, and the actual A->B pair points toward B, the effective route becomes SOURCE->B immediately. Historical aggregate results improved, but rolling windows were unstable; forward monitoring is mandatory.",
   "universe_version": "RR_TARGET_U10_FROZEN_V1",
   "forward_validation_enabled": true,
   "forward_validation_start": "2026-09-29T00:00:00Z",
@@ -52,5 +52,14 @@
     "fallback_window": "23:00-24:00",
     "midday_chase": false,
     "manual_execution_only": true
+  },
+  "route_selection_policy": {
+    "mode": "DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1",
+    "automatic_override": true,
+    "baseline_trigger": "SOURCE_TO_A_CONFIRMED",
+    "competing_requirement": "SOURCE_TO_B_ARMED_OR_CONFIRMED_AND_STRONGER_MAX_DISLOCATION",
+    "destination_relation_requirement": "A_TO_B_ARMED_OR_CONFIRMED",
+    "selection": "STRONGEST_QUALIFYING_B_BY_MAX_DISLOCATION",
+    "forward_watch_required": true
   }
 }
