@@ -1,3 +1,3 @@
-run: 2026-10-01-r2
+run: 2026-10-01-r3
 mode: STRESS_TEST_ONLY
-purpose: extend HOLD test with momentum and signal-strength gates
+purpose: rerun after HOLD diagnostic feature-map fix
