@@ -334,10 +334,11 @@ def _route_conflict_lines_ru(conflicts: list[dict]) -> list[str]:
             ]
         )
     chosen = conflicts[0]
+    chosen_source = chosen.get("source_asset") or chosen.get("primary", {}).get("from_asset")
     chosen_to = chosen.get("competing_candidate", {}).get("to_asset")
     lines.extend(
         [
-            f"Исполняемый маршрут стратегии: {chosen.get('source_asset')} -> {chosen_to}.",
+            f"Исполняемый маршрут стратегии: {chosen_source} -> {chosen_to}.",
             "Основание: основной CONFIRMED + более сильный same-source кандидат + реальная связь между назначениями.",
             "⚠️ FORWARD WATCH: исторически правило улучшило агрегатные результаты, но rolling-окна были нестабильны; это место нужно отслеживать отдельно.",
         ]
@@ -371,8 +372,9 @@ def _route_conflict_lines_en(conflicts: list[dict]) -> list[str]:
             ]
         )
     chosen = conflicts[0]
+    chosen_source = chosen.get("source_asset") or chosen.get("primary", {}).get("from_asset")
     lines.append(
-        f"Effective strategy route: {chosen.get('source_asset')} -> "
+        f"Effective strategy route: {chosen_source} -> "
         f"{chosen.get('competing_candidate', {}).get('to_asset')}."
     )
     lines.append(
