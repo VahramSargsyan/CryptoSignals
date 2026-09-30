@@ -407,6 +407,130 @@ Next validation priority:
 
 **temporal holdout / rolling-start validation of frozen P1 and P2**, not further parameter hunting.
 
+## Surge-return completion and old-history validation
+
+### Fixed 65-day fallback
+
+Evidence:
+
+- `docs/evidence/2026-09-27_U10_MONTHLY_SURGE_TIMEOUT65_V1.md`
+- run: `36345356154`
+- result: PASS
+
+Finding:
+
+- canonical U10 never needed the 65d fallback;
+- among 791 alternatives, P1 timeout was invoked in 41.85%;
+- when a natural -25% re-entry eventually arrived after day 65, the timeout was historically worse every time;
+- when natural -25% never arrived before the dataset ended, the timeout was historically better every time;
+- therefore fixed elapsed time does not separate slow corrections from genuinely invalidated pullback expectations.
+
+### Exact old-peak reclaim fallback
+
+Evidence:
+
+- `docs/evidence/2026-09-27_U10_MONTHLY_SURGE_PEAK_RECLAIM_V1.md`
+- run: `36345775861`
+- result: PASS
+
+Finding:
+
+- exact reclaim of the original locked peak was too eager;
+- canonical February/March 2024 reclaimed the old peak in six days, then made a higher peak and still suffered the later deep correction;
+- canonical P1 final fell from 270,653.52 to 238,128.62 under old-peak reclaim;
+- median alternative effect versus no-fallback was negative.
+
+### Trailing re-entry peak
+
+Evidence:
+
+- `docs/evidence/2026-09-27_U10_MONTHLY_SURGE_TRAILING_REENTRY_V1.md`
+- run: `36346146398`
+- result: PASS
+
+Rule:
+
+- retain the frozen -25% re-entry depth;
+- while cash is parked, move the re-entry peak upward whenever frozen-U10 reference equity makes a new high;
+- re-enter after a -25% close from the latest running peak.
+
+Canonical:
+
+- P1 final: 252,642.73
+- max DD: -68.60%
+- no unfinished cash cycle
+- about -6.65% terminal equity versus original P1.
+
+Across 791 alternative U10s:
+
+- final > baseline: 100.00%
+- both final and DD improved: 90.39%
+- unfinished cycles: 0%
+- median terminal effect vs original P1: -6.65%.
+
+Interpretation:
+
+the trailing rule is a complete mechanical cycle, but completion has an opportunity cost and it is not superior to original P1 on the discovery period.
+
+### Older temporal validation: 2020-2022
+
+Evidence:
+
+- prereg: `research/relative_rotation/2026-09-27_U10_OLD_HISTORY_2020_2022_V1_PREREG.md`
+- evidence: `docs/evidence/2026-09-27_U10_OLD_HISTORY_2020_2022_V1.md`
+- runner: `scripts/research_u10_old_history_2020_2022_v1.py`
+- workflow: `.github/workflows/u10-old-history-2020-2022-v1.yml`
+- run: `36346584553`
+- result: PASS
+- TEST_LEVEL: `GITHUB_ACTIONS_LIVE_PUBLIC_DATA_STRESS_TEST`
+
+Old survivor universe construction:
+
+- current survivor superset only;
+- first Binance daily USDT candle on/before 2020-01-01;
+- valid through 2022-12-31;
+- 13 eligible assets;
+- ATOM mandatory;
+- exhaustive 10-token combinations;
+- 220 old U10-like universes;
+- common mature start: 2020-05-25.
+
+Direct effect:
+
+- 477 +100% surge events;
+- -25% running pullback within 31d: 88.26%;
+- within 62d: 99.58%;
+- median worst 31d DD: -33.47%;
+- median worst 62d DD: -46.17%.
+
+This closely matches the discovery-period 31d hit rate of 88.86%.
+
+P1_ORIGINAL on old history:
+
+- final > baseline: 88.64%
+- DD better: 60.45%
+- both better: 49.09%
+- median terminal delta: +12.36%
+- q25/q75: +5.56% / +14.85%
+- unfinished cash cycles: 11.82%.
+
+P1_TRAILING on old history:
+
+- final > baseline: 61.36%
+- DD better: 42.27%
+- both better: 33.18%
+- median terminal delta: +6.16%
+- unfinished: 0%.
+
+Current conclusion:
+
+- the +100% surge -> substantial pullback phenomenon has now replicated in a non-overlapping older period and different token topologies;
+- P1_ORIGINAL has meaningful cross-period terminal-return evidence;
+- drawdown improvement is less stable than terminal-return improvement;
+- trailing re-entry solves mechanical completion but did not replicate strongly enough to call it a superior fallback;
+- do not tune another fallback using the now-open 2020-2022 results;
+- next evidence should be forward/paper rather than more retrospective fallback optimization.
+
 ## Promotion guardrail
 
 Do not automatically replace canonical U8 with U10.
