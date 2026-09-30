@@ -321,6 +321,116 @@ Files:
 - `pair_states.csv`
 - `defensive_diagnostics.csv`
 
+## Real execution-cost lesson — 2026-09-30
+
+Status:
+
+`ACCEPTED_OPERATIONAL_RISK_RULE / DOCUMENTED_FROM_REAL_USE / NOT_YET_BACKTEST_RECALIBRATED`
+
+### Why this exists
+
+The historical Relative Rotation research used a modeled transition cost of
+`0.1%` per rotation.
+
+The first real BOOK_2 rotation exposed that this assumption can be materially
+too optimistic for actual manual execution.
+
+Vahram's real-use observation:
+
+- the practical learning cost of the episode was approximately `USD 150`;
+- some direct conversion quotes appeared roughly `3%` worse than the
+  reference value;
+- routes involving ALGO / BNB showed quoted deterioration of roughly `7%`
+  in the observed cases.
+
+These percentages are **not** documented as a universal exchange fee and must
+not be remembered that way. They are user-observed effective execution-cost
+signals. The observed difference may combine:
+
+- explicit fee;
+- bid/ask spread;
+- route selection;
+- liquidity;
+- price impact;
+- slippage;
+- aggregator / wallet conversion path;
+- execution timing.
+
+The exact decomposition was not independently measured.
+
+### Permanent operational conclusion
+
+`DIRECT SWAP != AUTOMATICALLY CHEAPEST ROUTE`
+
+A direct asset-to-asset conversion must not be assumed to cost the historical
+`0.1%` model assumption.
+
+Before every real manual rotation:
+
+1. inspect the executable quote for the intended direct route;
+2. compare it with at least one practical alternative route when available;
+3. compare the received quantity, not only the displayed percentage fee;
+4. record the effective all-in loss versus the market/reference value;
+5. do not execute a materially expensive route blindly only because the
+   strategy signal is `CONFIRMED`;
+6. keep `ROUTE_CONFLICT` analysis separate from execution-cost analysis —
+   one protects against a bad destination sequence, the other against an
+   expensive conversion path.
+
+This does **not** mean that direct swaps are permanently forbidden.
+
+It means:
+
+`NO BLIND DIRECT SWAP -> VERIFY REAL ALL-IN EXECUTION COST FIRST`
+
+### Why route length now matters more
+
+With negligible transaction cost, a path such as:
+
+`LINK -> ALGO -> TRX`
+
+can look almost equivalent to:
+
+`LINK -> TRX`.
+
+With real execution losses in the several-percent range, an unnecessary
+intermediate hop can become economically important because every hop can incur
+a new spread / price-impact / fee loss.
+
+Therefore avoiding an unnecessary intermediate destination may create value
+from two separate sources:
+
+1. better Relative Rotation destination selection;
+2. one fewer real conversion cost.
+
+### Backtest interpretation warning
+
+Historical performance numbers produced with `0.1%` transition cost must be
+read as model results, not as a verified estimate of real executable returns.
+
+Before treating the historical return figures as execution-realistic, research
+must separately stress-test materially higher all-in transition-cost scenarios,
+including at minimum:
+
+- `1%`;
+- `3%`;
+- `5%`;
+- `7%`.
+
+This future stress test must also report the cost of avoidable intermediate
+rotations.
+
+Until that work is completed:
+
+`HISTORICAL_RETURN != VERIFIED_REAL_NET_RETURN`
+
+### Memory / future-maintainer note
+
+This section exists specifically so that years later the project does not lose
+the reason execution routing became a first-class concern.
+
+The rule was learned from real manual use, not from backtest optimization.
+
 ## Manual real-rotation procedure
 
 When Telegram reports `ROTATION CONFIRMED`:
@@ -330,7 +440,9 @@ When Telegram reports `ROTATION CONFIRMED`:
 3. if acted, record the real swap in `research/relative_rotation/REAL_ROTATION_LOG.md`;
 4. update `held_asset` in `config/relative_rotation_paper_live_v1.json` to the token actually held;
 5. preserve exact exchange execution evidence when available: timestamp, quantities, fees, slippage, order/trade ID;
-6. compare the real execution with the historical-model signal later.
+6. before execution, preserve the quoted receive amount for the intended route and, when practical, at least one alternative route;
+7. record the effective all-in execution loss versus the contemporaneous reference value when it can be estimated;
+8. compare the real execution with the historical-model signal later.
 
 ## Safety boundary
 
