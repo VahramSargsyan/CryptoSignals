@@ -129,7 +129,7 @@ Status:
 
 Runtime rule:
 
-`DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1`
+`DESTINATION_DOMINANCE_MIN_1_5X_V2`
 
 ### Detection and automatic selection
 
@@ -143,8 +143,7 @@ Automatic override occurs when:
 
 1. another allowed TARGET destination `B` is currently `ARMED` or
    `CONFIRMED` from the same `SOURCE`;
-2. `SOURCE -> B` has larger `max_dislocation` than the baseline
-   `SOURCE -> A`;
+2. `SOURCE -> B max_dislocation >= 1.50 × SOURCE -> A max_dislocation`;
 3. the actual direct destination pair is currently oriented
    `A -> B` as `ARMED` or `CONFIRMED`.
 
@@ -191,15 +190,20 @@ When the rule fires:
 
 ### Why this rule was promoted
 
-Historical stress testing showed improved primary aggregate results:
+Historical threshold sweep showed that the original "any stronger B" rule was
+not the strongest historical variant. With a 1.50× minimum:
 
-| Window | Baseline | DD auto-route |
+| Window | Baseline | DD 1.50× |
 |---|---:|---:|
-| 1Y median | +155.75% | +170.78% |
-| 2Y median | +1850.89% | +1945.56% |
-| Mature / approx 3Y median | +3167.27% | +3359.32% |
+| 1Y median | +155.75% | +188.71% |
+| 2Y median | +1850.89% | +2102.32% |
+| Mature / approx 3Y median | +3167.27% | +3588.36% |
 
-The rule also reduced median transition counts in the tested paths.
+The 1.50× threshold filters the observed bad 1.108× shortcut while preserving
+the observed useful 1.877×, 2.031× and 2.699× shortcuts in the Mature path.
+
+This threshold is **post-selected from the same historical evidence**. It is a
+production hypothesis, not a proven universal optimum.
 
 Real use then exposed an additional reason to care about route length:
 unnecessary intermediate conversions can impose material spread / routing /
@@ -210,14 +214,18 @@ transition-cost assumption.
 
 This rule is **not** treated as universally proven superior.
 
-Historical rolling diagnostics were mixed:
+Historical rolling diagnostics remain mixed even with a threshold.
 
-- rolling 12m: 9 better / 5 equal / 9 worse;
-- rolling 12m worst delta: about `-30.48 pp`;
-- rolling 24m: 3 better / 4 equal / 4 worse;
-- rolling 24m worst delta: about `-81.53 pp`;
-- LINK-start 1Y diagnostic worsened from about `+229.58%` baseline to
-  `+175.27%` with the auto-route rule.
+For the 1.50× rule on daily 365-day rolling windows:
+- better than baseline: 240;
+- equal: 367;
+- worse: 91.
+
+Therefore the threshold reduced weak shortcut exposure, but it did not make the
+override uniformly superior in every historical window.
+
+The exact threshold must remain under forward review because it was selected
+after inspecting the historical threshold sweep.
 
 Therefore:
 
@@ -230,9 +238,12 @@ This production promotion was an explicit user decision on 2026-09-30 despite
 the known rolling-window instability. The reason must not be forgotten or
 silently rewritten as if the rule had been uniformly dominant historically.
 
-Full preserved evidence:
+Preserved evidence:
 
-`research/relative_rotation/2026-09-30_DESTINATION_DOMINANCE_AUTO_ROUTE_V1_EVIDENCE.md`
+- original no-minimum auto-route evidence:
+  `research/relative_rotation/2026-09-30_DESTINATION_DOMINANCE_AUTO_ROUTE_V1_EVIDENCE.md`;
+- 1.50× threshold promotion:
+  `research/relative_rotation/2026-09-30_DESTINATION_DOMINANCE_1P5X_V2_EVIDENCE.md`.
 
 ## Defensive research overlay
 
@@ -666,3 +677,49 @@ MIGRATION_REQUIRED: NO.
 Rollback:
 revert the V1_3 routing patch to restore warning-only destination dominance
 behavior. Persistent book schema is unchanged.
+
+
+## 2026-09-30 — Destination Dominance minimum-strength threshold 1.50×
+
+Strategy runtime identifier:
+
+`RELATIVE_ROTATION_TARGET_U10_FORWARD_V1_4_DESTINATION_DOMINANCE_1P5X`
+
+Rule:
+
+```text
+BASELINE:
+SOURCE -> A = CONFIRMED
+
+OVERRIDE ONLY IF:
+SOURCE -> B = ARMED or CONFIRMED
+AND max_dislocation(SOURCE -> B) >= 1.50 × max_dislocation(SOURCE -> A)
+AND actual A -> B pair is ARMED or CONFIRMED toward B
+
+THEN:
+effective route = SOURCE -> B
+```
+
+Why 1.50×:
+- threshold sweep showed the same aggregate historical result from roughly
+  1.15× through 1.80× on the primary Mature paths;
+- 1.50× is a simple midpoint-like production choice inside that observed band;
+- it rejects the documented bad 1.108× shortcut;
+- it preserves the documented useful 1.877× shortcut that a strict 2.0× rule
+  would reject.
+
+Critical caution:
+- the threshold was selected after seeing the same historical data;
+- therefore it may be overfit;
+- `FORWARD_WATCH_REQUIRED = TRUE`;
+- do not silently retune the threshold from new outcomes without a separate
+  frozen stress-test and version change.
+
+Impact:
+- route override eligibility: changed from B>A to B>=1.50×A;
+- 180d median / 15% ARM / 3% reversal: unchanged;
+- TARGET U10: unchanged;
+- execution windows: unchanged;
+- manual exchange execution only: unchanged.
+
+MIGRATION_REQUIRED: NO.
