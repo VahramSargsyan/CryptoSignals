@@ -1,3 +1,3 @@
-run: 2026-10-01
+run: 2026-10-01-r2
 mode: STRESS_TEST_ONLY
-purpose: test HOLD as a competing destination without production changes
+purpose: extend HOLD test with momentum and signal-strength gates
