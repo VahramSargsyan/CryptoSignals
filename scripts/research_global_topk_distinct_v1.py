@@ -257,12 +257,12 @@ def bounds(ts,start,end):
     return si,ei
 
 
-def rebalance_at_open(qty,panel,idx,targets):
+def rebalance_at_open(qty,panel,idx,targets,cash=0.0):
     current_value = {
         a: float(qty.get(a,0.0))*float(panel.loc[idx,a+"_open"])
         for a in U10
     }
-    total = float(sum(current_value.values()))
+    total = float(sum(current_value.values()) + cash)
     if total <= 0:
         raise RuntimeError("non-positive portfolio value")
 
@@ -275,7 +275,7 @@ def rebalance_at_open(qty,panel,idx,targets):
     for a in U10:
         tv = after*weight if a in targets else 0.0
         newqty[a] = tv/float(panel.loc[idx,a+"_open"]) if tv>0 else 0.0
-    return newqty,fee,turnover
+    return newqty,fee,turnover,0.0
 
 
 def latest_packet_before(packets, idx):
@@ -293,15 +293,20 @@ def selected_from_packet(packet,k):
 def simulate_global_topk(panel,ts,packets,start,end,k):
     si,ei = bounds(ts,start,end)
     prev_i,prev_packet = latest_packet_before(packets,si)
-    if prev_packet is None:
-        raise RuntimeError("no causal packet before window start")
-    selected = selected_from_packet(prev_packet,k)
-    targets = [r["destination"] for r in selected]
 
     qty = {a:0.0 for a in U10}
-    weight = 1.0/len(targets)
-    for a in targets:
-        qty[a] = weight/float(panel.loc[si,a+"_open"])
+    cash = 0.0
+    if prev_packet is None:
+        # No confirmed global packet exists before this window.
+        # Stay flat until the first causal packet inside the window,
+        # then execute it at the next open.
+        cash = 1.0
+    else:
+        selected = selected_from_packet(prev_packet,k)
+        targets = [r["destination"] for r in selected]
+        weight = 1.0/len(targets)
+        for a in targets:
+            qty[a] = weight/float(panel.loc[si,a+"_open"])
 
     equity = []
     largest = []
@@ -319,7 +324,7 @@ def simulate_global_topk(panel,ts,packets,start,end,k):
         if pending is not None:
             old_targets = set(a for a,q in qty.items() if q>0)
             new_targets = [r["destination"] for r in pending["selected"]]
-            qty,fee,moved = rebalance_at_open(qty,panel,idx,new_targets)
+            qty,fee,moved,cash = rebalance_at_open(qty,panel,idx,new_targets,cash)
             costs += fee
             turnover += moved
             rebalances += 1
@@ -354,7 +359,7 @@ def simulate_global_topk(panel,ts,packets,start,end,k):
             a:float(qty.get(a,0.0))*float(panel.loc[idx,a+"_close"])
             for a in U10
         }
-        total = float(sum(values.values()))
+        total = float(sum(values.values()) + cash)
         equity.append(total)
         positive = [v for v in values.values() if v>0]
         largest.append(max(positive)/total if positive else 0.0)
