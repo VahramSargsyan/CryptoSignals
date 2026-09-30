@@ -1,3 +1,3 @@
-run: 2026-10-01
+run: 2026-10-01-r2
 mode: STRESS_TEST_ONLY
-purpose: audit XRP route interference and U9/U10 post-fork behavior
+purpose: rerun after reconvergence-detector fix
