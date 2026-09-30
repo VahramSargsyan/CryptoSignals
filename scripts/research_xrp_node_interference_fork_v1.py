@@ -235,8 +235,8 @@ def difference_segments(ts, start_i, h9, h10):
     return rows
 
 
-def first_stable_reconvergence(diff, min_days=30):
-    i=0
+def first_stable_reconvergence(diff, first_diff_index, min_days=30):
+    i=int(first_diff_index)+1
     while i<len(diff):
         if diff[i]:
             i+=1
@@ -382,7 +382,7 @@ def main():
 
         diff=np.asarray(r9["holdings"])!=np.asarray(r10["holdings"])
         first=np.where(diff)[0][0] if diff.any() else None
-        reconv=first_stable_reconvergence(diff,30) if first is not None else None
+        reconv=first_stable_reconvergence(diff,first,30) if first is not None else None
         first_global=None if first is None else si+int(first)
         reconv_global=None if reconv is None else si+int(reconv)
 
