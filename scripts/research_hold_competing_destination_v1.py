@@ -535,10 +535,16 @@ def main():
     f_for_rule={
         "inbound_active_ex_source":focus_row["inbound_active_ex_source"],
         "inbound_confirmed_ex_source":focus_row["inbound_confirmed_ex_source"],
+        "source_rank30":focus_row["source_rank30"],
         "dest_rank30":focus_row["dest_rank30"],
+        "source_rank60":focus_row["source_rank60"],
+        "dest_rank60":focus_row["dest_rank60"],
+        "source_rank90":focus_row["source_rank90"],
+        "dest_rank90":focus_row["dest_rank90"],
         "rel30":focus_row["rel30"],
-        "effective_strength":focus_row["effective_strength"],
         "rel60":focus_row["rel60"],
+        "rel90":focus_row["rel90"],
+        "effective_strength":focus_row["effective_strength"],
     }
     base_val=detailed["BASE_DDG"]["VALIDATION_1Y"]["median_return"]
     base_disc=detailed["BASE_DDG"]["DISCOVERY"]["median_return"]
