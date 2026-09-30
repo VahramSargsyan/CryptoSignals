@@ -663,7 +663,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
                 "max_dislocation": 0.7065,
                 "reversal_from_extreme": 0.0,
                 "route_override": True,
-                "route_override_rule": "DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1",
+                "route_override_rule": "DESTINATION_DOMINANCE_MIN_1_5X_V2",
                 "route_override_trigger": primary,
                 "competing_original_state": "ARMED",
                 "destination_relation": conflict["destination_relation"],

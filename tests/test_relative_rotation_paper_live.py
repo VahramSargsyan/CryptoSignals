@@ -197,7 +197,7 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
 
         self.assertIsNotNone(chosen)
         self.assertTrue(effective["route_override"])
-        self.assertEqual(effective["route_override_rule"], "DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1")
+        self.assertEqual(effective["route_override_rule"], "DESTINATION_DOMINANCE_MIN_1_5X_V2")
         self.assertEqual(effective["from_asset"], "LINK")
         self.assertEqual(effective["to_asset"], "TRX")
         self.assertEqual(effective["pair"], "TRX/LINK")
@@ -205,6 +205,56 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         self.assertEqual(effective["route_override_trigger"]["to_asset"], "ALGO")
         self.assertEqual(effective["destination_relation"]["from_asset"], "ALGO")
         self.assertEqual(effective["destination_relation"]["to_asset"], "TRX")
+
+    def test_destination_dominance_requires_at_least_1_5x_strength(self):
+        latest = pd.Timestamp("2026-09-28", tz="UTC")
+        primary = {
+            "date": latest.isoformat(),
+            "event": "CONFIRMED",
+            "pair": "ALGO/LINK",
+            "from_asset": "LINK",
+            "to_asset": "ALGO",
+            "max_dislocation": 0.20,
+            "reversal_from_extreme": 0.04,
+        }
+        states = [
+            {
+                "pair": "TRX/LINK",
+                "mode": "HIGH",
+                "from_asset": "LINK",
+                "to_asset": "TRX",
+                "max_dislocation": 0.299,
+                "reversal_from_extreme": 0.0,
+            },
+            {
+                "pair": "TRX/ALGO",
+                "mode": "HIGH",
+                "from_asset": "ALGO",
+                "to_asset": "TRX",
+                "max_dislocation": 0.25,
+                "reversal_from_extreme": 0.0,
+            },
+        ]
+        conflicts = find_route_conflicts(
+            [primary],
+            states,
+            primary_confirmed=primary,
+            latest_date=latest,
+            allowed_to_assets=TARGET_ASSETS,
+        )
+        self.assertEqual(conflicts, [])
+
+        states[0]["max_dislocation"] = 0.30
+        conflicts = find_route_conflicts(
+            [primary],
+            states,
+            primary_confirmed=primary,
+            latest_date=latest,
+            allowed_to_assets=TARGET_ASSETS,
+        )
+        self.assertEqual(len(conflicts), 1)
+        self.assertAlmostEqual(conflicts[0]["strength_ratio"], 1.5)
+        self.assertEqual(conflicts[0]["minimum_strength_ratio"], 1.5)
 
     def test_route_conflict_ignores_weaker_competing_candidate(self):
         latest = pd.Timestamp("2026-09-28", tz="UTC")

@@ -242,7 +242,7 @@ fixture
             "max_dislocation": 0.70,
             "reversal_from_extreme": 0.01,
             "route_override": True,
-            "route_override_rule": "DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1",
+            "route_override_rule": "DESTINATION_DOMINANCE_MIN_1_5X_V2",
             "route_override_trigger": baseline,
             "competing_original_state": "ARMED",
             "destination_relation": relation,
@@ -268,7 +268,7 @@ fixture
         config = json.loads(config_path.read_text(encoding="utf-8"))
         self.assertEqual(config["position_books"][1]["held_asset"], "TRX")
         log = log_path.read_text(encoding="utf-8")
-        self.assertIn("route selection: DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1", log)
+        self.assertIn("route selection: DESTINATION_DOMINANCE_MIN_1_5X_V2", log)
         self.assertIn("baseline confirmed trigger: ALGO -> AVAX", log)
         self.assertIn("destination relation: AVAX -> TRX", log)
 

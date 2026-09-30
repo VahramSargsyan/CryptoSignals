@@ -339,7 +339,7 @@ def _route_conflict_lines_ru(conflicts: list[dict]) -> list[str]:
     lines.extend(
         [
             f"Исполняемый маршрут стратегии: {chosen_source} -> {chosen_to}.",
-            "Основание: основной CONFIRMED + более сильный same-source кандидат + реальная связь между назначениями.",
+            "Основание: основной CONFIRMED + same-source кандидат минимум 1.5× сильнее + реальная связь между назначениями.",
             "⚠️ FORWARD WATCH: исторически правило улучшило агрегатные результаты, но rolling-окна были нестабильны; это место нужно отслеживать отдельно.",
         ]
     )
@@ -378,7 +378,7 @@ def _route_conflict_lines_en(conflicts: list[dict]) -> list[str]:
         f"{chosen.get('competing_candidate', {}).get('to_asset')}."
     )
     lines.append(
-        "Forward watch: aggregate history improved, but rolling-window behavior was unstable and must be monitored."
+        "Forward watch: 1.5x threshold was selected after historical testing; aggregate history improved, but rolling-window behavior remains a forward-monitoring risk."
     )
     return lines
 
@@ -1409,7 +1409,7 @@ def main(argv: list[str] | None = None) -> int:
             "target_pair_count": len(config["target_assets"]) * (len(config["target_assets"]) - 1) // 2,
             "sunset_assets": list(config["sunset_assets"]),
             "destination_guard": "TARGET_ONLY",
-            "route_conflict_guard": "DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1 / AUTO_ROUTE_OVERRIDE / FORWARD_WATCH_REQUIRED",
+            "route_conflict_guard": "DESTINATION_DOMINANCE_MIN_1_5X_V2 / AUTO_ROUTE_OVERRIDE / FORWARD_WATCH_REQUIRED",
             "execution_timing_policy": "04:20 YEREVAN PRIMARY / 23:00-24:00 YEREVAN FALLBACK / NO MIDDAY CHASE",
         },
         "held_events": held_events,

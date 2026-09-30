@@ -12,6 +12,7 @@ ASSETS = TARGET_ASSETS + SUNSET_ASSETS
 LOOKBACK = 180
 ARM_THRESHOLD = 0.15
 REVERSAL = 0.03
+DESTINATION_DOMINANCE_MIN_STRENGTH_RATIO = 1.50
 
 DEFENSIVE_SMA_LOOKBACK = 200
 DEFENSIVE_ENTER_BREADTH = 3
@@ -274,7 +275,8 @@ def find_route_conflicts(
 
     A competing destination B qualifies when:
       1) SOURCE -> B is currently ARMED or CONFIRMED;
-      2) its max dislocation is stronger than primary SOURCE -> A; and
+      2) its max dislocation is at least 1.50x the primary SOURCE -> A
+         max dislocation; and
       3) the direct A -> B pair is itself ARMED or CONFIRMED.
 
     CONFIRMED relationships are read from latest-candle events because the pair
@@ -389,7 +391,11 @@ def find_route_conflicts(
     conflicts: list[dict] = []
     for competing_to, competing in outbound.items():
         competing_strength = float(competing.get("max_dislocation") or 0.0)
-        if competing_strength <= primary_strength:
+        required_strength = (
+            primary_strength * DESTINATION_DOMINANCE_MIN_STRENGTH_RATIO
+        )
+        # Treat an exact 1.50x boundary as eligible despite binary float noise.
+        if competing_strength + 1e-12 < required_strength:
             continue
 
         relation = destination_relation(competing_to)
@@ -414,6 +420,12 @@ def find_route_conflicts(
                 "execution_policy": "AUTO_ROUTE_OVERRIDE_ELIGIBLE",
                 "blocks_one_click_execution": False,
                 "router_override": True,
+                "strength_ratio": (
+                    competing_strength / primary_strength
+                    if primary_strength > 0
+                    else None
+                ),
+                "minimum_strength_ratio": DESTINATION_DOMINANCE_MIN_STRENGTH_RATIO,
             }
         )
 
@@ -438,7 +450,8 @@ def choose_destination_dominance_override(
 
     Rule:
     - baseline route SOURCE -> A is CONFIRMED;
-    - stronger SOURCE -> B is currently ARMED or CONFIRMED;
+    - SOURCE -> B is currently ARMED or CONFIRMED and at least 1.50x
+      the baseline SOURCE -> A max dislocation;
     - actual A -> B pair is currently ARMED or CONFIRMED toward B;
     - choose the strongest qualifying B by max_dislocation immediately.
 
@@ -476,12 +489,12 @@ def choose_destination_dominance_override(
             "max_dislocation": competing.get("max_dislocation"),
             "reversal_from_extreme": competing.get("reversal_from_extreme"),
             "route_override": True,
-            "route_override_rule": "DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1",
+            "route_override_rule": "DESTINATION_DOMINANCE_MIN_1_5X_V2",
             "route_override_trigger": dict(primary_confirmed),
             "competing_original_state": competing.get("event"),
             "destination_relation": relation,
             "confirmation_basis": (
-                "BASELINE_CONFIRMED_PLUS_STRONGER_SAME_SOURCE_AND_DESTINATION_DOMINANCE"
+                "BASELINE_CONFIRMED_PLUS_1_5X_SAME_SOURCE_AND_DESTINATION_DOMINANCE"
             ),
         }
     )
