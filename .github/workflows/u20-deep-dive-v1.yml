@@ -1,0 +1,43 @@
+name: U20 Relative Rotation Deep Dive v1
+
+on:
+  push:
+    branches:
+      - research/relative-rotation-universe-scale-v1
+    paths:
+      - "scripts/research_u20_deep_dive_v1.py"
+      - ".github/workflows/u20-deep-dive-v1.yml"
+      - "research/relative_rotation/2026-09-27_U20_DEEP_DIVE_V1_PREREG.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+      - name: Compile
+        run: python -m py_compile scripts/research_u20_deep_dive_v1.py
+      - name: Run U20 deep dive
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_u20_deep_dive_v1 --cutoff 2026-09-27T00:00:00Z
+      - name: Publish summary
+        run: |
+          RUN_DIR="$(find research_artifacts/u20_deep_dive_v1 -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          cat "$RUN_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: u20-deep-dive-v1-${{ github.run_number }}
+          path: research_artifacts/u20_deep_dive_v1/**
+          if-no-files-found: error
+          retention-days: 90
