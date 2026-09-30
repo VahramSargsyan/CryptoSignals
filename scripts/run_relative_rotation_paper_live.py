@@ -33,6 +33,9 @@ DEFAULT_CONFIG = REPO_ROOT / "config" / "relative_rotation_paper_live_v1.json"
 DEFAULT_HISTORY_START = "2023-05-05T00:00:00Z"
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "paper_artifacts" / "relative_rotation_paper_live_v1"
 NOTIFICATION_REPLAY_DAYS = 7
+EXECUTION_TIMEZONE = "Asia/Yerevan"
+PRIMARY_EXECUTION_SLOT = "04:20"
+FALLBACK_EXECUTION_WINDOW = "23:00–24:00"
 SYMBOLS = {asset: f"{asset}USDT" for asset in ASSETS}
 
 
@@ -794,6 +797,10 @@ def build_notification_ru(payload: dict) -> str:
                         if legacy_mode
                         else f"Сигнал относится к {book_id}; требуется ручное подтверждение исполнения."
                     ),
+                    (
+                        f"Правило времени: основной слот {PRIMARY_EXECUTION_SLOT} по Еревану; "
+                        f"если пропущен — не догоняем сигнал днём, резервное окно {FALLBACK_EXECUTION_WINDOW}."
+                    ),
                 ]
             )
             conflicts = details.get("route_conflicts") or payload.get("route_conflicts", {}).get(book_id, [])
@@ -1301,6 +1308,13 @@ def main(argv: list[str] | None = None) -> int:
         "force_notify": bool(args.force_notify),
         "should_notify": should_notify,
         "notification_replay_days": NOTIFICATION_REPLAY_DAYS,
+        "execution_timing_policy": {
+            "timezone": EXECUTION_TIMEZONE,
+            "primary_slot": PRIMARY_EXECUTION_SLOT,
+            "fallback_window": FALLBACK_EXECUTION_WINDOW,
+            "midday_chase": False,
+            "manual_execution_only": True,
+        },
         "notification_candidates": notification_candidates,
         "route_conflicts": route_conflicts,
         "notification_reason": {
@@ -1339,6 +1353,7 @@ def main(argv: list[str] | None = None) -> int:
             "sunset_assets": list(config["sunset_assets"]),
             "destination_guard": "TARGET_ONLY",
             "route_conflict_guard": "NETWORK_CONTEXT_REQUIRED / ROUTER_UNCHANGED / ONE_CLICK_BLOCKED_ON_CONFLICT",
+            "execution_timing_policy": "04:20 YEREVAN PRIMARY / 23:00-24:00 YEREVAN FALLBACK / NO MIDDAY CHASE",
         },
         "held_events": held_events,
         "book_events": book_events,
