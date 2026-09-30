@@ -492,9 +492,6 @@ def build_notification(payload: dict) -> str:
                     "Historical model action only — manual approval required.",
                 ]
             )
-            conflicts = details.get("route_conflicts") or payload.get("route_conflicts", {}).get(book_id, [])
-            if conflicts:
-                lines.extend(_route_conflict_lines_ru(conflicts))
             extra = [event for event in selected.get("confirmed", []) if event is not primary]
             if extra:
                 lines.append(f"Other {book_id} confirmed outbound candidates:")
@@ -799,6 +796,9 @@ def build_notification_ru(payload: dict) -> str:
                     ),
                 ]
             )
+            conflicts = details.get("route_conflicts") or payload.get("route_conflicts", {}).get(book_id, [])
+            if conflicts:
+                lines.extend(_route_conflict_lines_ru(conflicts))
             extra = [event for event in selected.get("confirmed", []) if event is not primary]
             if extra:
                 lines.append("Другие подтверждённые кандидаты на выход:")
