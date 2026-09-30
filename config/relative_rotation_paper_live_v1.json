@@ -38,12 +38,14 @@
     },
     {
       "book_id": "BOOK_2",
-      "label": "SECONDARY_ALGO_BRANCH",
-      "held_asset": "ALGO",
-      "quantity": 10723.76037691,
+      "label": "SECONDARY_TRX_BRANCH",
+      "held_asset": "TRX",
+      "quantity": 3950.7453,
       "initial_quantity": 100,
       "tracking_start": "2026-09-29T00:00:00Z",
-      "quantity_source": "USER_CONFIRMED_MANUAL_ROTATION_2026-09-29"
+      "quantity_source": "USER_CONFIRMED_MANUAL_ROTATION_2026-09-30",
+      "last_execution_local": "2026-09-30T23:35:00+04:00",
+      "last_rotation_id": "ROT-BOOK2-20260930-002"
     }
   ],
   "execution_timing_policy": {
