@@ -79,15 +79,26 @@ Telegram policy has two scheduled layers:
 4. persistent sunset-watch `ARMED`/`CONFIRMED` events keep their existing
    alert behavior;
 5. a manual verification run may use `--force-notify`;
-6. the dedicated 22:30 Yerevan evening schedule may repeat only a same-candle
-   live-book `CONFIRMED` event as an execution reminder.
+6. execution timing policy is fixed in Yerevan time:
+   - primary manual execution slot: `04:20`;
+   - if that slot is missed, do not chase the signal during daytime;
+   - fallback manual execution window: `23:00–24:00`;
+   - fallback reminders are scheduled inside that window and only for an
+     unresolved live-book `CONFIRMED` route.
 
-The evening reminder is deliberately separate from the morning event identity:
-the morning alert remains preserved in dedupe state and one evening repeat is
-allowed for the same `CONFIRMED`. It never repeats `ARMED / PREWATCH`, never
-creates a new signal, and never changes the frozen D1 signal candle. If the real
-trade has already been executed, the reminder must not be treated as a second
-trade; update the real position/log as part of the manual execution procedure.
+The fallback-window reminder is deliberately separate from the morning event
+identity. The morning alert remains preserved in dedupe state and one fallback
+repeat is allowed for the same unresolved `CONFIRMED`. It never repeats
+`ARMED / PREWATCH`, never creates a new signal, and never changes the frozen D1
+signal candle. If the real trade has already been executed, the reminder must
+not be treated as a second trade; update the real position/log as part of the
+manual execution procedure.
+
+Execution timing is a manual-discipline rule, not a new market signal. A missed
+04:20 slot does not create permission to chase the move at arbitrary daytime
+prices. The next strategy window is 23:00–24:00 Yerevan, provided the route is
+still unresolved and the current report does not block it with
+`ROUTE_CONFLICT`.
 
 The defensive overlay is disabled during the membership migration so it cannot conflict with the target/sunset routing rules.
 
@@ -102,9 +113,9 @@ signal engine. Example:
 `Цена закрытия: LINK $15; ALGO $0.15; 1 LINK = 100 ALGO.`
 
 This is a signal-candle reference snapshot, not a live execution quote. It is
-also shown beside current ARMED/CONFIRMED Telegram events. The 22:30 reminder
-repeats the same signal-candle price reference; it does not claim to show the
-22:30 market price.
+also shown beside current ARMED/CONFIRMED Telegram events. Fallback-window
+reminders repeat the same signal-candle price reference; they do not claim to
+show a live 23:00–24:00 market price.
 
 No repeated event warning is created merely because a pair remains armed. The
 morning status may still display the current state, while event deduplication
@@ -269,13 +280,18 @@ Scheduled times after merge to the default branch:
 
 - `00:20 UTC` daily, shortly after the Binance daily candle closes
   (normally about `04:20` in Armenia);
-- `18:30 UTC` daily (normally `22:30` in Armenia) for the execution fallback
-  reminder.
+- `19:00 UTC` daily (normally `23:00` in Armenia) for the fallback execution
+  window;
+- `19:30 UTC` daily (normally `23:30` in Armenia) as a retry opportunity;
+- `19:50 UTC` daily (normally `23:50` in Armenia) as the final nominal retry
+  inside the fallback window.
 
-The 22:30 run recomputes the same already-closed D1 state. It sends only a
-same-candle live-book `CONFIRMED` reminder and does not create additional
-forward evidence. GitHub Actions cron can start later than the nominal minute
-when the hosted runner queue is busy.
+The 23:00/23:30/23:50 runs recompute the same already-closed D1 state. Dedupe
+normally allows only the first successful fallback reminder for a given closed
+candle and unresolved route. These runs do not create additional forward
+evidence. GitHub Actions cron can start later than the nominal minute when the
+hosted runner queue is busy, so the scheduler cannot guarantee exact wall-clock
+delivery.
 
 Each run:
 
@@ -399,14 +415,15 @@ Watch ARMED messages must explicitly say:
 The morning scheduled run is allowed to send the informational rotation
 snapshot even when `report.should_notify=false`. Manual/no-schedule runs still
 obey `report.should_notify` unless `--force-notify` is explicitly requested.
-The 22:30 schedule remains CONFIRMED-only and does not send a quiet-market
-snapshot.
+The 23:00–24:00 fallback schedules remain CONFIRMED-only and do not send a
+quiet-market snapshot.
 
 The meaningful D1 live cadence remains once after the Binance daily close.
 Repeated intraday runs evaluate the same closed candle and are not treated as
-new forward evidence. The scheduled 22:30 Yerevan run is the explicit exception
-to ordinary notification dedupe: it may repeat the morning same-candle
-`CONFIRMED` once as an execution reminder, with a separate reminder event ID.
+new forward evidence. The scheduled 23:00–24:00 Yerevan fallback runs are the
+explicit exception to ordinary notification dedupe: the first successful one
+may repeat the unresolved morning `CONFIRMED` once as an execution reminder,
+with a separate reminder event ID.
 
 
 ## 2026-09-29 — Two real live books
@@ -466,3 +483,43 @@ Rollback:
 revert this patch to restore the previous presentation/control behavior. No
 position data migration is required because the guard does not mutate
 position state by itself.
+
+
+## 2026-09-30 — Yerevan execution-window policy
+
+Strategy runtime identifier:
+
+`RELATIVE_ROTATION_TARGET_U10_FORWARD_V1_2_EXECUTION_WINDOW`
+
+Accepted manual execution timing:
+
+```text
+PRIMARY: 04:20 Yerevan
+IF MISSED: NO MIDDAY CHASE
+FALLBACK: 23:00–24:00 Yerevan
+```
+
+Fallback eligibility:
+- the BOOK still holds the source asset;
+- the route remains the latest unresolved `CONFIRMED` candidate;
+- `ROUTE_CONFLICT` does not block one-click execution;
+- execution remains manual only.
+
+Workflow nominal fallback reminders:
+- 23:00 Yerevan;
+- 23:30 Yerevan;
+- 23:50 Yerevan.
+
+Dedupe prevents three successful reminders from becoming three execution
+commands. The extra schedules are retry opportunities because GitHub-hosted cron
+may start late.
+
+Impact:
+- signal mathematics: unchanged;
+- TARGET U10: unchanged;
+- 180d / 15% ARM / 3% reversal: unchanged;
+- route-conflict guard: unchanged;
+- execution timing discipline and Telegram reminder schedule: changed;
+- automatic exchange execution: still none.
+
+MIGRATION_REQUIRED: NO.

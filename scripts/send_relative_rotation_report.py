@@ -9,6 +9,8 @@ from pathlib import Path
 
 STATE_SCHEMA_VERSION = 1
 MAX_SENT_EVENT_IDS = 500
+PRIMARY_EXECUTION_SLOT_YEREVAN = "04:20"
+FALLBACK_EXECUTION_WINDOW_YEREVAN = "23:00–24:00"
 
 
 def _send_telegram(text: str, *, reply_markup: dict | None = None) -> None:
@@ -330,6 +332,14 @@ def build_execution_reminder_ru(report: dict, pending: list[dict], *, kind: str)
         header,
         f"Последняя закрытая D1-свеча: {report.get('latest_closed_candle')}",
         "Это не новый сигнал. Напоминание остаётся активным, пока BOOK всё ещё держит исходный актив.",
+        (
+            f"Правило времени: основной слот {PRIMARY_EXECUTION_SLOT_YEREVAN} по Еревану; "
+            f"если он пропущен — резервное окно {FALLBACK_EXECUTION_WINDOW_YEREVAN}."
+        ),
+        (
+            "Между утренним слотом и резервным окном сигнал не догоняем; "
+            "вечером используем только всё ещё неисполненный CONFIRMED после повторной проверки."
+        ),
     ]
 
     for item in pending:
@@ -349,9 +359,14 @@ def build_execution_reminder_ru(report: dict, pending: list[dict], *, kind: str)
             lines.append(price_line)
         lines.extend(_route_conflict_lines_ru(item))
         if is_evening:
-            lines.append("Если утром не исполнил сигнал — это вечерний fallback.")
+            lines.append(
+                f"Сейчас резервное окно исполнения {FALLBACK_EXECUTION_WINDOW_YEREVAN} по Еревану."
+            )
         else:
-            lines.append("Сигнал всё ещё считается неисполненным, потому что текущий актив BOOK не изменён.")
+            lines.append(
+                f"Это утренний слот {PRIMARY_EXECUTION_SLOT_YEREVAN}; если не успел — "
+                f"следующее окно {FALLBACK_EXECUTION_WINDOW_YEREVAN}."
+            )
 
     lines.extend(
         [
@@ -402,6 +417,10 @@ def build_pending_notification_ru(report: dict, pending: list[dict]) -> str:
                 lines.append("Это исторически пропущенный подтверждённый сигнал; смотри текущую последнюю свечу отдельно.")
             else:
                 lines.append("Сигнал модели подтверждён на последней закрытой свече; исполнение остаётся ручным.")
+                lines.append(
+                    f"Время исполнения: основной слот {PRIMARY_EXECUTION_SLOT_YEREVAN} по Еревану; "
+                    f"если пропущен — не догоняем днём, резервное окно {FALLBACK_EXECUTION_WINDOW_YEREVAN}."
+                )
         else:
             lines.append("Это текущий PREWATCH: ротации пока нет, ждём подтверждение 3%.")
 
