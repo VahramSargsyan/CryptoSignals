@@ -270,11 +270,9 @@ def find_route_conflicts(
     latest_date: pd.Timestamp | str,
     allowed_to_assets: Sequence[str] | None = None,
 ) -> list[dict]:
-    """Find network-level route conflicts for one primary CONFIRMED route.
+    """Find destination-dominance route-override candidates.
 
-    A conflict is presentation/execution-safety context only. It does not change
-    the frozen strongest-CONFIRMED router. A competing destination B qualifies
-    when:
+    A competing destination B qualifies when:
       1) SOURCE -> B is currently ARMED or CONFIRMED;
       2) its max dislocation is stronger than primary SOURCE -> A; and
       3) the direct A -> B pair is itself ARMED or CONFIRMED.
@@ -413,23 +411,87 @@ def find_route_conflicts(
                 "destination_relation": dict(relation),
                 "possible_intermediate_path": [source, primary_to, competing_to],
                 "direct_alternative": [source, competing_to],
-                "execution_policy": "REVIEW_REQUIRED",
-                "blocks_one_click_execution": True,
-                "router_override": False,
+                "execution_policy": "AUTO_ROUTE_OVERRIDE_ELIGIBLE",
+                "blocks_one_click_execution": False,
+                "router_override": True,
             }
         )
 
     severity_rank = {"ROUTE_CONFLICT_HIGH": 0, "ROUTE_CONFLICT_WARNING": 1}
     conflicts.sort(
         key=lambda row: (
-            severity_rank.get(str(row.get("severity") or ""), 9),
             -float(
                 row.get("competing_candidate", {}).get("max_dislocation") or 0.0
             ),
+            severity_rank.get(str(row.get("severity") or ""), 9),
             str(row.get("competing_candidate", {}).get("to_asset") or ""),
         )
     )
     return conflicts
+
+
+def choose_destination_dominance_override(
+    primary_confirmed: dict | None,
+    conflicts: Sequence[dict],
+) -> tuple[dict | None, dict | None]:
+    """Return the effective actionable route under the accepted DDG override.
+
+    Rule:
+    - baseline route SOURCE -> A is CONFIRMED;
+    - stronger SOURCE -> B is currently ARMED or CONFIRMED;
+    - actual A -> B pair is currently ARMED or CONFIRMED toward B;
+    - choose the strongest qualifying B by max_dislocation immediately.
+
+    The returned event remains event=CONFIRMED because execution authority comes
+    from the baseline confirmed trigger plus the accepted topology override.
+    Metadata preserves the baseline trigger and the competing pair's own state.
+    """
+    if primary_confirmed is None:
+        return None, None
+    if not conflicts:
+        return dict(primary_confirmed), None
+
+    chosen = max(
+        (dict(conflict) for conflict in conflicts),
+        key=lambda row: (
+            float(row.get("competing_candidate", {}).get("max_dislocation") or 0.0),
+            str(row.get("competing_candidate", {}).get("to_asset") or ""),
+        ),
+    )
+    competing = dict(chosen.get("competing_candidate") or {})
+    relation = dict(chosen.get("destination_relation") or {})
+    source = str(primary_confirmed.get("from_asset") or "").upper()
+    target = str(competing.get("to_asset") or "").upper()
+    if not source or not target:
+        return dict(primary_confirmed), None
+
+    effective = dict(primary_confirmed)
+    effective.update(
+        {
+            "event": "CONFIRMED",
+            "pair": competing.get("pair"),
+            "from_asset": source,
+            "to_asset": target,
+            "deviation": competing.get("deviation"),
+            "max_dislocation": competing.get("max_dislocation"),
+            "reversal_from_extreme": competing.get("reversal_from_extreme"),
+            "route_override": True,
+            "route_override_rule": "DESTINATION_DOMINANCE_IMMEDIATE_STRONGER_V1",
+            "route_override_trigger": dict(primary_confirmed),
+            "competing_original_state": competing.get("event"),
+            "destination_relation": relation,
+            "confirmation_basis": (
+                "BASELINE_CONFIRMED_PLUS_STRONGER_SAME_SOURCE_AND_DESTINATION_DOMINANCE"
+            ),
+        }
+    )
+    chosen["selected_for_override"] = True
+    chosen["effective_route"] = {
+        "from_asset": source,
+        "to_asset": target,
+        "pair": competing.get("pair"),
+    }
+    return effective, chosen
 
 def _defensive_state_machine(
     dates: Sequence[pd.Timestamp],
