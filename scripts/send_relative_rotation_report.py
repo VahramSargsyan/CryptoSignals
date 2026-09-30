@@ -82,6 +82,53 @@ def _event_line_ru(event: dict) -> str:
     )
 
 
+def _pct(value) -> str:
+    return "n/a" if value is None else f"{float(value) * 100:.2f}%"
+
+
+def _route_conflict_lines_ru(item: dict) -> list[str]:
+    conflicts = item.get("route_conflicts") or []
+    if not conflicts:
+        return []
+    lines = ["⚠️ ROUTE CONFLICT — не исполняй основной сигнал вслепую."]
+    for conflict in conflicts:
+        primary = conflict.get("primary", {})
+        competing = conflict.get("competing_candidate", {})
+        relation = conflict.get("destination_relation", {})
+        lines.extend(
+            [
+                (
+                    f"{conflict.get('severity')}: основной {primary.get('from_asset')} -> "
+                    f"{primary.get('to_asset')} CONFIRMED."
+                ),
+                (
+                    f"Более сильный кандидат: {competing.get('from_asset')} -> "
+                    f"{competing.get('to_asset')} (отклонение {_pct(competing.get('max_dislocation'))}; "
+                    f"разворот {_pct(competing.get('reversal_from_extreme'))}; "
+                    f"статус {competing.get('event')})."
+                ),
+                (
+                    f"Между назначениями: {relation.get('from_asset')} -> "
+                    f"{relation.get('to_asset')} (отклонение {_pct(relation.get('max_dislocation'))}; "
+                    f"разворот {_pct(relation.get('reversal_from_extreme'))}; "
+                    f"статус {relation.get('event')})."
+                ),
+                (
+                    "Возможен промежуточный маршрут: "
+                    + " -> ".join(conflict.get("possible_intermediate_path", []))
+                    + "."
+                ),
+            ]
+        )
+    lines.extend(
+        [
+            "Frozen router автоматически не переопределён.",
+            "One-click «Выполнено» для этого сигнала заблокирован — сначала нужна отдельная ручная проверка.",
+        ]
+    )
+    return lines
+
+
 def _format_usdt_price(value: float) -> str:
     if value >= 100:
         digits = 2
@@ -212,6 +259,8 @@ def _execution_reply_markup(items: list[dict]) -> dict | None:
         event = item.get("event", {})
         if event.get("event") != "CONFIRMED":
             continue
+        if item.get("route_conflicts"):
+            continue
         book = item.get("book", {})
         book_id = str(item.get("book_id") or "")
         from_asset = str(event.get("from_asset") or "").upper()
@@ -298,6 +347,7 @@ def build_execution_reminder_ru(report: dict, pending: list[dict], *, kind: str)
         price_line = _current_event_price_line_ru(report, event)
         if price_line:
             lines.append(price_line)
+        lines.extend(_route_conflict_lines_ru(item))
         if is_evening:
             lines.append("Если утром не исполнил сигнал — это вечерний fallback.")
         else:
@@ -345,6 +395,7 @@ def build_pending_notification_ru(report: dict, pending: list[dict]) -> str:
         price_line = _current_event_price_line_ru(report, event)
         if price_line:
             lines.append(price_line)
+        lines.extend(_route_conflict_lines_ru(item))
 
         if event.get("event") == "CONFIRMED":
             if is_stale:
