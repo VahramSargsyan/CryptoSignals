@@ -619,6 +619,65 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         self.assertEqual(selected[0]["event_id"], "new-stronger")
 
 
+    def test_route_conflict_is_rendered_and_blocks_execution_button(self):
+        primary = {
+            "date": "2026-09-28T00:00:00+00:00",
+            "event": "CONFIRMED",
+            "pair": "ALGO/LINK",
+            "from_asset": "LINK",
+            "to_asset": "ALGO",
+            "max_dislocation": 0.3401,
+            "reversal_from_extreme": 0.0506,
+        }
+        conflict = {
+            "severity": "ROUTE_CONFLICT_WARNING",
+            "primary": primary,
+            "competing_candidate": {
+                "event": "ARMED",
+                "from_asset": "LINK",
+                "to_asset": "TRX",
+                "pair": "TRX/LINK",
+                "max_dislocation": 0.7065,
+                "reversal_from_extreme": 0.0,
+            },
+            "destination_relation": {
+                "event": "ARMED",
+                "from_asset": "ALGO",
+                "to_asset": "TRX",
+                "pair": "TRX/ALGO",
+                "max_dislocation": 0.4195,
+                "reversal_from_extreme": 0.0,
+            },
+            "possible_intermediate_path": ["LINK", "ALGO", "TRX"],
+        }
+        candidate = {
+            "event_id": "BOOK_2|CONFIRMED|2026-09-28T00:00:00+00:00|LINK|ALGO|ALGO/LINK",
+            "book_id": "BOOK_2",
+            "book": {"held_asset": "LINK", "quantity": 100},
+            "event": primary,
+            "route_conflicts": [conflict],
+        }
+
+        text = sender.build_pending_notification_ru(
+            {
+                "latest_closed_candle": "2026-09-28T00:00:00+00:00",
+                "latest_close_prices_usdt": {"LINK": 15.0, "ALGO": 0.15, "TRX": 0.3},
+            },
+            [candidate],
+        )
+        self.assertIn("ROUTE CONFLICT", text)
+        self.assertIn("LINK -> TRX", text)
+        self.assertIn("ALGO -> TRX", text)
+        self.assertIn("LINK -> ALGO -> TRX", text)
+        self.assertIn("one-click", text)
+
+        with mock.patch.dict(
+            "os.environ",
+            {"RR_TELEGRAM_CONTROL_ENABLED": "true"},
+            clear=False,
+        ):
+            self.assertIsNone(sender._execution_reply_markup([candidate]))
+
     def test_execution_reply_markup_is_disabled_by_default(self):
         candidate = {
             "book_id": "BOOK_2",
