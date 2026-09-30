@@ -10,9 +10,9 @@ on:
         default: false
   schedule:
     - cron: "20 0 * * *"
-    - cron: "30 18 * * *"
     - cron: "0 19 * * *"
     - cron: "30 19 * * *"
+    - cron: "50 19 * * *"
   pull_request:
     branches:
       - main
@@ -129,7 +129,7 @@ jobs:
             SENDER_EXTRA="--morning-rotation-snapshot"
           elif [ "$EVENT_NAME" = "schedule" ]; then
             case "$SCHEDULE_EXPRESSION" in
-              "30 18 * * *"|"0 19 * * *"|"30 19 * * *")
+              "0 19 * * *"|"30 19 * * *"|"50 19 * * *")
                 SENDER_EXTRA="--evening-confirmed-reminder"
                 ;;
             esac
