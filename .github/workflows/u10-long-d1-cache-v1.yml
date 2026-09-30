@@ -1,0 +1,82 @@
+name: RR U10 Long D1 Cache v1
+
+on:
+  push:
+    branches:
+      - research/u10-long-d1-cache-v1
+    paths:
+      - "research_requests/run_u10_long_d1_cache_v1.trigger"
+
+permissions:
+  contents: write
+
+jobs:
+  build-cache:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+
+      - name: Run historical-data tests
+        run: |
+          python -m unittest tests.test_binance_historical tests.test_download_historical_data_cli -v
+
+      - name: Build frozen U10 D1 long-history cache
+        run: |
+          python -m scripts.build_u10_long_d1_cache_v1 \
+            --start "2018-01-01T00:00:00Z" \
+            --as-of "2026-09-30T00:00:00Z" \
+            --output-root build/u10_long_d1_cache_v1
+
+      - name: Package and checksum
+        run: |
+          ARCHIVE="rr-u10-long-d1-20180101-20260930-run${GITHUB_RUN_ID}.tar.gz"
+          CATALOG="rr-u10-long-d1-catalog-run${GITHUB_RUN_ID}.json"
+          tar -C build -czf "$ARCHIVE" u10_long_d1_cache_v1
+          sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+          cp build/u10_long_d1_cache_v1/catalog.json "$CATALOG"
+          echo "ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
+          echo "ARCHIVE_SHA=$ARCHIVE.sha256" >> "$GITHUB_ENV"
+          echo "CATALOG=$CATALOG" >> "$GITHUB_ENV"
+
+      - name: Upload Actions backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: rr-u10-long-d1-cache-v1-${{ github.run_id }}
+          path: |
+            ${{ env.ARCHIVE }}
+            ${{ env.ARCHIVE_SHA }}
+            ${{ env.CATALOG }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish immutable GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="rr-u10-long-d1-cache-v1-${GITHUB_RUN_ID}"
+          gh release create "$TAG" \
+            "$ARCHIVE" \
+            "$ARCHIVE_SHA" \
+            "$CATALOG" \
+            --target "$GITHUB_SHA" \
+            --title "RR U10 Long D1 Cache v1 — run ${GITHUB_RUN_ID}" \
+            --notes "Frozen Binance Spot D1 long-history cache for the current RR U10. Requested start 2018-01-01; young assets begin at listing. Research/reproducibility only; production trading behavior unchanged." \
+            --prerelease
+
+      - name: Summary
+        run: |
+          echo "## RR U10 Long D1 Cache v1" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Catalog:' >> "$GITHUB_STEP_SUMMARY"
+          cat "$CATALOG" >> "$GITHUB_STEP_SUMMARY"
