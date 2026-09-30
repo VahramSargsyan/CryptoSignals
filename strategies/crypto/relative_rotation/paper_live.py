@@ -449,7 +449,7 @@ def choose_destination_dominance_override(
     if primary_confirmed is None:
         return None, None
     if not conflicts:
-        return dict(primary_confirmed), None
+        return primary_confirmed, None
 
     chosen = max(
         (dict(conflict) for conflict in conflicts),
@@ -463,7 +463,7 @@ def choose_destination_dominance_override(
     source = str(primary_confirmed.get("from_asset") or "").upper()
     target = str(competing.get("to_asset") or "").upper()
     if not source or not target:
-        return dict(primary_confirmed), None
+        return primary_confirmed, None
 
     effective = dict(primary_confirmed)
     effective.update(
