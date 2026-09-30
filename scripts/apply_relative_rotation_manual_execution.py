@@ -185,6 +185,16 @@ def apply_execution(
         )
 
     item = latest_confirmed(report, book_id)
+    conflicts = item.get("route_conflicts") or []
+    if conflicts:
+        competing = conflicts[0].get("competing_candidate", {})
+        relation = conflicts[0].get("destination_relation", {})
+        raise ValueError(
+            f"{book_id}: ROUTE_CONFLICT blocks Telegram one-click execution; "
+            f"stronger candidate {competing.get('from_asset')} -> {competing.get('to_asset')} "
+            f"and destination relation {relation.get('from_asset')} -> {relation.get('to_asset')} "
+            "require separate manual review"
+        )
     event = item["event"]
     if str(event.get("date") or "") != signal_iso(signal_date):
         raise ValueError(f"{book_id}: signal date is no longer canonical")
