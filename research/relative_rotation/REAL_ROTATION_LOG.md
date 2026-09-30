@@ -70,6 +70,54 @@ For every future real rotation record the book independently:
 A signal is not a trade. The log changes position state only after Vahram
 confirms a real manual execution.
 
+## Execution-cost lesson learned from first real rotation
+
+Recorded: `2026-09-30`
+
+Context:
+
+The first live use of BOOK_2 revealed an execution issue that was not captured
+by the historical backtest assumptions.
+
+User-reported practical observation:
+
+- Vahram estimates that discovering this issue cost approximately `USD 150`;
+- some direct conversion quotes appeared to imply roughly `3%` all-in
+  deterioration versus the reference value;
+- observed ALGO / BNB-related conversion quotes reached roughly `7%`
+  deterioration in the cases inspected.
+
+Important evidence boundary:
+
+- these values are not proven fixed exchange fees;
+- the exact split between fee, spread, liquidity, price impact, slippage and
+  routing was not independently measured;
+- therefore the canonical term is `observed effective execution cost`, not
+  `exchange fee`.
+
+Permanent lesson:
+
+```text
+BACKTEST COST ASSUMPTION: 0.1%
+REAL EXECUTION: MUST BE QUOTED AND VERIFIED
+DIRECT SWAP: NOT ASSUMED CHEAPEST
+INTERMEDIATE HOPS: MAY MULTIPLY REAL COST
+```
+
+For every future rotation, preserve when practical:
+
+- direct-route quoted receive amount;
+- alternative-route quoted receive amount;
+- chosen route;
+- reference price / reference cross-rate;
+- actual sent quantity;
+- actual received quantity;
+- explicit fee if shown;
+- estimated effective all-in execution loss.
+
+This lesson is operational evidence from real use and is intentionally retained
+even if later fee structures or liquidity conditions change.
+
 ## Entries
 
 ### ROT-BOOK2-20260929-001 — LINK → ALGO
