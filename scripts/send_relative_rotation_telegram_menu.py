@@ -154,33 +154,175 @@ def _pct(value) -> str:
     return "n/a" if value is None else f"{float(value) * 100:.2f}%"
 
 
+def _signed_pct(value) -> str:
+    if value is None:
+        return "n/a"
+    return f"{float(value) * 100:+.2f}%"
+
+
+def _pair_assets(pair: str) -> tuple[str, str] | None:
+    parts = str(pair or "").upper().split("/", 1)
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        return None
+    return parts[0], parts[1]
+
+
+def _directional_rotation_value(row: dict, source: str, target: str) -> float | None:
+    """Return signed current dislocation in the SOURCE -> TARGET direction.
+
+    Pair monitor stores deviation as RIGHT/LEFT versus its 180D median.
+    Positive output here means the current displacement points toward rotating
+    out of SOURCE and into TARGET under the frozen mean-reversion semantics.
+    Negative output means the same pair currently points in the opposite direction.
+    """
+    pair_assets = _pair_assets(str(row.get("pair") or ""))
+    deviation = row.get("deviation")
+    if pair_assets is None or deviation is None:
+        return None
+
+    left, right = pair_assets
+    source = str(source or "").upper()
+    target = str(target or "").upper()
+    deviation = float(deviation)
+
+    if source == right and target == left:
+        return deviation
+    if source == left and target == right:
+        return -deviation
+    return None
+
+
+def _book_rotation_rows(report: dict, details: dict) -> list[dict]:
+    book = details.get("book") or {}
+    source = str(book.get("held_asset") or "").upper()
+    targets = [
+        str(asset).upper()
+        for asset in report.get("target_assets", [])
+        if str(asset or "").strip() and str(asset).upper() != source
+    ]
+    confirmed_by_target = {
+        str(event.get("to_asset") or "").upper(): event
+        for event in (details.get("events") or {}).get("confirmed", [])
+        if str(event.get("from_asset") or "").upper() == source
+    }
+
+    state_by_target: dict[str, dict] = {}
+    for row in report.get("latest_pair_states", []):
+        for target in targets:
+            value = _directional_rotation_value(row, source, target)
+            if value is None:
+                continue
+            state_by_target[target] = {
+                "row": row,
+                "value": value,
+            }
+
+    result = []
+    for target in targets:
+        state_info = state_by_target.get(target, {})
+        state_row = state_info.get("row") or {}
+        value = state_info.get("value")
+        confirmed = confirmed_by_target.get(target)
+
+        mode = str(state_row.get("mode") or "NONE").upper()
+        prospective_from = str(state_row.get("from_asset") or "").upper()
+        prospective_to = str(state_row.get("to_asset") or "").upper()
+
+        if confirmed is not None:
+            status = "🚨 CONFIRMED"
+        elif (
+            mode in {"HIGH", "LOW"}
+            and prospective_from == source
+            and prospective_to == target
+        ):
+            status = "⚠️ ARM"
+        elif (
+            mode in {"HIGH", "LOW"}
+            and prospective_from == target
+            and prospective_to == source
+        ):
+            status = "↩️ ARM обратно"
+        else:
+            status = "• NONE"
+
+        result.append(
+            {
+                "target": target,
+                "value": value,
+                "status": status,
+                "state": state_row,
+                "confirmed": confirmed,
+            }
+        )
+
+    return sorted(
+        result,
+        key=lambda item: (
+            item["value"] is None,
+            -(float(item["value"]) if item["value"] is not None else -999.0),
+            item["target"],
+        ),
+    )
+
+
+def _rotation_row_text(index: int, item: dict) -> str:
+    target = item["target"]
+    value = item.get("value")
+    status = item.get("status")
+    state = item.get("state") or {}
+    confirmed = item.get("confirmed")
+
+    parts = [f"{index}. {target}: {_signed_pct(value)}", status]
+
+    if confirmed is not None:
+        parts.append(
+            f"max {_pct(confirmed.get('max_dislocation'))}; "
+            f"разворот {_pct(confirmed.get('reversal_from_extreme'))}"
+        )
+    elif status == "⚠️ ARM":
+        parts.append(
+            f"max {_pct(state.get('max_dislocation'))}; "
+            f"разворот {_pct(state.get('reversal_from_extreme'))}/3.00%"
+        )
+    elif status == "↩️ ARM обратно":
+        parts.append(
+            f"max {_pct(state.get('max_dislocation'))}; "
+            f"разворот {_pct(state.get('reversal_from_extreme'))}/3.00%"
+        )
+    elif value is not None:
+        gap = 0.15 - float(value)
+        parts.append(f"до ARM {gap * 100:.2f} п.п.")
+
+    return " | ".join(parts)
+
+
 def build_status_text(report: dict) -> str:
     latest = report.get("latest_closed_candle")
     lines = [
-        "📡 Relative Rotation — текущий статус",
+        "📡 Relative Rotation — полная текущая ротация",
         f"Последняя закрытая D1-свеча: {latest}",
+        "",
+        "Рейтинг ниже показывает ВСЕ направления из текущего актива BOOK "
+        "в TARGET-активы, а не только сигналы.",
     ]
 
     book_events = report.get("book_events") or {}
     for book_id, details in sorted(book_events.items()):
         book = details.get("book") or {}
-        events = details.get("events") or {}
-        primary = events.get("primary_confirmed")
-        armed = list(events.get("armed") or [])
+        rows = _book_rotation_rows(report, details)
 
-        lines.extend(["", f"{book_id} — {_book_position_ru(book)}"])
-        if primary:
-            lines.append("🚨 CONFIRMED")
-            lines.append(_event_line_ru(primary))
-        elif armed:
-            strongest = sorted(
-                armed,
-                key=lambda event: -float(event.get("max_dislocation") or 0.0),
-            )[0]
-            lines.append("⚠️ ARM / PREWATCH")
-            lines.append(_event_line_ru(strongest))
+        lines.extend(
+            [
+                "",
+                f"{book_id} — текущая позиция: {_book_position_ru(book)}",
+                "От сильнейшего текущего направления к слабейшему:",
+            ]
+        )
+        if rows:
+            for index, item in enumerate(rows, start=1):
+                lines.append(_rotation_row_text(index, item))
         else:
-            lines.append("Нет текущего CONFIRMED / ARM.")
+            lines.append("Нет доступных pair-state данных для TARGET-направлений.")
 
     if not book_events:
         lines.append("")
@@ -188,6 +330,13 @@ def build_status_text(report: dict) -> str:
 
     lines.extend(
         [
+            "",
+            "Как читать %: плюс = текущая относительная позиция пары уже направлена "
+            "от удерживаемого актива к указанному TARGET; минус = сейчас сильнее "
+            "обратное направление.",
+            "Это отклонение отношения цен от 180-дневной медианы, НЕ доходность и "
+            "не самостоятельный сигнал.",
+            "ARM начинается при +15%; CONFIRMED требует последующего разворота 3%.",
             "",
             "Кнопки исполнения показываются только для текущего безопасного CONFIRMED.",
             "Реальные ордера бот не отправляет.",
