@@ -115,11 +115,15 @@ Even though most direct attempts complete with the favorable limits, the remaini
 
 ## Skipped RR opportunity
 
-Median skipped signal-days:
+Metric correction: the original variable named `skipped_signal_days` counts **daily bars spent with a transfer pending**, not the literal number of RR signals that appeared.
+
+Median **pending days**:
 
 - Validation 1Y: **30.0**
 - Last 2Y: **52.5**
 - MATURE: **61.0**
+
+This naming correction does not change return, drawdown, execution, or path results. A later trailing study adds a separate `RR_OPPORTUNITIES_WHILE_PENDING` metric.
 
 Median completed policy rotations:
 
