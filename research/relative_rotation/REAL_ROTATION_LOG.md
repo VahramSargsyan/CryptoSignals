@@ -47,6 +47,29 @@ Provenance:
   the repository;
 - no LINK -> destination trade is recorded until the user actually executes it.
 
+### BOOK_3 — PEPE starting branch
+
+Current held asset:
+
+`PEPE`
+
+Current tracked quantity:
+
+`69341307.9537981079 PEPE`
+
+Starting tracked quantity:
+
+`69341307.9537981079 PEPE`
+
+Starting-state provenance:
+
+- user-provided Binance balance screenshot captured at approximately `22:00` local time (Asia/Yerevan) on `2026-10-01`;
+- screenshot shows `69,341,307.9537981079 PEPE`;
+- screenshot displayed value: approximately `308.57 USDT`;
+- Vahram separately reported historical purchase cost of approximately `500 USDT`; this is context for later PnL comparison only and is not an RR routing rule;
+- this is a starting position snapshot, not a reconstructed exchange fill or strategy rotation;
+- BOOK_3 forward tracking starts from this PEPE quantity; pre-tracking history must not be counted as BOOK_3 forward performance evidence.
+
 ## Recording rule
 
 For every future real rotation record the book independently:
