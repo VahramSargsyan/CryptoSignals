@@ -46,15 +46,6 @@
       "quantity_source": "USER_CONFIRMED_MANUAL_ROTATION_2026-09-30",
       "last_execution_local": "2026-09-30T23:35:00+04:00",
       "last_rotation_id": "ROT-BOOK2-20260930-002"
-    },
-    {
-      "book_id": "BOOK_3",
-      "label": "TERTIARY_PEPE_BRANCH",
-      "held_asset": "PEPE",
-      "quantity": 69341307.95379812,
-      "initial_quantity": 69341307.95379812,
-      "tracking_start": "2026-10-01T18:00:00Z",
-      "quantity_source": "USER_CONFIRMED_BINANCE_BALANCE_SCREENSHOT_2026-10-01"
     }
   ],
   "execution_timing_policy": {
