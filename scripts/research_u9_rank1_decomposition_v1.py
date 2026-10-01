@@ -194,6 +194,14 @@ def main():
         recon=None if first_idx is None else first_reconvergence_after_diff(a["holdings"],b["holdings"],first_idx)
         recon_date=None if recon is None else timestamps[si+recon].date().isoformat()
         ratio=float(a["final_equity"]/b["final_equity"])
+        recon_cap_ratio=None if recon is None else float(a["equity"][recon]/b["equity"][recon])
+        post_recon_equal_ratio=None
+        if recon is not None:
+            abs_recon=si+recon
+            hold=str(a["holdings"][recon])
+            pa=trace_one(opens,closes,positions,candidates,RANK1,abs_recon,ei,hold,initial_equity=1.0)
+            pb=trace_one(opens,closes,positions,candidates,RANK4,abs_recon,ei,hold,initial_equity=1.0)
+            post_recon_equal_ratio=float(pa["final_equity"]/pb["final_equity"])
         path_rows.append({
             "start_asset":start_asset,
             "rank1_return":a["return"],"rank4_return":b["return"],
@@ -201,6 +209,8 @@ def main():
             "divergent_days":diff_days,
             "first_divergence_date":first_date,
             "first_reconvergence_date":recon_date,
+            "rank1_to_rank4_capital_ratio_at_reconvergence":recon_cap_ratio,
+            "equal_cap_rank1_to_rank4_ratio_from_reconvergence_to_end":post_recon_equal_ratio,
             "rank1_transitions":len(a["ledger"]),"rank4_transitions":len(b["ledger"]),
             "rank1_end":str(a["holdings"][-1]),"rank4_end":str(b["holdings"][-1]),
         })
@@ -225,6 +235,22 @@ def main():
             })
 
     pd.DataFrame(path_rows).to_csv(OUT/"common_start_path_comparison.csv",index=False)
+
+    ledger_rows=[]
+    for start_asset in COMMON:
+        for label,assets in (("RANK1",RANK1),("RANK4",RANK4)):
+            r=trace_one(opens,closes,positions,candidates,assets,si,ei,start_asset)
+            for e in r["ledger"]:
+                sd=timestamps[e["signal_i"]].date().isoformat()
+                ed=timestamps[e["execute_i"]].date().isoformat()
+                if "2023-10-31" <= sd <= "2024-02-15":
+                    ledger_rows.append({
+                        "start_asset":start_asset,"universe":label,
+                        "signal_date":sd,"execute_date":ed,
+                        "from_asset":e["from_asset"],"to_asset":e["to_asset"],
+                        "max_dislocation":e["max_dislocation"],"pair":e["pair"],
+                    })
+    pd.DataFrame(ledger_rows).to_csv(OUT/"early_fork_transition_ledger.csv",index=False)
     pd.DataFrame(segment_rows).to_csv(OUT/"divergence_segments.csv",index=False)
     pd.DataFrame(fork_rows).to_csv(OUT/"first_fork_counterfactuals.csv",index=False)
 
@@ -233,8 +259,10 @@ def main():
     first_counts.to_csv(OUT/"first_divergence_frequency.csv",index=False)
 
     focus=[]
-    for date in first_counts.head(10)["first_divergence_date"].tolist():
-        abs_signal_idx=int(timestamps.searchsorted(pd.Timestamp(date,tz="UTC"),side="left"))
+    for execute_date in first_counts.head(10)["first_divergence_date"].tolist():
+        execute_idx=int(timestamps.searchsorted(pd.Timestamp(execute_date,tz="UTC"),side="left"))
+        abs_signal_idx=execute_idx-1
+        signal_date=timestamps[abs_signal_idx].date().isoformat()
         for universe_label,assets in (("RANK1",RANK1),("RANK4",RANK4)):
             for source in set(COMMON)|set(SWAP_POOL):
                 pos=positions[source]
@@ -244,7 +272,8 @@ def main():
                     if eligible:
                         ch=eligible[0]
                         focus.append({
-                            "date":date,"universe":universe_label,"source":source,
+                            "signal_date":signal_date,"execute_date":execute_date,
+                            "universe":universe_label,"source":source,
                             "chosen_to":ch["to_asset"],"chosen_strength":ch["max_dislocation"],
                             "eligible_count":len(eligible),
                             "eligible_routes":";".join(f"{e['to_asset']}:{e['max_dislocation']:.6f}" for e in eligible[:5]),
