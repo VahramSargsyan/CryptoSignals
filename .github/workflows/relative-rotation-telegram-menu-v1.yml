@@ -1,0 +1,104 @@
+name: Relative Rotation Telegram Menu v1
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Read-only Telegram menu action"
+        required: true
+        type: choice
+        options:
+          - POSITIONS
+          - STATUS
+          - EXECUTION
+          - MISSED
+
+permissions:
+  contents: read
+
+concurrency:
+  group: relative-rotation-telegram-menu
+  cancel-in-progress: false
+
+jobs:
+  telegram-menu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+
+      - name: Run targeted menu tests
+        run: |
+          python -m unittest tests.test_relative_rotation_telegram_menu -v
+          python -m unittest tests.test_send_relative_rotation_report -v
+          python -m unittest tests.test_relative_rotation_paper_live -v
+
+      - name: Rebuild current RR evidence
+        if: inputs.action != 'POSITIONS'
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf menu_artifacts/relative_rotation
+          python -m scripts.run_relative_rotation_paper_live \
+            --output-root menu_artifacts/relative_rotation
+          REPORT_JSON="$(find menu_artifacts/relative_rotation -name report.json -type f | sort | tail -1)"
+          test -n "$REPORT_JSON"
+          echo "REPORT_JSON=$REPORT_JSON" >> "$GITHUB_ENV"
+
+      - name: Send Telegram menu response
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RR_TELEGRAM_CONTROL_ENABLED: ${{ vars.RR_TELEGRAM_CONTROL_ENABLED }}
+          ACTION: ${{ inputs.action }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARGS=(--action "$ACTION")
+          if [ "$ACTION" != "POSITIONS" ]; then
+            ARGS+=(--report-json "$REPORT_JSON")
+          fi
+          python -m scripts.send_relative_rotation_telegram_menu "${ARGS[@]}"
+
+      - name: Upload on-demand RR evidence
+        if: always() && inputs.action != 'POSITIONS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: relative-rotation-telegram-menu-${{ github.run_number }}
+          path: menu_artifacts/relative_rotation/**
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Telegram failure acknowledgement
+        if: failure()
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ACTION: ${{ inputs.action }}
+        run: |
+          python - <<'PY'
+          import os
+          from scripts.send_relative_rotation_report import _send_telegram
+
+          action = os.environ.get("ACTION", "")
+          _send_telegram(
+              "❌ Не удалось выполнить пункт Telegram-меню "
+              + action
+              + ". Каноническое состояние не изменено."
+          )
+          PY
