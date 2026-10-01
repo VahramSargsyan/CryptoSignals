@@ -976,6 +976,52 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
         )
         self.assertEqual(len({row["event_id"] for row in candidates}), 2)
 
+    def test_notification_candidates_respect_per_book_event_floor(self):
+        latest = pd.Timestamp("2026-10-01", tz="UTC")
+        events = [
+            {
+                "date": pd.Timestamp("2026-09-28", tz="UTC").isoformat(),
+                "event": "CONFIRMED",
+                "pair": "TRX/PEPE",
+                "from_asset": "PEPE",
+                "to_asset": "TRX",
+                "max_dislocation": 0.42,
+                "reversal_from_extreme": 0.04,
+            },
+            {
+                "date": pd.Timestamp("2026-10-01", tz="UTC").isoformat(),
+                "event": "ARMED",
+                "pair": "BNB/PEPE",
+                "from_asset": "PEPE",
+                "to_asset": "BNB",
+                "max_dislocation": 0.20,
+                "reversal_from_extreme": 0.0,
+            },
+        ]
+        books = [
+            {
+                "book_id": "BOOK_3",
+                "held_asset": "PEPE",
+                "quantity": 69341307.95379811,
+                "tracking_start": pd.Timestamp("2026-10-01T18:00:00Z"),
+                "notification_event_floor": "2026-10-01T00:00:00Z",
+            }
+        ]
+
+        candidates = build_notification_candidates(
+            events,
+            position_books=books,
+            target_assets=TARGET_ASSETS,
+            latest=latest,
+            monitor_start=pd.Timestamp("2026-09-27", tz="UTC"),
+            replay_days=7,
+        )
+
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["book_id"], "BOOK_3")
+        self.assertEqual(candidates[0]["event"]["date"], pd.Timestamp("2026-10-01", tz="UTC").isoformat())
+        self.assertEqual(candidates[0]["event"]["to_asset"], "BNB")
+
     def test_notification_candidates_ignore_untracked_sol_watch(self):
         latest = pd.Timestamp("2026-09-28", tz="UTC")
         events = [
