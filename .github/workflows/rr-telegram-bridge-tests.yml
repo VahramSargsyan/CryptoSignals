@@ -35,6 +35,7 @@ jobs:
         run: |
           node --check api/telegram.js
           node --check api/health.js
+          node --check api/rr-scheduler.js
 
       - name: Run bridge tests
         working-directory: apps/rr-telegram-bridge
