@@ -56,3 +56,33 @@ test("rejects malformed date and quantity", () => {
   );
   assert.equal(bridge.parseExecutionQuantities("-1 5", "-"), null);
 });
+
+
+test("parses missed-morning Telegram commands", () => {
+  assert.deepEqual(bridge.parseMissedCommand("/missed BOOK_2"), {
+    bookId: "BOOK_2"
+  });
+  assert.deepEqual(bridge.parseMissedCommand("пропустил утренний сигнал BOOK_1"), {
+    bookId: "BOOK_1"
+  });
+  assert.deepEqual(bridge.parseMissedCommand("пропустил сигнал"), {
+    bookId: ""
+  });
+  assert.equal(bridge.parseMissedCommand("что-то другое"), null);
+});
+
+test("parses Telegram position sync commands", () => {
+  assert.deepEqual(
+    bridge.parsePositionCommand("/position BOOK_2 TRX 3950.7453"),
+    { bookId: "BOOK_2", asset: "TRX", quantity: 3950.7453 }
+  );
+  assert.deepEqual(
+    bridge.parsePositionCommand("позиция BOOK_1 ATOM 81,5"),
+    { bookId: "BOOK_1", asset: "ATOM", quantity: 81.5 }
+  );
+  assert.deepEqual(
+    bridge.parsePositionCommand("ротация BOOK_2 FIL 777"),
+    { bookId: "BOOK_2", asset: "FIL", quantity: 777 }
+  );
+  assert.equal(bridge.parsePositionCommand("/position BOOK_2 TRX -1"), null);
+});
