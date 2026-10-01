@@ -48,9 +48,9 @@ class RelativeRotationTelegramMenuTests(unittest.TestCase):
             "latest_pair_states": [
                 {
                     "pair": "AVAX/ATOM",
-                    "mode": "LOW",
-                    "from_asset": "AVAX",
-                    "to_asset": "ATOM",
+                    "mode": "HIGH",
+                    "from_asset": "ATOM",
+                    "to_asset": "AVAX",
                     "deviation": 0.12,
                     "max_dislocation": 0.18,
                     "reversal_from_extreme": 0.01,
@@ -60,7 +60,7 @@ class RelativeRotationTelegramMenuTests(unittest.TestCase):
                     "mode": "NONE",
                     "from_asset": None,
                     "to_asset": None,
-                    "deviation": -0.08,
+                    "deviation": 0.08,
                     "max_dislocation": 0.0,
                     "reversal_from_extreme": None,
                 },
@@ -131,7 +131,7 @@ class RelativeRotationTelegramMenuTests(unittest.TestCase):
         self.assertIn("📡 Relative Rotation — полная текущая ротация", text)
         self.assertIn("BOOK_1 — текущая позиция: ATOM", text)
         self.assertIn("AVAX: +12.00%", text)
-        self.assertIn("↩️ ARM обратно", text)
+        self.assertIn("⚠️ ARM", text)
         self.assertIn("FIL: +8.00%", text)
         self.assertIn("до ARM 7.00 п.п.", text)
         self.assertIn("BOOK_2 — текущая позиция: 3950.75 TRX", text)
@@ -228,7 +228,7 @@ class RelativeRotationTelegramMenuTests(unittest.TestCase):
                 )
 
             send.assert_called_once()
-            self.assertIn("текущий статус", send.call_args.args[0])
+            self.assertIn("полная текущая ротация", send.call_args.args[0])
             markup = send.call_args.kwargs["reply_markup"]
             self.assertEqual(len(markup["inline_keyboard"][0]), 2)
 
