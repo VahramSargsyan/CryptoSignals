@@ -44,6 +44,45 @@ class RelativeRotationTelegramMenuTests(unittest.TestCase):
         }
         return {
             "latest_closed_candle": "2026-10-01T00:00:00+00:00",
+            "target_assets": ["TWT", "PEPE", "BNB", "TRX", "AAVE", "AVAX", "FIL", "ALGO", "XRP", "HBAR"],
+            "latest_pair_states": [
+                {
+                    "pair": "AVAX/ATOM",
+                    "mode": "LOW",
+                    "from_asset": "AVAX",
+                    "to_asset": "ATOM",
+                    "deviation": 0.12,
+                    "max_dislocation": 0.18,
+                    "reversal_from_extreme": 0.01,
+                },
+                {
+                    "pair": "FIL/ATOM",
+                    "mode": "NONE",
+                    "from_asset": None,
+                    "to_asset": None,
+                    "deviation": -0.08,
+                    "max_dislocation": 0.0,
+                    "reversal_from_extreme": None,
+                },
+                {
+                    "pair": "TRX/FIL",
+                    "mode": "NONE",
+                    "from_asset": None,
+                    "to_asset": None,
+                    "deviation": -0.11,
+                    "max_dislocation": 0.0,
+                    "reversal_from_extreme": None,
+                },
+                {
+                    "pair": "TRX/HBAR",
+                    "mode": "HIGH",
+                    "from_asset": "HBAR",
+                    "to_asset": "TRX",
+                    "deviation": 0.16,
+                    "max_dislocation": 0.19,
+                    "reversal_from_extreme": 0.01,
+                },
+            ],
             "book_events": {
                 "BOOK_1": {
                     "book": {"book_id": "BOOK_1", "held_asset": "ATOM"},
@@ -87,15 +126,44 @@ class RelativeRotationTelegramMenuTests(unittest.TestCase):
             markup["inline_keyboard"][1][0]["callback_data"], "rrp|BOOK_2"
         )
 
-    def test_status_shows_armed_and_confirmed(self):
+    def test_status_shows_full_signed_rotation_board(self):
         text = menu.build_status_text(self._report())
-        self.assertIn("📡 Relative Rotation — текущий статус", text)
-        self.assertIn("BOOK_1 — ATOM", text)
-        self.assertIn("⚠️ ARM / PREWATCH", text)
-        self.assertIn("ATOM -> AVAX", text)
-        self.assertIn("BOOK_2 — 3950.75 TRX", text)
+        self.assertIn("📡 Relative Rotation — полная текущая ротация", text)
+        self.assertIn("BOOK_1 — текущая позиция: ATOM", text)
+        self.assertIn("AVAX: +12.00%", text)
+        self.assertIn("↩️ ARM обратно", text)
+        self.assertIn("FIL: +8.00%", text)
+        self.assertIn("до ARM 7.00 п.п.", text)
+        self.assertIn("BOOK_2 — текущая позиция: 3950.75 TRX", text)
+        self.assertIn("FIL: +11.00%", text)
         self.assertIn("🚨 CONFIRMED", text)
-        self.assertIn("TRX -> FIL", text)
+        self.assertIn("HBAR: -16.00%", text)
+        self.assertIn("↩️ ARM обратно", text)
+        self.assertIn("минус = сейчас сильнее", text)
+        self.assertIn("НЕ доходность", text)
+
+    def test_directional_rotation_value_is_signed_from_book_perspective(self):
+        row = {"pair": "TRX/FIL", "deviation": 0.10}
+        self.assertAlmostEqual(
+            menu._directional_rotation_value(row, "FIL", "TRX"),
+            0.10,
+        )
+        self.assertAlmostEqual(
+            menu._directional_rotation_value(row, "TRX", "FIL"),
+            -0.10,
+        )
+
+    def test_status_lists_every_target_except_current_asset(self):
+        report = self._report()
+        rows = menu._book_rotation_rows(
+            report,
+            report["book_events"]["BOOK_2"],
+        )
+        targets = {row["target"] for row in rows}
+        self.assertEqual(
+            targets,
+            {"TWT", "PEPE", "BNB", "AAVE", "AVAX", "FIL", "ALGO", "XRP", "HBAR"},
+        )
 
     def test_safe_current_confirmed_and_action_buttons(self):
         report = self._report()
