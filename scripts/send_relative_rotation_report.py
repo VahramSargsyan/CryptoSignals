@@ -5,12 +5,15 @@ import json
 import os
 import urllib.parse
 import urllib.request
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 STATE_SCHEMA_VERSION = 1
 MAX_SENT_EVENT_IDS = 500
-PRIMARY_EXECUTION_SLOT_YEREVAN = "04:20"
-FALLBACK_EXECUTION_WINDOW_YEREVAN = "23:00–24:00"
+PRIMARY_EXECUTION_SLOT_YEREVAN = "10:30"
+FALLBACK_EXECUTION_WINDOW_YEREVAN = "22:30"
+YEREVAN = ZoneInfo("Asia/Yerevan")
 
 
 def _send_telegram(text: str, *, reply_markup: dict | None = None) -> None:
@@ -61,6 +64,45 @@ def _save_state(path: Path | None, state: dict) -> None:
         "sent_event_ids": [str(value) for value in state.get("sent_event_ids", [])][-MAX_SENT_EVENT_IDS:],
     }
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _load_notification_control(path: Path | None) -> dict:
+    if path is None or not path.exists():
+        return {
+            "schema_version": 1,
+            "timezone": "Asia/Yerevan",
+            "morning_slot": PRIMARY_EXECUTION_SLOT_YEREVAN,
+            "evening_slot": FALLBACK_EXECUTION_WINDOW_YEREVAN,
+            "evening_requires_explicit_missed_morning": True,
+            "missed_morning_signals": [],
+        }
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload.setdefault("missed_morning_signals", [])
+    return payload
+
+
+def _current_yerevan_date() -> str:
+    return datetime.now(YEREVAN).date().isoformat()
+
+
+def _is_evening_armed(item: dict, control: dict, *, local_date: str | None = None) -> bool:
+    local_date = local_date or _current_yerevan_date()
+    event = item.get("event", {})
+    event_id = str(item.get("event_id") or "")
+    book_id = str(item.get("book_id") or "").upper()
+    for entry in control.get("missed_morning_signals", []):
+        if str(entry.get("book_id") or "").upper() != book_id:
+            continue
+        if str(entry.get("event_id") or "") != event_id:
+            continue
+        if str(entry.get("armed_local_date") or "") != local_date:
+            continue
+        if str(entry.get("from_asset") or "").upper() != str(event.get("from_asset") or "").upper():
+            continue
+        if str(entry.get("to_asset") or "").upper() != str(event.get("to_asset") or "").upper():
+            continue
+        return True
+    return False
 
 
 def _book_position_ru(book: dict) -> str:
@@ -260,7 +302,9 @@ def _callback_date_token(event: dict) -> str:
     return raw[:10].replace("-", "")
 
 
-def _execution_reply_markup(items: list[dict]) -> dict | None:
+def _execution_reply_markup(
+    items: list[dict], *, include_missed: bool = True
+) -> dict | None:
     if not _telegram_control_enabled():
         return None
 
@@ -290,19 +334,21 @@ def _execution_reply_markup(items: list[dict]) -> dict | None:
         if len(done_data.encode("utf-8")) > 64:
             continue
 
-        later_data = f"rrl|{book_id}"
-        rows.append(
-            [
+        row = [
+            {
+                "text": f"✅ Выполнено {book_id}",
+                "callback_data": done_data,
+            }
+        ]
+        if include_missed:
+            later_data = f"rrl|{book_id}"
+            row.append(
                 {
-                    "text": f"✅ Выполнено {book_id}",
-                    "callback_data": done_data,
-                },
-                {
-                    "text": f"⏰ Позже {book_id}",
+                    "text": f"⏰ Пропустил утром {book_id}",
                     "callback_data": later_data,
-                },
-            ]
-        )
+                }
+            )
+        rows.append(row)
 
     return {"inline_keyboard": rows} if rows else None
 
@@ -312,11 +358,27 @@ def _execution_reminder_id(kind: str, report: dict, item: dict) -> str:
     return f"{kind.upper()}_PENDING|{slot}|{item.get('event_id') or ''}"
 
 
-def _pending_execution_candidates(report: dict, state: dict, *, kind: str) -> list[dict]:
-    """Repeat unresolved CONFIRMED routes once per closed candle/reminder kind."""
+def _pending_execution_candidates(
+    report: dict,
+    state: dict,
+    *,
+    kind: str,
+    control: dict | None = None,
+    local_date: str | None = None,
+) -> list[dict]:
+    """Repeat unresolved CONFIRMED routes once per reminder kind.
+
+    Evening reminders are fail-closed: they are eligible only when the user
+    explicitly marked that morning signal as missed for the same Yerevan date.
+    """
     sent = set(str(value) for value in state.get("sent_event_ids", []))
     pending = []
     for item in _latest_confirmed_by_book(report):
+        if kind.upper() == "EVENING":
+            if control is None or not _is_evening_armed(
+                item, control, local_date=local_date
+            ):
+                continue
         reminder_id = _execution_reminder_id(kind, report, item)
         if reminder_id in sent:
             continue
@@ -324,9 +386,13 @@ def _pending_execution_candidates(report: dict, state: dict, *, kind: str) -> li
     return pending
 
 
-def _evening_confirmed_candidates(report: dict, state: dict) -> list[dict]:
-    """Compatibility wrapper for the evening unresolved-execution reminder."""
-    return _pending_execution_candidates(report, state, kind="EVENING")
+def _evening_confirmed_candidates(
+    report: dict, state: dict, control: dict | None = None
+) -> list[dict]:
+    """Compatibility wrapper for the explicitly armed evening reminder."""
+    return _pending_execution_candidates(
+        report, state, kind="EVENING", control=control
+    )
 
 
 def build_execution_reminder_ru(report: dict, pending: list[dict], *, kind: str) -> str:
@@ -341,12 +407,12 @@ def build_execution_reminder_ru(report: dict, pending: list[dict], *, kind: str)
         f"Последняя закрытая D1-свеча: {report.get('latest_closed_candle')}",
         "Это не новый сигнал. Напоминание остаётся активным, пока BOOK всё ещё держит исходный актив.",
         (
-            f"Правило времени: основной слот {PRIMARY_EXECUTION_SLOT_YEREVAN} по Еревану; "
-            f"если он пропущен — резервное окно {FALLBACK_EXECUTION_WINDOW_YEREVAN}."
+            f"Правило времени: утренний слот {PRIMARY_EXECUTION_SLOT_YEREVAN} и "
+            f"вечерний слот {FALLBACK_EXECUTION_WINDOW_YEREVAN} по Еревану."
         ),
         (
-            "Между утренним слотом и резервным окном сигнал не догоняем; "
-            "вечером используем только всё ещё неисполненный CONFIRMED после повторной проверки."
+            "Вечерний этап не запускается автоматически: сначала в Telegram нужно "
+            "отметить, что утренний сигнал пропущен. Перед вечером CONFIRMED проверяется заново."
         ),
     ]
 
@@ -368,12 +434,13 @@ def build_execution_reminder_ru(report: dict, pending: list[dict], *, kind: str)
         lines.extend(_route_conflict_lines_ru(item))
         if is_evening:
             lines.append(
-                f"Сейчас резервное окно исполнения {FALLBACK_EXECUTION_WINDOW_YEREVAN} по Еревану."
+                f"Вечерний этап был явно включён после отметки пропущенного утра; "
+                f"текущий слот {FALLBACK_EXECUTION_WINDOW_YEREVAN} по Еревану."
             )
         else:
             lines.append(
-                f"Это утренний слот {PRIMARY_EXECUTION_SLOT_YEREVAN}; если не успел — "
-                f"следующее окно {FALLBACK_EXECUTION_WINDOW_YEREVAN}."
+                f"Это утренний слот {PRIMARY_EXECUTION_SLOT_YEREVAN}. Если не успел — "
+                "нажми «⏰ Пропустил утром»; без этой отметки вечернего сообщения не будет."
             )
 
     lines.extend(
@@ -426,8 +493,9 @@ def build_pending_notification_ru(report: dict, pending: list[dict]) -> str:
             else:
                 lines.append("Сигнал модели подтверждён на последней закрытой свече; исполнение остаётся ручным.")
                 lines.append(
-                    f"Время исполнения: основной слот {PRIMARY_EXECUTION_SLOT_YEREVAN} по Еревану; "
-                    f"если пропущен — не догоняем днём, резервное окно {FALLBACK_EXECUTION_WINDOW_YEREVAN}."
+                    f"Утренний слот: {PRIMARY_EXECUTION_SLOT_YEREVAN} по Еревану. "
+                    f"Если пропущен, отметь это в Telegram; только тогда будет вечерний этап "
+                    f"в {FALLBACK_EXECUTION_WINDOW_YEREVAN}."
                 )
         else:
             lines.append("Это текущий PREWATCH: ротации пока нет, ждём подтверждение 3%.")
@@ -446,6 +514,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--report-json", type=Path, required=True)
     parser.add_argument("--notification-text", type=Path, required=True)
     parser.add_argument("--state-file", type=Path)
+    parser.add_argument("--notification-control-file", type=Path)
     parser.add_argument(
         "--morning-rotation-snapshot",
         action="store_true",
@@ -469,6 +538,9 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     report = json.loads(args.report_json.read_text(encoding="utf-8"))
     state = _load_state(args.state_file)
+    notification_control = _load_notification_control(
+        args.notification_control_file
+    )
     pending = _pending_candidates(report, state)
 
     legacy_text = args.notification_text.read_text(encoding="utf-8").strip()
@@ -479,13 +551,20 @@ def main(argv: list[str] | None = None) -> int:
     reply_markup: dict | None = None
 
     if args.evening_confirmed_reminder:
-        evening_pending = _pending_execution_candidates(report, state, kind="EVENING")
+        evening_pending = _pending_execution_candidates(
+            report,
+            state,
+            kind="EVENING",
+            control=notification_control,
+        )
         if not evening_pending:
             print("notification=SKIPPED_EVENING_NO_PENDING_EXECUTION")
             _save_state(args.state_file, state)
             return 0
         text = build_execution_reminder_ru(report, evening_pending, kind="EVENING").strip()
-        reply_markup = _execution_reply_markup(evening_pending)
+        reply_markup = _execution_reply_markup(
+            evening_pending, include_missed=False
+        )
     elif pending:
         text = build_pending_notification_ru(report, pending).strip()
         confirmed_pending = _latest_confirmed_by_book(
