@@ -8,6 +8,15 @@ on:
         required: false
         type: boolean
         default: false
+      notification_mode:
+        description: "Notification policy for an external scheduler dispatch"
+        required: false
+        type: choice
+        options:
+          - auto
+          - morning
+          - evening
+        default: auto
   schedule:
     - cron: "20 0 * * *"
     - cron: "0 19 * * *"
@@ -103,11 +112,17 @@ jobs:
           printf '{"schema_version":1,"sent_event_ids":[]}\n' > "$STATE_FILE"
 
           ARTIFACT_ID="$(
-            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=relative-rotation-notification-state&per_page=100"               --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .id // empty'
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=relative-rotation-notification-state&per_page=100" \
+              --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .id // empty'
           )"
 
           if [ -n "$ARTIFACT_ID" ]; then
-            curl -L -sS               -H "Authorization: Bearer $GH_TOKEN"               -H "Accept: application/vnd.github+json"               -H "X-GitHub-Api-Version: 2022-11-28"               "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip"               -o /tmp/rr-notification-state.zip
+            curl -L -sS \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" \
+              -o /tmp/rr-notification-state.zip
             unzip -q -o /tmp/rr-notification-state.zip -d paper_state
             echo "notification_state=RESTORED artifact_id=$ARTIFACT_ID"
           else
@@ -123,9 +138,19 @@ jobs:
           RR_TELEGRAM_CONTROL_ENABLED: ${{ vars.RR_TELEGRAM_CONTROL_ENABLED }}
           EVENT_NAME: ${{ github.event_name }}
           SCHEDULE_EXPRESSION: ${{ github.event.schedule }}
+          NOTIFICATION_MODE_INPUT: ${{ inputs.notification_mode }}
         run: |
           SENDER_EXTRA=""
-          if [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPRESSION" = "20 0 * * *" ]; then
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            case "$NOTIFICATION_MODE_INPUT" in
+              morning)
+                SENDER_EXTRA="--morning-rotation-snapshot"
+                ;;
+              evening)
+                SENDER_EXTRA="--evening-confirmed-reminder"
+                ;;
+            esac
+          elif [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPRESSION" = "20 0 * * *" ]; then
             SENDER_EXTRA="--morning-rotation-snapshot"
           elif [ "$EVENT_NAME" = "schedule" ]; then
             case "$SCHEDULE_EXPRESSION" in
@@ -134,7 +159,11 @@ jobs:
                 ;;
             esac
           fi
-          python -m scripts.send_relative_rotation_report             --report-json "$PAPER_RUN_DIR/report.json"             --notification-text "$PAPER_RUN_DIR/notification.txt"             --state-file "paper_state/relative_rotation_notification_state.json"             $SENDER_EXTRA
+          python -m scripts.send_relative_rotation_report \
+            --report-json "$PAPER_RUN_DIR/report.json" \
+            --notification-text "$PAPER_RUN_DIR/notification.txt" \
+            --state-file "paper_state/relative_rotation_notification_state.json" \
+            $SENDER_EXTRA
 
       - name: Persist Telegram dedupe state
         if: always() && github.event_name != 'pull_request'
