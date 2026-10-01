@@ -46,8 +46,10 @@ MATURE unique direct attempts:
 - sell timeout: 5
 - buy timeout after successful sell: 3
 
-Median skipped signal-days:
-- MATURE: 61
+Metric correction:
+- the prior `skipped_signal_days` field should be read as **pending days**, not literal skipped-signal count;
+- MATURE median pending days: 61;
+- return/DD conclusions are unchanged.
 
 ## Key lesson
 
