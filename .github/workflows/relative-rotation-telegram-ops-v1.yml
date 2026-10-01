@@ -1,0 +1,213 @@
+name: Relative Rotation Telegram Operations v1
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Telegram operational action"
+        required: true
+        type: choice
+        options:
+          - MARK_MORNING_MISSED
+          - SET_POSITION
+      book_id:
+        description: "BOOK_1 / BOOK_2; may be blank for missed signal when exactly one book is unresolved"
+        required: false
+        type: string
+      asset:
+        description: "Current asset for SET_POSITION"
+        required: false
+        type: string
+      quantity:
+        description: "Current quantity for SET_POSITION"
+        required: false
+        type: string
+      confirmed_at:
+        description: "Telegram/Vercel confirmation timestamp"
+        required: true
+        type: string
+      telegram_update_id:
+        description: "Telegram update id for idempotency"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: relative-rotation-telegram-operations
+  cancel-in-progress: false
+
+jobs:
+  apply-operation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependency
+        run: python -m pip install "pandas==2.2.3"
+
+      - name: Run operational tests before mutation
+        run: |
+          python -m unittest tests.test_relative_rotation_telegram_operations -v
+          python -m unittest tests.test_send_relative_rotation_report -v
+          python -m unittest tests.test_relative_rotation_execution_control -v
+
+      - name: Rebuild current RR evidence when marking morning missed
+        if: inputs.action == 'MARK_MORNING_MISSED'
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: |
+          rm -rf control_artifacts/rr_telegram_ops
+          python -m scripts.run_relative_rotation_paper_live \
+            --output-root control_artifacts/rr_telegram_ops
+          REPORT_JSON="$(find control_artifacts/rr_telegram_ops -name report.json -type f | sort | tail -1)"
+          test -n "$REPORT_JSON"
+          echo "REPORT_JSON=$REPORT_JSON" >> "$GITHUB_ENV"
+
+      - name: Apply Telegram operation
+        env:
+          ACTION: ${{ inputs.action }}
+          BOOK_ID: ${{ inputs.book_id }}
+          ASSET: ${{ inputs.asset }}
+          QUANTITY: ${{ inputs.quantity }}
+          CONFIRMED_AT: ${{ inputs.confirmed_at }}
+          TELEGRAM_UPDATE_ID: ${{ inputs.telegram_update_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARGS=(
+            --action "$ACTION"
+            --book-id "$BOOK_ID"
+            --asset "$ASSET"
+            --quantity "$QUANTITY"
+            --confirmed-at "$CONFIRMED_AT"
+            --telegram-update-id "$TELEGRAM_UPDATE_ID"
+          )
+          if [ "$ACTION" = "MARK_MORNING_MISSED" ]; then
+            ARGS+=(--report-json "$REPORT_JSON")
+          fi
+          python -m scripts.apply_relative_rotation_telegram_operation "${ARGS[@]}" | tee /tmp/rr-telegram-op.txt
+          if grep -q '^changed=False$' /tmp/rr-telegram-op.txt; then
+            echo "RR_OPERATION_NO_CHANGE=true" >> "$GITHUB_ENV"
+          else
+            echo "RR_OPERATION_NO_CHANGE=false" >> "$GITHUB_ENV"
+          fi
+          RESOLVED_BOOK="$(sed -n 's/^book_id=//p' /tmp/rr-telegram-op.txt | tail -1)"
+          RESOLVED_ASSET="$(sed -n 's/^asset=//p' /tmp/rr-telegram-op.txt | tail -1)"
+          RESOLVED_QUANTITY="$(sed -n 's/^quantity=//p' /tmp/rr-telegram-op.txt | tail -1)"
+          echo "RESOLVED_BOOK=$RESOLVED_BOOK" >> "$GITHUB_ENV"
+          echo "RESOLVED_ASSET=$RESOLVED_ASSET" >> "$GITHUB_ENV"
+          echo "RESOLVED_QUANTITY=$RESOLVED_QUANTITY" >> "$GITHUB_ENV"
+
+      - name: Re-run operational tests after mutation
+        run: |
+          python -m unittest tests.test_relative_rotation_telegram_operations -v
+          python -m unittest tests.test_send_relative_rotation_report -v
+          python -m unittest tests.test_relative_rotation_execution_control -v
+
+      - name: Commit canonical operational state
+        env:
+          ACTION: ${{ inputs.action }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t CHANGED < <(git diff --name-only)
+          for path in "${CHANGED[@]}"; do
+            case "$path" in
+              config/relative_rotation_notification_control_v1.json|config/relative_rotation_paper_live_v1.json|research/relative_rotation/REAL_ROTATION_LOG.md)
+                ;;
+              *)
+                echo "Unexpected mutated file: $path" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+          if [ "${RR_OPERATION_NO_CHANGE:-false}" = "true" ]; then
+            echo "Operation already applied; no commit required."
+            exit 0
+          fi
+
+          test "${#CHANGED[@]}" -gt 0
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]; then
+            echo "main advanced during Telegram operation; refusing stale mutation" >&2
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            config/relative_rotation_notification_control_v1.json \
+            config/relative_rotation_paper_live_v1.json \
+            research/relative_rotation/REAL_ROTATION_LOG.md
+          git commit -m "state: RR Telegram $ACTION"
+          git push origin HEAD:main
+
+      - name: Telegram success acknowledgement
+        if: success()
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ACTION: ${{ inputs.action }}
+          BOOK_ID: ${{ env.RESOLVED_BOOK }}
+          ASSET: ${{ env.RESOLVED_ASSET }}
+          QUANTITY: ${{ env.RESOLVED_QUANTITY }}
+        run: |
+          python - <<'PY'
+          import os
+          from scripts.send_relative_rotation_report import _send_telegram
+
+          action = os.environ["ACTION"]
+          book = os.environ.get("BOOK_ID") or "BOOK"
+          if action == "MARK_MORNING_MISSED":
+              text = (
+                  f"✅ {book}: утренний CONFIRMED отмечен как пропущенный.\n"
+                  "Вечерний этап включён на 22:30 по Еревану. "
+                  "Перед отправкой сигнал будет проверен заново."
+              )
+          else:
+              text = (
+                  f"✅ {book}: текущая позиция записана из Telegram.\n"
+                  f"{os.environ.get('QUANTITY')} {os.environ.get('ASSET')}\n"
+                  "Это запись фактического состояния, а не автоматическая биржевая сделка."
+              )
+          _send_telegram(text)
+          PY
+
+      - name: Telegram failure acknowledgement
+        if: failure()
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ACTION: ${{ inputs.action }}
+        run: |
+          python - <<'PY'
+          import os
+          from scripts.send_relative_rotation_report import _send_telegram
+          action = os.environ.get("ACTION", "")
+          hint = (
+              "Если одновременно есть сигналы по нескольким BOOK, укажи BOOK_1 или BOOK_2."
+              if action == "MARK_MORNING_MISSED"
+              else "Проверь формат: /position BOOK_2 TRX 3950.7453"
+          )
+          _send_telegram(
+              "❌ GitHub не применил Telegram-команду. Каноническое состояние не изменено.\n"
+              + hint
+          )
+          PY

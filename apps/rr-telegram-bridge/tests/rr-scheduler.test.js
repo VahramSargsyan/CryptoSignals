@@ -6,20 +6,18 @@ const scheduler = require("../api/rr-scheduler.js")._test;
 test("maps Vercel cron schedules to notification modes", () => {
   assert.equal(
     scheduler.resolveNotificationMode({
-      headers: { "x-vercel-cron-schedule": "20 0 * * *" },
+      headers: { "x-vercel-cron-schedule": "30 6 * * *" },
       query: {}
     }),
     "morning"
   );
-  for (const schedule of ["0 19 * * *", "30 19 * * *", "50 19 * * *"]) {
-    assert.equal(
-      scheduler.resolveNotificationMode({
-        headers: { "x-vercel-cron-schedule": schedule },
-        query: {}
-      }),
-      "evening"
-    );
-  }
+  assert.equal(
+    scheduler.resolveNotificationMode({
+      headers: { "x-vercel-cron-schedule": "30 18 * * *" },
+      query: {}
+    }),
+    "evening"
+  );
 });
 
 test("allows explicit mode only as authenticated test fallback input", () => {

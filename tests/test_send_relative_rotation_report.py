@@ -19,6 +19,35 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         notification_path.write_text("legacy text", encoding="utf-8")
         return temp, report_path, notification_path
 
+    def _control_file(self, root: Path, candidate: dict, *, local_date: str = "2030-01-01"):
+        path = root / "control.json"
+        event = candidate["event"]
+        path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "timezone": "Asia/Yerevan",
+                    "morning_slot": "10:30",
+                    "evening_slot": "22:30",
+                    "evening_requires_explicit_missed_morning": True,
+                    "missed_morning_signals": [
+                        {
+                            "book_id": candidate["book_id"],
+                            "event_id": candidate["event_id"],
+                            "signal_date": event.get("date"),
+                            "from_asset": event.get("from_asset"),
+                            "to_asset": event.get("to_asset"),
+                            "armed_local_date": local_date,
+                            "armed_at": local_date + "T10:35:00+04:00",
+                            "telegram_update_id": "fixture",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return path
+
     def test_sender_skips_when_policy_says_no_notify(self):
         temp, report_path, notification_path = self._files(
             {
@@ -290,6 +319,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        control_path = self._control_file(Path(temp.name), candidate)
 
         with mock.patch.dict(
             "os.environ",
@@ -298,7 +328,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
                 "TELEGRAM_CHAT_ID": "fake-chat",
             },
             clear=False,
-        ), mock.patch.object(sender, "_send_telegram") as send:
+        ), mock.patch.object(sender, "_current_yerevan_date", return_value="2030-01-01"), mock.patch.object(sender, "_send_telegram") as send:
             rc = sender.main(
                 [
                     "--report-json",
@@ -307,6 +337,8 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
                     str(notification_path),
                     "--state-file",
                     str(state_path),
+                    "--notification-control-file",
+                    str(control_path),
                     "--evening-confirmed-reminder",
                 ]
             )
@@ -317,9 +349,9 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         self.assertIn("вечернее напоминание об НЕИСПОЛНЕННОЙ ротации", text)
         self.assertIn("ALGO -> FIL", text)
         self.assertIn("Цена закрытия: ALGO $0.15; FIL $3; 1 ALGO = 0.05 FIL.", text)
-        self.assertIn("основной слот 04:20", text)
-        self.assertIn("резервное окно 23:00–24:00", text)
-        self.assertIn("сигнал не догоняем", text)
+        self.assertIn("утренний слот 10:30", text)
+        self.assertIn("вечерний слот 22:30", text)
+        self.assertIn("явно включён после отметки пропущенного утра", text)
         state = json.loads(state_path.read_text(encoding="utf-8"))
         self.assertIn(candidate["event_id"], state["sent_event_ids"])
         self.assertIn(
@@ -366,6 +398,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         )
         self.addCleanup(temp.cleanup)
         state_path = Path(temp.name) / "state.json"
+        control_path = self._control_file(Path(temp.name), confirmed)
 
         with mock.patch.dict(
             "os.environ",
@@ -374,7 +407,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
                 "TELEGRAM_CHAT_ID": "fake-chat",
             },
             clear=False,
-        ), mock.patch.object(sender, "_send_telegram") as send:
+        ), mock.patch.object(sender, "_current_yerevan_date", return_value="2030-01-01"), mock.patch.object(sender, "_send_telegram") as send:
             rc = sender.main(
                 [
                     "--report-json",
@@ -383,6 +416,8 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
                     str(notification_path),
                     "--state-file",
                     str(state_path),
+                    "--notification-control-file",
+                    str(control_path),
                     "--evening-confirmed-reminder",
                 ]
             )
@@ -429,8 +464,9 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        control_path = self._control_file(Path(temp.name), candidate)
 
-        with mock.patch.object(sender, "_send_telegram") as send:
+        with mock.patch.object(sender, "_current_yerevan_date", return_value="2030-01-01"), mock.patch.object(sender, "_send_telegram") as send:
             rc = sender.main(
                 [
                     "--report-json",
@@ -439,6 +475,8 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
                     str(notification_path),
                     "--state-file",
                     str(state_path),
+                    "--notification-control-file",
+                    str(control_path),
                     "--evening-confirmed-reminder",
                 ]
             )
@@ -446,7 +484,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         send.assert_not_called()
 
-    def test_next_closed_candle_can_remind_again_if_still_unexecuted(self):
+    def test_next_day_evening_does_not_send_without_new_missed_morning_ack(self):
         candidate = {
             "event_id": "BOOK_1|CONFIRMED|2026-09-28T00:00:00+00:00|ATOM|AVAX|ATOM/AVAX",
             "book_id": "BOOK_1",
@@ -477,6 +515,9 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
             json.dumps({"schema_version": 1, "sent_event_ids": [previous]}),
             encoding="utf-8",
         )
+        control_path = self._control_file(
+            Path(temp.name), candidate, local_date="2026-09-28"
+        )
 
         with mock.patch.dict(
             "os.environ",
@@ -485,7 +526,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
                 "TELEGRAM_CHAT_ID": "fake-chat",
             },
             clear=False,
-        ), mock.patch.object(sender, "_send_telegram") as send:
+        ), mock.patch.object(sender, "_current_yerevan_date", return_value="2026-09-29"), mock.patch.object(sender, "_send_telegram") as send:
             rc = sender.main(
                 [
                     "--report-json",
@@ -494,17 +535,67 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
                     str(notification_path),
                     "--state-file",
                     str(state_path),
+                    "--notification-control-file",
+                    str(control_path),
                     "--evening-confirmed-reminder",
                 ]
             )
 
         self.assertEqual(rc, 0)
-        send.assert_called_once()
-        state = json.loads(state_path.read_text(encoding="utf-8"))
-        self.assertIn(
-            "EVENING_PENDING|2026-09-29T00:00:00+00:00|" + candidate["event_id"],
-            state["sent_event_ids"],
+        send.assert_not_called()
+
+    def test_evening_reminder_is_fail_closed_without_missed_morning_ack(self):
+        candidate = {
+            "event_id": "BOOK_2|CONFIRMED|2026-10-01T00:00:00+00:00|TRX|FIL|TRX/FIL",
+            "book_id": "BOOK_2",
+            "book": {"held_asset": "TRX", "quantity": 3950.7453},
+            "event": {
+                "date": "2026-10-01T00:00:00+00:00",
+                "event": "CONFIRMED",
+                "pair": "TRX/FIL",
+                "from_asset": "TRX",
+                "to_asset": "FIL",
+                "max_dislocation": 0.25,
+                "reversal_from_extreme": 0.04,
+            },
+        }
+        temp, report_path, notification_path = self._files(
+            {
+                "should_notify": False,
+                "latest_closed_candle": "2026-10-01T00:00:00+00:00",
+                "notification_candidates": [candidate],
+                "telegram_text_ru": "fallback",
+            }
         )
+        self.addCleanup(temp.cleanup)
+        control_path = Path(temp.name) / "control.json"
+        control_path.write_text(
+            json.dumps({"schema_version": 1, "missed_morning_signals": []}),
+            encoding="utf-8",
+        )
+
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "TELEGRAM_BOT_TOKEN": "fake-token",
+                "TELEGRAM_CHAT_ID": "fake-chat",
+            },
+            clear=False,
+        ), mock.patch.object(sender, "_current_yerevan_date", return_value="2026-10-01"), mock.patch.object(sender, "_send_telegram") as send:
+            rc = sender.main(
+                [
+                    "--report-json",
+                    str(report_path),
+                    "--notification-text",
+                    str(notification_path),
+                    "--notification-control-file",
+                    str(control_path),
+                    "--evening-confirmed-reminder",
+                ]
+            )
+
+        self.assertEqual(rc, 0)
+        send.assert_not_called()
 
     def test_morning_snapshot_repeats_unresolved_confirmed_after_base_event_sent(self):
         candidate = {
@@ -567,8 +658,8 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         text = send.call_args.args[0]
         self.assertIn("повтор НЕИСПОЛНЕННОЙ ротации", text)
         self.assertIn("LINK -> ALGO", text)
-        self.assertIn("утренний слот 04:20", text)
-        self.assertIn("следующее окно 23:00–24:00", text)
+        self.assertIn("утренний слот 10:30", text)
+        self.assertIn("Пропустил утром", text)
         state = json.loads(state_path.read_text(encoding="utf-8"))
         self.assertIn(
             "MORNING_PENDING|2026-09-29T00:00:00+00:00|" + candidate["event_id"],
@@ -700,13 +791,14 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         self.assertIsNotNone(markup)
         self.assertIn("|LINK|TRX|", markup["inline_keyboard"][0][0]["callback_data"])
 
-    def test_workflow_schedules_fallback_only_inside_23_24_yerevan(self):
+    def test_workflow_has_only_1030_and_2230_yerevan_slots(self):
         workflow = Path(".github/workflows/relative-rotation-paper-live-v1.yml").read_text(encoding="utf-8")
-        self.assertIn('cron: "20 0 * * *"', workflow)
-        self.assertIn('cron: "0 19 * * *"', workflow)
-        self.assertIn('cron: "30 19 * * *"', workflow)
-        self.assertIn('cron: "50 19 * * *"', workflow)
-        self.assertNotIn('cron: "30 18 * * *"', workflow)
+        self.assertIn('cron: "30 6 * * *"', workflow)
+        self.assertIn('cron: "30 18 * * *"', workflow)
+        self.assertNotIn('cron: "20 0 * * *"', workflow)
+        self.assertNotIn('cron: "0 19 * * *"', workflow)
+        self.assertNotIn('cron: "30 19 * * *"', workflow)
+        self.assertNotIn('cron: "50 19 * * *"', workflow)
 
     def test_execution_reply_markup_is_disabled_by_default(self):
         candidate = {
@@ -743,7 +835,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         self.assertIsNotNone(markup)
         row = markup["inline_keyboard"][0]
         self.assertEqual(row[0]["text"], "✅ Выполнено BOOK_2")
-        self.assertEqual(row[1]["text"], "⏰ Позже BOOK_2")
+        self.assertEqual(row[1]["text"], "⏰ Пропустил утром BOOK_2")
         self.assertTrue(
             row[0]["callback_data"].startswith(
                 "rrd|BOOK_2|ALGO|FIL|20260928|"

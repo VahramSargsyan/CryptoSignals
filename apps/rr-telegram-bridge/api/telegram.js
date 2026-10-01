@@ -1,5 +1,6 @@
 const DEFAULT_REPOSITORY = "VahramSargsyan/CryptoSignals";
 const DEFAULT_WORKFLOW = "relative-rotation-telegram-control-v1.yml";
+const DEFAULT_OPERATIONS_WORKFLOW = "relative-rotation-telegram-ops-v1.yml";
 
 function requiredEnv(name) {
   const value = String(process.env[name] || "").trim();
@@ -93,6 +94,30 @@ function parseLaterCallback(data) {
   const parts = String(data || "").split("|");
   if (parts.length < 2 || parts[0] !== "rrl") return null;
   return { bookId: normalizeBookId(parts[1]) };
+}
+
+function parseMissedCommand(text) {
+  const raw = String(text || "").trim();
+  const match = raw.match(
+    /^(?:\/missed(?:@[A-Za-z0-9_]+)?|пропустил(?:\s+утренний)?(?:\s+сигнал)?)(?:\s+(BOOK_[1-9][0-9]*))?$/iu
+  );
+  if (!match) return null;
+  return { bookId: match[1] ? normalizeBookId(match[1]) : "" };
+}
+
+function parsePositionCommand(text) {
+  const raw = String(text || "").trim();
+  const match = raw.match(
+    /^(?:\/position(?:@[A-Za-z0-9_]+)?|позиция|ротация|запиши\s+позицию)\s+(BOOK_[1-9][0-9]*)\s+([A-Z0-9]{2,12})\s+([0-9]+(?:[.,][0-9]+)?)$/iu
+  );
+  if (!match) return null;
+  const quantity = parsePositiveNumber(match[3]);
+  if (quantity === null) return null;
+  return {
+    bookId: normalizeBookId(match[1]),
+    asset: normalizeAsset(match[2]),
+    quantity
+  };
 }
 
 function markerFor(signal) {
@@ -227,6 +252,59 @@ async function dispatchExecution(signal, quantities, update) {
   }
 }
 
+function operationTimestamp(update) {
+  const unixSeconds = update?.message?.date;
+  if (Number.isFinite(Number(unixSeconds)) && Number(unixSeconds) > 0) {
+    return new Date(Number(unixSeconds) * 1000).toISOString();
+  }
+  return new Date().toISOString();
+}
+
+async function dispatchOperation(action, payload, update) {
+  const token = requiredEnv("GITHUB_DISPATCH_TOKEN");
+  const repository = String(
+    process.env.GITHUB_REPOSITORY || DEFAULT_REPOSITORY
+  ).trim();
+  const workflow = String(
+    process.env.GITHUB_OPERATIONS_WORKFLOW || DEFAULT_OPERATIONS_WORKFLOW
+  ).trim();
+
+  const response = await fetch(
+    `https://api.github.com/repos/${repository}/actions/workflows/${workflow}/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        accept: "application/vnd.github+json",
+        "x-github-api-version": "2022-11-28",
+        "content-type": "application/json",
+        "user-agent": "rr-telegram-control-bridge"
+      },
+      body: JSON.stringify({
+        ref: "main",
+        inputs: {
+          action,
+          book_id: String(payload.bookId || ""),
+          asset: String(payload.asset || ""),
+          quantity:
+            payload.quantity === undefined || payload.quantity === null
+              ? ""
+              : String(payload.quantity),
+          confirmed_at: operationTimestamp(update),
+          telegram_update_id: String(update.update_id ?? "")
+        }
+      })
+    }
+  );
+
+  if (![200, 204].includes(response.status)) {
+    const body = await response.text();
+    throw new Error(
+      `GitHub operations dispatch failed: HTTP ${response.status} ${body}`
+    );
+  }
+}
+
 async function handleCallback(update) {
   const query = update.callback_query;
   const done = parseDoneCallback(query.data);
@@ -268,8 +346,23 @@ async function handleCallback(update) {
   if (later) {
     await telegramCall("answerCallbackQuery", {
       callback_query_id: query.id,
-      text: `${later.bookId}: напоминание остаётся активным.`
+      text: `${later.bookId}: отмечаю пропущенный утренний сигнал.`
     });
+    await dispatchOperation(
+      "MARK_MORNING_MISSED",
+      { bookId: later.bookId },
+      update
+    );
+    const chatId = query.message?.chat?.id;
+    if (chatId) {
+      await telegramCall("sendMessage", {
+        chat_id: chatId,
+        text: [
+          `⏳ ${later.bookId}: передал отметку о пропущенном утреннем сигнале в GitHub.`,
+          "После проверки GitHub включит вечерний этап на 22:30 по Еревану."
+        ].join("\n")
+      });
+    }
     return;
   }
 
@@ -318,6 +411,46 @@ async function handleExecutionReply(update) {
   return true;
 }
 
+async function handleTextCommand(update) {
+  const message = update.message;
+  const text = String(message?.text || "").trim();
+  if (!text) return false;
+
+  const missed = parseMissedCommand(text);
+  if (missed) {
+    await dispatchOperation("MARK_MORNING_MISSED", missed, update);
+    await telegramCall("sendMessage", {
+      chat_id: message.chat.id,
+      text: [
+        "⏳ Передал отметку о пропущенном утреннем сигнале в GitHub.",
+        missed.bookId
+          ? `BOOK: ${missed.bookId}`
+          : "BOOK будет определён по единственному актуальному CONFIRMED.",
+        "После проверки GitHub включит вечерний этап на 22:30 по Еревану."
+      ].join("\n"),
+      reply_to_message_id: message.message_id
+    });
+    return true;
+  }
+
+  const position = parsePositionCommand(text);
+  if (position) {
+    await dispatchOperation("SET_POSITION", position, update);
+    await telegramCall("sendMessage", {
+      chat_id: message.chat.id,
+      text: [
+        "⏳ Передал текущую позицию в GitHub.",
+        `${position.bookId}: ${position.quantity} ${position.asset}`,
+        "GitHub запишет фактическое состояние без создания биржевого ордера."
+      ].join("\n"),
+      reply_to_message_id: message.message_id
+    });
+    return true;
+  }
+
+  return false;
+}
+
 async function handler(request, response) {
   if (request.method === "GET") {
     response.status(200).json({
@@ -349,7 +482,10 @@ async function handler(request, response) {
     if (update.callback_query) {
       await handleCallback(update);
     } else if (update.message) {
-      await handleExecutionReply(update);
+      const handledExecution = await handleExecutionReply(update);
+      if (!handledExecution) {
+        await handleTextCommand(update);
+      }
     }
     response.status(200).json({ ok: true });
   } catch (error) {
@@ -374,8 +510,12 @@ module.exports = handler;
 module.exports._test = {
   markerFor,
   parseDoneCallback,
+  parseMissedCommand,
+  parsePositionCommand,
   parseExecutionMarker,
   parseExecutionQuantities,
   normalizeSignalDate,
-  normalizeQuantityToken
+  normalizeQuantityToken,
+  operationTimestamp,
+  dispatchOperation
 };
