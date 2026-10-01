@@ -47,7 +47,7 @@ Provenance:
   the repository;
 - no LINK -> destination trade is recorded until the user actually executes it.
 
-### BOOK_3 — PEPE starting branch
+### BOOK_3 — PEPE starting branch (RECORDED / ACTIVE ROUTING PENDING)
 
 Current held asset:
 
@@ -68,7 +68,9 @@ Starting-state provenance:
 - screenshot displayed value: approximately `308.57 USDT`;
 - Vahram separately reported historical purchase cost of approximately `500 USDT`; this is context for later PnL comparison only and is not an RR routing rule;
 - this is a starting position snapshot, not a reconstructed exchange fill or strategy rotation;
-- BOOK_3 forward tracking starts from this PEPE quantity; pre-tracking history must not be counted as BOOK_3 forward performance evidence.
+- BOOK_3 forward tracking baseline starts from this PEPE quantity; pre-tracking history must not be counted as BOOK_3 forward performance evidence;
+- active paper-live routing is intentionally not enabled yet because the current bounded notification replay would surface a pre-registration PEPE -> TRX CONFIRMED event from 2026-09-28 as unresolved; that retrospective event is not valid BOOK_3 forward evidence;
+- activation requires a safe no-pre-registration-replay path for BOOK_3, without changing BOOK_1 / BOOK_2 legacy replay behavior.
 
 ## Recording rule
 
