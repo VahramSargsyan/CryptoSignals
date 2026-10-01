@@ -43,6 +43,15 @@ MODEL_SPECS = {
         "coef_prior_sd": 0.50,
         "status": "EXPLORATORY",
     },
+    "STATE_HYBRID_EXPLORATORY": {
+        "features": [
+            "warning_domain_count_centered",
+            "prior_negative_batch_streak_z",
+            "prior5_loss_rate_z",
+        ],
+        "coef_prior_sd": 0.45,
+        "status": "EXPLORATORY_STATEFUL",
+    },
 }
 INTERCEPT_PRIOR_MEAN = math.log(0.25 / 0.75)
 INTERCEPT_PRIOR_SD = 1.00
@@ -56,6 +65,54 @@ def sigmoid(x):
     ex=np.exp(x[~pos])
     out[~pos]=ex/(1.0+ex)
     return out
+
+
+def add_causal_strategy_state(scored):
+    """Add only information from trades that had fully exited before each signal.
+
+    This avoids peeking at the current trade outcome. Because the deduplicated
+    forensic table contains alternative-path episodes, the streak is defined on
+    chronological exit-date batches rather than pretending there is one unique
+    realized path.
+    """
+    d=scored.copy()
+    d["exit_execute_ts"]=pd.to_datetime(d["exit_execute_date"],utc=True)
+    streaks=[]
+    loss5=[]
+    mean5=[]
+    for _,row in d.iterrows():
+        prior=d[d["exit_execute_ts"] < row["signal_date_ts"]].copy()
+        prior=prior.sort_values(["exit_execute_ts","source","destination"])
+        if len(prior)==0:
+            streaks.append(0.0)
+            loss5.append(np.nan)
+            mean5.append(np.nan)
+            continue
+
+        # Last five fully completed unique trade episodes.
+        tail=prior.tail(5)
+        loss5.append(float(tail["y_loss"].mean()))
+        mean5.append(float(tail["net_roundtrip_return"].mean()))
+
+        # Consecutive negative exit-date batches. A batch is negative when its
+        # median completed-trade return is below zero.
+        batches=(
+            prior.groupby("exit_execute_ts",sort=True)["net_roundtrip_return"]
+            .median()
+            .sort_index()
+        )
+        s=0
+        for v in reversed(batches.tolist()):
+            if float(v)<0:
+                s+=1
+            else:
+                break
+        streaks.append(float(s))
+
+    d["prior_negative_batch_streak"]=streaks
+    d["prior5_loss_rate"]=loss5
+    d["prior5_mean_return"]=mean5
+    return d
 
 
 def build_dataset():
@@ -72,6 +129,7 @@ def build_dataset():
     scored["y_loss"]=(scored["net_roundtrip_return"]<0).astype(int)
     scored["y_material_loss"]=(scored["net_roundtrip_return"]<=-0.10).astype(int)
     scored["warning_domain_count_centered"]=scored["warning_domain_count"].astype(float)-2.0
+    scored=add_causal_strategy_state(scored)
 
     # Standardization constants are computed on the full forensic sample only for
     # descriptive HYBRID research. LOO/prequential refits recompute z-scores inside
@@ -84,7 +142,10 @@ def prepare_xy(train,test,spec,target):
     te=test.copy()
 
     # Recompute train-only continuous standardization for HYBRID.
-    for col in ["effective_strength","primary_reversal","u10_breadth50"]:
+    for col in [
+        "effective_strength","primary_reversal","u10_breadth50",
+        "prior_negative_batch_streak","prior5_loss_rate","prior5_mean_return"
+    ]:
         vals=pd.to_numeric(tr[col],errors="coerce").astype(float)
         med=float(vals.median())
         sd=float(vals.std(ddof=0))
@@ -311,6 +372,26 @@ def calibration_table(pred):
     return pd.DataFrame(rows)
 
 
+def state_summary(df,target):
+    rows=[]
+    for label,mask in [
+        ("STREAK_0", df["prior_negative_batch_streak"]==0),
+        ("STREAK_1", df["prior_negative_batch_streak"]==1),
+        ("STREAK_2PLUS", df["prior_negative_batch_streak"]>=2),
+        ("PRIOR5_LOSS_RATE_GE40", df["prior5_loss_rate"]>=0.40),
+        ("PRIOR5_LOSS_RATE_GE60", df["prior5_loss_rate"]>=0.60),
+        ("HIGH_WARN_GE3_AND_STREAK_GE1", (df["warning_domain_count"]>=3)&(df["prior_negative_batch_streak"]>=1)),
+    ]:
+        g=df[mask.fillna(False)]
+        rows.append({
+            "target":target,"state":label,"n":int(len(g)),
+            "events":int(g[target].sum()) if len(g) else 0,
+            "event_rate":float(g[target].mean()) if len(g) else np.nan,
+            "median_trade_return":float(g["net_roundtrip_return"].median()) if len(g) else np.nan,
+        })
+    return pd.DataFrame(rows)
+
+
 def main():
     OUT.mkdir(parents=True,exist_ok=True)
     _,df,score_summary,baseline_return=build_dataset()
@@ -375,6 +456,10 @@ def main():
     calibration=pd.concat(cal,ignore_index=True)
     calibration.to_csv(OUT/"primary_loo_calibration.csv",index=False)
 
+    state_frames=[state_summary(df,target) for target in ("y_loss","y_material_loss")]
+    state_df=pd.concat(state_frames,ignore_index=True)
+    state_df.to_csv(OUT/"stateful_loss_sequence_diagnostics.csv",index=False)
+
     # Historical risk cards from LOO only; these are what the model would say without its own label.
     cards=loos[(loos.model=="COUNT_PRIMARY")&(loos.target=="y_loss")].copy()
     cards=cards.merge(
@@ -403,6 +488,8 @@ def main():
         "validation":json.loads(results.to_json(orient="records")),
         "count_curve":json.loads(curves.to_json(orient="records")),
         "fundamental_layer":"NOT_AVAILABLE_POINT_IN_TIME",
+        "stateful_layer":"CAUSAL_PRIOR_COMPLETED_TRADE_STATE_INCLUDED_AS_EXPLORATORY_HYBRID",
+        "stateful_validation_guardrail":"STATE_HYBRID_SHOULD_BE_JUDGED_PRIMARILY_BY_PREQUENTIAL_METRICS",
         "interpretation_guardrail":"POST_SELECTION_FEATURE_DEFINITIONS; LOO_IS_NOT_TRUE_OOS",
     }
     (OUT/"summary.json").write_text(json.dumps(summary,indent=2,sort_keys=True,default=str)+"\n",encoding="utf-8")
@@ -453,6 +540,8 @@ def main():
         "",
         "- 30 trades / 7 losses is a very small dataset.",
         "- Warning-domain definitions were discovered on known history; LOO does not erase that post-selection bias.",
+        "- Stateful loss-series features use only trades fully completed before the current signal.",
+        "- Because sequence features are temporal, STATE_HYBRID is judged primarily by prequential validation, not LOO.",
         "- Bayesian shrinkage reduces overconfidence but cannot create missing information.",
         "- No probability threshold, veto, or position-sizing rule is production-approved.",
         "- Fundamental point-in-time data is not yet available and is excluded.",
