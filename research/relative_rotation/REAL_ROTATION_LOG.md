@@ -47,7 +47,7 @@ Provenance:
   the repository;
 - no LINK -> destination trade is recorded until the user actually executes it.
 
-### BOOK_3 — PEPE starting branch (RECORDED / ACTIVE ROUTING PENDING)
+### BOOK_3 — PEPE starting branch
 
 Current held asset:
 
@@ -66,11 +66,13 @@ Starting-state provenance:
 - user-provided Binance balance screenshot captured at approximately `22:00` local time (Asia/Yerevan) on `2026-10-01`;
 - screenshot shows `69,341,307.9537981079 PEPE`;
 - screenshot displayed value: approximately `308.57 USDT`;
-- Vahram separately reported historical purchase cost of approximately `500 USDT`; this is context for later PnL comparison only and is not an RR routing rule;
+- later Binance PEPE/USDT screenshot shows average purchase price approximately `0.00000747 USDT / PEPE`;
+- implied historical acquisition basis from quantity x displayed average price: approximately `517.98 USDT` (average price is rounded in the UI, so this is approximate, not an exchange ledger total);
+- this historical cost basis is context for PnL comparison only and is not an RR routing rule;
 - this is a starting position snapshot, not a reconstructed exchange fill or strategy rotation;
 - BOOK_3 forward tracking baseline starts from this PEPE quantity; pre-tracking history must not be counted as BOOK_3 forward performance evidence;
-- active paper-live routing is intentionally not enabled yet because the current bounded notification replay would surface a pre-registration PEPE -> TRX CONFIRMED event from 2026-09-28 as unresolved; that retrospective event is not valid BOOK_3 forward evidence;
-- activation requires a safe no-pre-registration-replay path for BOOK_3, without changing BOOK_1 / BOOK_2 legacy replay behavior.
+- active paper-live routing is enabled with a BOOK_3-specific `notification_event_floor = 2026-10-01T00:00:00Z`, so pre-registration PEPE signals such as the 2026-09-28 PEPE -> TRX CONFIRMED event are not replayed into BOOK_3;
+- BOOK_1 / BOOK_2 retain the legacy bounded replay behavior unchanged.
 
 ## Recording rule
 
