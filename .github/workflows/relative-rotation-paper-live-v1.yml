@@ -18,23 +18,24 @@ on:
           - evening
         default: auto
   schedule:
-    - cron: "20 0 * * *"
-    - cron: "0 19 * * *"
-    - cron: "30 19 * * *"
-    - cron: "50 19 * * *"
+    - cron: "30 6 * * *"
+    - cron: "30 18 * * *"
   pull_request:
     branches:
       - main
     paths:
       - ".github/workflows/relative-rotation-paper-live-v1.yml"
       - "config/relative_rotation_paper_live_v1.json"
+      - "config/relative_rotation_notification_control_v1.json"
       - "scripts/run_relative_rotation_paper_live.py"
+      - "scripts/apply_relative_rotation_telegram_operation.py"
       - "scripts/send_relative_rotation_report.py"
       - "scripts/apply_relative_rotation_manual_execution.py"
       - "strategies/crypto/relative_rotation/**"
       - "tests/test_relative_rotation_paper_live.py"
       - "tests/test_send_relative_rotation_report.py"
       - "tests/test_relative_rotation_execution_control.py"
+      - "tests/test_relative_rotation_telegram_operations.py"
   push:
     branches:
       - deploy/relative-rotation-paper-live-v1
@@ -42,13 +43,16 @@ on:
     paths:
       - ".github/workflows/relative-rotation-paper-live-v1.yml"
       - "config/relative_rotation_paper_live_v1.json"
+      - "config/relative_rotation_notification_control_v1.json"
       - "scripts/run_relative_rotation_paper_live.py"
+      - "scripts/apply_relative_rotation_telegram_operation.py"
       - "scripts/send_relative_rotation_report.py"
       - "scripts/apply_relative_rotation_manual_execution.py"
       - "strategies/crypto/relative_rotation/**"
       - "tests/test_relative_rotation_paper_live.py"
       - "tests/test_send_relative_rotation_report.py"
       - "tests/test_relative_rotation_execution_control.py"
+      - "tests/test_relative_rotation_telegram_operations.py"
 
 permissions:
   contents: read
@@ -80,6 +84,7 @@ jobs:
           python -m unittest tests.test_relative_rotation_paper_live -v
           python -m unittest tests.test_send_relative_rotation_report -v
           python -m unittest tests.test_relative_rotation_execution_control -v
+          python -m unittest tests.test_relative_rotation_telegram_operations -v
           python -m unittest tests.test_binance_historical tests.test_binance_rest_client -v
 
       - name: Run relative-rotation paper-live monitor
@@ -130,7 +135,7 @@ jobs:
           fi
 
       - name: Optional Telegram notification
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         continue-on-error: true
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -150,19 +155,16 @@ jobs:
                 SENDER_EXTRA="--evening-confirmed-reminder"
                 ;;
             esac
-          elif [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPRESSION" = "20 0 * * *" ]; then
+          elif [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPRESSION" = "30 6 * * *" ]; then
             SENDER_EXTRA="--morning-rotation-snapshot"
-          elif [ "$EVENT_NAME" = "schedule" ]; then
-            case "$SCHEDULE_EXPRESSION" in
-              "0 19 * * *"|"30 19 * * *"|"50 19 * * *")
-                SENDER_EXTRA="--evening-confirmed-reminder"
-                ;;
-            esac
+          elif [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPRESSION" = "30 18 * * *" ]; then
+            SENDER_EXTRA="--evening-confirmed-reminder"
           fi
           python -m scripts.send_relative_rotation_report \
             --report-json "$PAPER_RUN_DIR/report.json" \
             --notification-text "$PAPER_RUN_DIR/notification.txt" \
             --state-file "paper_state/relative_rotation_notification_state.json" \
+            --notification-control-file "config/relative_rotation_notification_control_v1.json" \
             $SENDER_EXTRA
 
       - name: Persist Telegram dedupe state
