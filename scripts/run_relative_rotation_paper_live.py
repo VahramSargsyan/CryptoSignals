@@ -408,10 +408,10 @@ def build_notification_candidates(
 ) -> list[dict]:
     """Build a bounded replay window for live-book ARMED/CONFIRMED alerts.
 
-    Notification recovery deliberately starts from monitor_start rather than the
-    book tracking_start. This lets a newly registered live book recover a signal
-    that was already present when the book was registered, without changing any
-    forward-evidence semantics.
+    Notification recovery starts from monitor_start by default to preserve
+    legacy replay behavior. A book may opt into a stricter event-date floor via
+    notification_event_floor; this is used for newly registered forward-only
+    books that must not replay pre-registration signals.
     """
     if replay_days < 1:
         raise ValueError("replay_days must be >= 1")
@@ -425,6 +425,9 @@ def build_notification_candidates(
     for book in position_books:
         book_id = str(book["book_id"]).upper()
         held_asset = str(book["held_asset"]).upper()
+        book_floor = floor
+        if book.get("notification_event_floor"):
+            book_floor = max(book_floor, _utc(str(book["notification_event_floor"])))
         for event in events:
             if event.get("event") not in {"ARMED", "CONFIRMED"}:
                 continue
@@ -434,7 +437,7 @@ def build_notification_candidates(
                 continue
 
             event_ts = _utc(str(event["date"]))
-            if event_ts < floor or event_ts > latest:
+            if event_ts < book_floor or event_ts > latest:
                 continue
 
             # CONFIRMED events are replayable because missing one can strand an
