@@ -1,6 +1,7 @@
 const DEFAULT_REPOSITORY = "VahramSargsyan/CryptoSignals";
 const DEFAULT_WORKFLOW = "relative-rotation-telegram-control-v1.yml";
 const DEFAULT_OPERATIONS_WORKFLOW = "relative-rotation-telegram-ops-v1.yml";
+const DEFAULT_MENU_WORKFLOW = "relative-rotation-telegram-menu-v1.yml";
 
 function requiredEnv(name) {
   const value = String(process.env[name] || "").trim();
@@ -116,6 +117,69 @@ function parsePositionCommand(text) {
   return {
     bookId: normalizeBookId(match[1]),
     asset: normalizeAsset(match[2]),
+    quantity
+  };
+}
+
+const MAIN_MENU_ACTIONS = new Map([
+  ["📊 Мои позиции", "POSITIONS"],
+  ["📡 Статус RR", "STATUS"],
+  ["⏰ Пропустил сигнал", "MISSED"],
+  ["✅ Выполнил ротацию", "EXECUTION"]
+]);
+
+function mainMenuReplyMarkup() {
+  return {
+    keyboard: [
+      [
+        { text: "📊 Мои позиции" },
+        { text: "📡 Статус RR" }
+      ],
+      [
+        { text: "⏰ Пропустил сигнал" },
+        { text: "✅ Выполнил ротацию" }
+      ]
+    ],
+    resize_keyboard: true,
+    is_persistent: true,
+    one_time_keyboard: false,
+    input_field_placeholder: "Выбери действие RR"
+  };
+}
+
+function parseMenuAction(text) {
+  const raw = String(text || "").trim();
+  if (/^\/(?:start|menu)(?:@[A-Za-z0-9_]+)?$/u.test(raw)) {
+    return "MENU";
+  }
+  return MAIN_MENU_ACTIONS.get(raw) || null;
+}
+
+function parsePositionEditCallback(data) {
+  const parts = String(data || "").split("|");
+  if (parts.length !== 2 || parts[0] !== "rrp") return null;
+  return { bookId: normalizeBookId(parts[1]) };
+}
+
+function positionMarkerFor(bookId) {
+  return `[RR_POS|${normalizeBookId(bookId)}]`;
+}
+
+function parsePositionMarker(text) {
+  const match = String(text || "").match(/\[RR_POS\|(BOOK_[1-9][0-9]*)\]/);
+  if (!match) return null;
+  return { bookId: normalizeBookId(match[1]) };
+}
+
+function parsePositionReply(text) {
+  const match = String(text || "")
+    .trim()
+    .match(/^([A-Z0-9]{2,12})\s+([0-9]+(?:[.,][0-9]+)?)$/iu);
+  if (!match) return null;
+  const quantity = parsePositiveNumber(match[2]);
+  if (quantity === null) return null;
+  return {
+    asset: normalizeAsset(match[1]),
     quantity
   };
 }
@@ -305,6 +369,41 @@ async function dispatchOperation(action, payload, update) {
   }
 }
 
+async function dispatchMenu(action) {
+  const token = requiredEnv("GITHUB_DISPATCH_TOKEN");
+  const repository = String(
+    process.env.GITHUB_REPOSITORY || DEFAULT_REPOSITORY
+  ).trim();
+  const workflow = String(
+    process.env.GITHUB_MENU_WORKFLOW || DEFAULT_MENU_WORKFLOW
+  ).trim();
+
+  const response = await fetch(
+    `https://api.github.com/repos/${repository}/actions/workflows/${workflow}/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        accept: "application/vnd.github+json",
+        "x-github-api-version": "2022-11-28",
+        "content-type": "application/json",
+        "user-agent": "rr-telegram-control-bridge"
+      },
+      body: JSON.stringify({
+        ref: "main",
+        inputs: { action }
+      })
+    }
+  );
+
+  if (![200, 204].includes(response.status)) {
+    const body = await response.text();
+    throw new Error(
+      `GitHub menu workflow dispatch failed: HTTP ${response.status} ${body}`
+    );
+  }
+}
+
 async function handleCallback(update) {
   const query = update.callback_query;
   const done = parseDoneCallback(query.data);
@@ -366,6 +465,29 @@ async function handleCallback(update) {
     return;
   }
 
+  const editPosition = parsePositionEditCallback(query.data);
+  if (editPosition) {
+    const chatId = query.message?.chat?.id;
+    if (!chatId) throw new Error("Callback has no chat id");
+
+    await telegramCall("answerCallbackQuery", {
+      callback_query_id: query.id,
+      text: `${editPosition.bookId}: укажи фактическую позицию.`
+    });
+
+    await telegramCall("sendMessage", {
+      chat_id: chatId,
+      text: [
+        `✏️ ${editPosition.bookId}: исправление текущей позиции`,
+        "Ответь: АКТИВ КОЛИЧЕСТВО",
+        "Пример: TRX 3950.7453",
+        positionMarkerFor(editPosition.bookId)
+      ].join("\n"),
+      reply_markup: { force_reply: true, selective: true }
+    });
+    return;
+  }
+
   await telegramCall("answerCallbackQuery", {
     callback_query_id: query.id,
     text: "Неизвестная команда.",
@@ -411,10 +533,79 @@ async function handleExecutionReply(update) {
   return true;
 }
 
+async function handlePositionReply(update) {
+  const message = update.message;
+  const reply = message?.reply_to_message;
+  if (!reply?.from?.is_bot) return false;
+
+  const marker = parsePositionMarker(reply.text || "");
+  if (!marker) return false;
+
+  const parsed = parsePositionReply(message.text || "");
+  if (!parsed) {
+    await telegramCall("sendMessage", {
+      chat_id: message.chat.id,
+      text: "Неверный формат. Ответь: АКТИВ КОЛИЧЕСТВО. Пример: TRX 3950.7453",
+      reply_to_message_id: message.message_id
+    });
+    return true;
+  }
+
+  await dispatchOperation(
+    "SET_POSITION",
+    {
+      bookId: marker.bookId,
+      asset: parsed.asset,
+      quantity: parsed.quantity
+    },
+    update
+  );
+  await telegramCall("sendMessage", {
+    chat_id: message.chat.id,
+    text: [
+      "⏳ Передал исправление позиции в GitHub.",
+      `${marker.bookId}: ${parsed.quantity} ${parsed.asset}`,
+      "GitHub проверит допустимость актива перед записью."
+    ].join("\n"),
+    reply_to_message_id: message.message_id
+  });
+  return true;
+}
+
 async function handleTextCommand(update) {
   const message = update.message;
   const text = String(message?.text || "").trim();
   if (!text) return false;
+
+  const menuAction = parseMenuAction(text);
+  if (menuAction === "MENU") {
+    await telegramCall("sendMessage", {
+      chat_id: message.chat.id,
+      text: [
+        "Relative Rotation — главное меню",
+        "📡 «Статус RR» пересчитывает актуальное состояние по последней закрытой D1-свече.",
+        "✅ и ⏰ становятся действиями только после проверки текущего CONFIRMED."
+      ].join("\n"),
+      reply_markup: mainMenuReplyMarkup()
+    });
+    return true;
+  }
+
+  if (menuAction) {
+    await dispatchMenu(menuAction);
+    const messages = {
+      POSITIONS: "⏳ Получаю канонические позиции из GitHub…",
+      STATUS: "⏳ Пересчитываю актуальный статус Relative Rotation…",
+      MISSED: "⏳ Проверяю, какой текущий CONFIRMED можно отметить как пропущенный…",
+      EXECUTION: "⏳ Проверяю текущую CONFIRMED-ротацию для записи исполнения…"
+    };
+    await telegramCall("sendMessage", {
+      chat_id: message.chat.id,
+      text: messages[menuAction],
+      reply_markup: mainMenuReplyMarkup()
+    });
+    return true;
+  }
 
   const missed = parseMissedCommand(text);
   if (missed) {
@@ -484,7 +675,10 @@ async function handler(request, response) {
     } else if (update.message) {
       const handledExecution = await handleExecutionReply(update);
       if (!handledExecution) {
-        await handleTextCommand(update);
+        const handledPosition = await handlePositionReply(update);
+        if (!handledPosition) {
+          await handleTextCommand(update);
+        }
       }
     }
     response.status(200).json({ ok: true });
@@ -509,13 +703,21 @@ async function handler(request, response) {
 module.exports = handler;
 module.exports._test = {
   markerFor,
+  mainMenuReplyMarkup,
+  markerFor,
   parseDoneCallback,
   parseMissedCommand,
   parsePositionCommand,
+  parseMenuAction,
+  parsePositionEditCallback,
+  positionMarkerFor,
+  parsePositionMarker,
+  parsePositionReply,
   parseExecutionMarker,
   parseExecutionQuantities,
   normalizeSignalDate,
   normalizeQuantityToken,
   operationTimestamp,
-  dispatchOperation
+  dispatchOperation,
+  dispatchMenu
 };
