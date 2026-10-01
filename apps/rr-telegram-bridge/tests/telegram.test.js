@@ -86,3 +86,51 @@ test("parses Telegram position sync commands", () => {
   );
   assert.equal(bridge.parsePositionCommand("/position BOOK_2 TRX -1"), null);
 });
+
+
+test("builds persistent RR main menu", () => {
+  const markup = bridge.mainMenuReplyMarkup();
+  assert.equal(markup.is_persistent, true);
+  assert.equal(markup.resize_keyboard, true);
+  assert.deepEqual(
+    markup.keyboard.flat().map((item) => item.text),
+    [
+      "📊 Мои позиции",
+      "📡 Статус RR",
+      "⏰ Пропустил сигнал",
+      "✅ Выполнил ротацию"
+    ]
+  );
+});
+
+test("parses RR main menu actions", () => {
+  assert.equal(bridge.parseMenuAction("/menu"), "MENU");
+  assert.equal(bridge.parseMenuAction("/start"), "MENU");
+  assert.equal(bridge.parseMenuAction("📊 Мои позиции"), "POSITIONS");
+  assert.equal(bridge.parseMenuAction("📡 Статус RR"), "STATUS");
+  assert.equal(bridge.parseMenuAction("⏰ Пропустил сигнал"), "MISSED");
+  assert.equal(bridge.parseMenuAction("✅ Выполнил ротацию"), "EXECUTION");
+  assert.equal(bridge.parseMenuAction("hello"), null);
+});
+
+test("position correction marker round trip", () => {
+  assert.deepEqual(bridge.parsePositionEditCallback("rrp|BOOK_2"), {
+    bookId: "BOOK_2"
+  });
+  const marker = bridge.positionMarkerFor("BOOK_2");
+  assert.equal(marker, "[RR_POS|BOOK_2]");
+  assert.deepEqual(bridge.parsePositionMarker(marker), { bookId: "BOOK_2" });
+});
+
+test("parses nested position correction reply", () => {
+  assert.deepEqual(bridge.parsePositionReply("TRX 3950.7453"), {
+    asset: "TRX",
+    quantity: 3950.7453
+  });
+  assert.deepEqual(bridge.parsePositionReply("atom 81,5"), {
+    asset: "ATOM",
+    quantity: 81.5
+  });
+  assert.equal(bridge.parsePositionReply("TRX"), null);
+  assert.equal(bridge.parsePositionReply("TRX -1"), null);
+});
