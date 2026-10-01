@@ -702,7 +702,6 @@ async function handler(request, response) {
 
 module.exports = handler;
 module.exports._test = {
-  markerFor,
   mainMenuReplyMarkup,
   markerFor,
   parseDoneCallback,
