@@ -65,6 +65,19 @@ the current RR evidence before the 22:30 reminder can be sent.
 The scheduler dispatches `relative-rotation-paper-live-v1.yml` with
 `notification_mode=morning|evening`. It never performs an exchange order.
 
+## Telegram persistent menu
+
+Send `/menu` or `/start` once to show the persistent reply keyboard:
+
+- `📊 Мои позиции` — reads canonical `position_books` from GitHub; nested `✏️ Исправить BOOK_N` buttons allow an explicit manual position correction.
+- `📡 Статус RR` — dispatches a read-only GitHub workflow, rebuilds the current Relative Rotation evidence from the latest closed D1 candle, and returns current BOOK status. Current safe CONFIRMED routes expose execution/missed buttons.
+- `⏰ Пропустил сигнал` — rebuilds current RR evidence and shows only safe current CONFIRMED books that may be marked as missed. Selecting a book then uses the existing write-gated operations workflow.
+- `✅ Выполнил ротацию` — rebuilds current RR evidence and shows only safe current CONFIRMED books. After selecting `✅ Выполнено BOOK_N`, the bot asks for the actual received quantity and the existing execution-control workflow re-validates before writing.
+
+The menu lookup workflow is `relative-rotation-telegram-menu-v1.yml` and has
+`contents: read` only. It never mutates canonical state. Write actions continue
+through the existing execution/operations workflows.
+
 ## Telegram operational commands
 
 Supported examples:
