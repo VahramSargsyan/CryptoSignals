@@ -142,6 +142,25 @@ class RelativeRotationTelegramMenuTests(unittest.TestCase):
         self.assertIn("минус = сейчас сильнее", text)
         self.assertIn("НЕ доходность", text)
 
+    def test_h1_status_is_explicitly_intraday_and_informational(self):
+        report = self._report()
+        report["report_kind"] = "H1_INTRADAY_STATUS"
+        report["lookback_observations"] = 4320
+        report["latest_closed_candle_end_yerevan"] = "2026-10-02T13:00:00+04:00"
+        report["book_events"]["BOOK_2"]["events"] = {
+            "primary_confirmed": None,
+            "confirmed": [],
+            "armed": [],
+        }
+
+        text = menu.build_status_text(report)
+
+        self.assertIn("текущая H1-ротация", text)
+        self.assertIn("2026-10-02T13:00:00+04:00", text)
+        self.assertIn("4320 H1-наблюдений", text)
+        self.assertIn("официальные ARM/CONFIRMED", text)
+        self.assertIn("кнопки исполнения намеренно отключены", text)
+
     def test_directional_rotation_value_is_signed_from_book_perspective(self):
         row = {"pair": "TRX/FIL", "deviation": 0.10}
         self.assertAlmostEqual(
@@ -211,7 +230,7 @@ class RelativeRotationTelegramMenuTests(unittest.TestCase):
             send.assert_called_once()
             self.assertIn("📊 Мои позиции", send.call_args.args[0])
 
-    def test_status_action_sends_current_confirmed_buttons(self):
+    def test_status_action_never_exposes_execution_buttons(self):
         with tempfile.TemporaryDirectory() as tmp:
             config_path = Path(tmp) / "config.json"
             report_path = Path(tmp) / "report.json"
@@ -229,8 +248,7 @@ class RelativeRotationTelegramMenuTests(unittest.TestCase):
 
             send.assert_called_once()
             self.assertIn("полная текущая ротация", send.call_args.args[0])
-            markup = send.call_args.kwargs["reply_markup"]
-            self.assertEqual(len(markup["inline_keyboard"][0]), 2)
+            self.assertIsNone(send.call_args.kwargs["reply_markup"])
 
 
 if __name__ == "__main__":
