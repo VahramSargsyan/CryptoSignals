@@ -583,7 +583,7 @@ async function handleTextCommand(update) {
       chat_id: message.chat.id,
       text: [
         "Relative Rotation — главное меню",
-        "📡 «Статус RR» пересчитывает актуальное состояние по последней закрытой D1-свече.",
+        "📡 «Статус RR» показывает текущий H1-снимок по последней закрытой часовой свече; официальный сигнал остаётся D1.",
         "✅ и ⏰ становятся действиями только после проверки текущего CONFIRMED."
       ].join("\n"),
       reply_markup: mainMenuReplyMarkup()
