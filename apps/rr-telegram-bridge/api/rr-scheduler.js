@@ -4,7 +4,7 @@ const DEFAULT_REPOSITORY = "VahramSargsyan/CryptoSignals";
 const DEFAULT_MONITOR_WORKFLOW = "relative-rotation-paper-live-v1.yml";
 
 const SCHEDULE_MODES = new Map([
-  ["30 6 * * *", "morning"],
+  ["3 0 * * *", "morning"],
   ["30 18 * * *", "evening"]
 ]);
 
