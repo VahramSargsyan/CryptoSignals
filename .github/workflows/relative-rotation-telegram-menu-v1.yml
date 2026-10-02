@@ -42,11 +42,24 @@ jobs:
       - name: Run targeted menu tests
         run: |
           python -m unittest tests.test_relative_rotation_telegram_menu -v
+          python -m unittest tests.test_relative_rotation_intraday_status -v
           python -m unittest tests.test_send_relative_rotation_report -v
           python -m unittest tests.test_relative_rotation_paper_live -v
 
-      - name: Rebuild current RR evidence
-        if: inputs.action != 'POSITIONS'
+      - name: Rebuild H1 RR status snapshot
+        if: inputs.action == 'STATUS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf menu_artifacts/relative_rotation
+          python -m scripts.run_relative_rotation_intraday_status \
+            --output-root menu_artifacts/relative_rotation
+          REPORT_JSON="$(find menu_artifacts/relative_rotation -name report.json -type f | sort | tail -1)"
+          test -n "$REPORT_JSON"
+          echo "REPORT_JSON=$REPORT_JSON" >> "$GITHUB_ENV"
+
+      - name: Rebuild canonical D1 RR evidence
+        if: inputs.action == 'EXECUTION' || inputs.action == 'MISSED'
         env:
           SOURCE_COMMIT_SHA: ${{ github.sha }}
         shell: bash
