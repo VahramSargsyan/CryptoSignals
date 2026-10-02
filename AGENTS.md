@@ -555,3 +555,31 @@ book's held asset and actual received quantity explicitly and record execution
 in `research/relative_rotation/REAL_ROTATION_LOG.md`.
 
 No automatic exchange execution is authorized.
+
+
+## Mandatory HI_V1 producer telemetry
+
+Every AI maintainer chat that creates or updates a development PR must act as an HI_V1 telemetry producer.
+
+At task start create one stable `SESSION_ID` for the current chat/task and reuse it across every PR/repository touched by that chat/task. For each Asia/Yerevan local date, keep cumulative counts of the user's actual interventions in this chat:
+
+- `NEXT = 1`
+- `QUICK_ACCEPT = 1`
+- `CLARIFY = 2`
+- `TEST = 3`
+- `TEST_DEEP_OR_BUG_EVIDENCE = 4`
+- `LOGIC_OR_DESIGN_CHANGE = 5`
+
+Classification is contextual. A one-word "готово"/"ок" after a requested runtime test inherits TEST/TEST_DEEP. Reading/re-reading without advancing, validating, or changing development is not an intervention.
+
+When creating a PR, include:
+
+`<!-- HI_V1 {"date":"YYYY-MM-DD","SESSION_ID":"<stable-chat-task-id>","REVISION":1,"NEXT":0,"QUICK_ACCEPT":0,"CLARIFY":0,"TEST":0,"TEST_DEEP_OR_BUG_EVIDENCE":0,"LOGIC_OR_DESIGN_CHANGE":0,"ACCEPTED_CAPABILITIES":0} -->`
+
+If later user interactions change the counts, increment `REVISION` and update the PR body before merge/final completion. Reuse the same SESSION_ID across all PRs from the same chat/task; Analytics Hub deduplicates by SESSION_ID/date and highest REVISION.
+
+If required earlier chat context is unavailable, never invent zero. Include:
+
+`<!-- HI_V1_CONTEXT_GAP {"date":"YYYY-MM-DD","SESSION_ID":"<stable-chat-task-id>","reason":"CHAT_CONTEXT_UNAVAILABLE"} -->`
+
+Never silently omit telemetry. Do not create a separate analytics PR, commit, or GitHub Action just to send HI_V1 data.
