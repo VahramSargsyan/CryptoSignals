@@ -158,7 +158,7 @@ class RelativeRotationTelegramMenuTests(unittest.TestCase):
         self.assertIn("текущая H1-ротация", text)
         self.assertIn("2026-10-02T13:00:00+04:00", text)
         self.assertIn("4320 H1-наблюдений", text)
-        self.assertIn("официальные ARM/CONFIRMED", text)
+        self.assertIn("Официальные ARM/CONFIRMED", text)
         self.assertIn("кнопки исполнения намеренно отключены", text)
 
     def test_directional_rotation_value_is_signed_from_book_perspective(self):
