@@ -27,7 +27,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
                 {
                     "schema_version": 1,
                     "timezone": "Asia/Yerevan",
-                    "morning_slot": "10:30",
+                    "morning_slot": "04:03",
                     "evening_slot": "22:30",
                     "evening_requires_explicit_missed_morning": True,
                     "missed_morning_signals": [
@@ -349,7 +349,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         self.assertIn("вечернее напоминание об НЕИСПОЛНЕННОЙ ротации", text)
         self.assertIn("ALGO -> FIL", text)
         self.assertIn("Цена закрытия: ALGO $0.15; FIL $3; 1 ALGO = 0.05 FIL.", text)
-        self.assertIn("утренний слот 10:30", text)
+        self.assertIn("утренний слот 04:03", text)
         self.assertIn("вечерний слот 22:30", text)
         self.assertIn("явно включён после отметки пропущенного утра", text)
         state = json.loads(state_path.read_text(encoding="utf-8"))
@@ -658,7 +658,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
         text = send.call_args.args[0]
         self.assertIn("повтор НЕИСПОЛНЕННОЙ ротации", text)
         self.assertIn("LINK -> ALGO", text)
-        self.assertIn("утренний слот 10:30", text)
+        self.assertIn("утренний слот 04:03", text)
         self.assertIn("Пропустил утром", text)
         state = json.loads(state_path.read_text(encoding="utf-8"))
         self.assertIn(
@@ -793,7 +793,7 @@ class RelativeRotationTelegramSenderTests(unittest.TestCase):
 
     def test_workflow_has_only_1030_and_2230_yerevan_slots(self):
         workflow = Path(".github/workflows/relative-rotation-paper-live-v1.yml").read_text(encoding="utf-8")
-        self.assertIn('cron: "30 6 * * *"', workflow)
+        self.assertIn('cron: "3 0 * * *"', workflow)
         self.assertIn('cron: "30 18 * * *"', workflow)
         self.assertNotIn('cron: "20 0 * * *"', workflow)
         self.assertNotIn('cron: "0 19 * * *"', workflow)
