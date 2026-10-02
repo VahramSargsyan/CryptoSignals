@@ -224,11 +224,20 @@ def _book_rotation_rows(report: dict, details: dict) -> list[dict]:
         value = state_info.get("value")
         confirmed = confirmed_by_target.get(target)
 
+        intraday = report.get("report_kind") == "H1_INTRADAY_STATUS"
         mode = str(state_row.get("mode") or "NONE").upper()
         prospective_from = str(state_row.get("from_asset") or "").upper()
         prospective_to = str(state_row.get("to_asset") or "").upper()
 
-        if confirmed is not None:
+        if intraday:
+            if value is not None and float(value) >= 0.15:
+                status = "⚠️ ARM-зона"
+            elif value is not None and float(value) <= -0.15:
+                status = "↩️ ARM-зона обратно"
+            else:
+                status = "• NONE"
+            confirmed = None
+        elif confirmed is not None:
             status = "🚨 CONFIRMED"
         elif (
             mode in {"HIGH", "LOW"}
@@ -252,6 +261,7 @@ def _book_rotation_rows(report: dict, details: dict) -> list[dict]:
                 "status": status,
                 "state": state_row,
                 "confirmed": confirmed,
+                "intraday": intraday,
             }
         )
 
@@ -274,7 +284,14 @@ def _rotation_row_text(index: int, item: dict) -> str:
 
     parts = [f"{index}. {target}: {_signed_pct(value)}", status]
 
-    if confirmed is not None:
+    if item.get("intraday"):
+        if value is not None and float(value) >= 0.15:
+            parts.append(f"выше ARM на {(float(value) - 0.15) * 100:.2f} п.п.")
+        elif value is not None and float(value) <= -0.15:
+            parts.append(f"обратное превышение ARM на {(-float(value) - 0.15) * 100:.2f} п.п.")
+        elif value is not None:
+            parts.append(f"до ARM {(0.15 - float(value)) * 100:.2f} п.п.")
+    elif confirmed is not None:
         parts.append(
             f"max {_pct(confirmed.get('max_dislocation'))}; "
             f"разворот {_pct(confirmed.get('reversal_from_extreme'))}"
@@ -297,14 +314,31 @@ def _rotation_row_text(index: int, item: dict) -> str:
 
 
 def build_status_text(report: dict) -> str:
-    latest = report.get("latest_closed_candle")
-    lines = [
-        "📡 Relative Rotation — полная текущая ротация",
-        f"Последняя закрытая D1-свеча: {latest}",
-        "",
-        "Рейтинг ниже показывает ВСЕ направления из текущего актива BOOK "
-        "в TARGET-активы, а не только сигналы.",
-    ]
+    intraday = report.get("report_kind") == "H1_INTRADAY_STATUS"
+    if intraday:
+        latest = (
+            report.get("latest_closed_candle_end_yerevan")
+            or report.get("latest_closed_candle_end")
+            or report.get("latest_closed_candle")
+        )
+        lines = [
+            "📡 Relative Rotation — текущая H1-ротация",
+            f"Последняя закрытая H1-свеча: {latest}",
+            "",
+            "Расчёт использует 180 дней закрытых часовых свечей "
+            f"({report.get('lookback_observations', 4320)} H1-наблюдений).",
+            "Рейтинг ниже показывает текущую внутридневную относительную ротацию "
+            "из актива каждого BOOK в TARGET-активы.",
+        ]
+    else:
+        latest = report.get("latest_closed_candle")
+        lines = [
+            "📡 Relative Rotation — полная текущая ротация",
+            f"Последняя закрытая D1-свеча: {latest}",
+            "",
+            "Рейтинг ниже показывает ВСЕ направления из текущего актива BOOK "
+            "в TARGET-активы, а не только сигналы.",
+        ]
 
     book_events = report.get("book_events") or {}
     for book_id, details in sorted(book_events.items()):
@@ -336,9 +370,18 @@ def build_status_text(report: dict) -> str:
             "обратное направление.",
             "Это отклонение отношения цен от 180-дневной медианы, НЕ доходность и "
             "не самостоятельный сигнал.",
-            "ARM начинается при +15%; CONFIRMED требует последующего разворота 3%.",
+            (
+                "H1 здесь показывает только текущую ARM-зону. Официальные ARM/CONFIRMED "
+                "и исполнение стратегии остаются по D1."
+                if intraday
+                else "ARM начинается при +15%; CONFIRMED требует последующего разворота 3%."
+            ),
             "",
-            "Кнопки исполнения показываются только для текущего безопасного CONFIRMED.",
+            (
+                "Для H1-снимка кнопки исполнения намеренно отключены."
+                if intraday
+                else "Кнопки исполнения показываются только для текущего безопасного CONFIRMED."
+            ),
             "Реальные ордера бот не отправляет.",
         ]
     )
@@ -430,11 +473,7 @@ def send_menu_action(
     if action == "STATUS":
         _send_telegram(
             build_status_text(report),
-            reply_markup=_action_markup(
-                items,
-                include_done=True,
-                include_missed=True,
-            ),
+            reply_markup=None,
         )
     elif action == "EXECUTION":
         _send_telegram(
