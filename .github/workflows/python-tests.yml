@@ -20,6 +20,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Enforce HI_V1 PR telemetry
+        shell: bash
+        run: |
+          set -euo pipefail
+          node .github/scripts/validate_hi_v1_pr.cjs --self-test
+          node .github/scripts/validate_hi_v1_pr.cjs
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

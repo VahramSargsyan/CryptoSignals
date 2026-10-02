@@ -582,4 +582,4 @@ If required earlier chat context is unavailable, never invent zero. Include:
 
 `<!-- HI_V1_CONTEXT_GAP {"date":"YYYY-MM-DD","SESSION_ID":"<stable-chat-task-id>","reason":"CHAT_CONTEXT_UNAVAILABLE"} -->`
 
-Never silently omit telemetry. Do not create a separate analytics PR, commit, or GitHub Action just to send HI_V1 data.
+Never silently omit telemetry. A PR with a failing HI_V1 telemetry gate must not be merged; fix the marker or declare an explicit HI_V1_CONTEXT_GAP first. Do not create a separate analytics PR, commit, or GitHub Action just to send HI_V1 data.
