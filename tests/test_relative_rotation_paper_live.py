@@ -371,8 +371,8 @@ class RelativeRotationPaperLiveTests(unittest.TestCase):
 
         text = build_notification_ru(payload)
         self.assertIn("DESTINATION DOMINANCE", text)
-        self.assertIn("основной слот 04:20", text)
-        self.assertIn("резервное окно 23:00–24:00", text)
+        self.assertIn("основной слот 10:30", text)
+        self.assertIn("резервное окно 22:30", text)
         self.assertIn("AUTO ROUTE: LINK -> TRX", text)
         self.assertIn("основной CONFIRMED LINK -> ALGO", text)
         self.assertIn("ALGO -> TRX", text)
