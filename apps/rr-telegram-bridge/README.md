@@ -55,7 +55,7 @@ Vercel Cron is the primary scheduler. Existing GitHub `schedule` entries remain 
 
 Schedules are UTC:
 
-- `30 6 * * *` -> 10:30 Asia/Yerevan -> morning notification
+- `3 0 * * *` -> 04:03 Asia/Yerevan -> morning notification
 - `30 18 * * *` -> 22:30 Asia/Yerevan -> evening notification
 
 The evening stage is fail-closed. It is eligible only after Vahram explicitly marks the
