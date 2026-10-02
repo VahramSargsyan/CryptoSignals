@@ -35,7 +35,7 @@ DEFAULT_HISTORY_START = "2023-05-05T00:00:00Z"
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "paper_artifacts" / "relative_rotation_paper_live_v1"
 NOTIFICATION_REPLAY_DAYS = 7
 EXECUTION_TIMEZONE = "Asia/Yerevan"
-PRIMARY_EXECUTION_SLOT = "10:30"
+PRIMARY_EXECUTION_SLOT = "04:03"
 FALLBACK_EXECUTION_WINDOW = "22:30"
 SYMBOLS = {asset: f"{asset}USDT" for asset in ASSETS}
 
@@ -1413,7 +1413,7 @@ def main(argv: list[str] | None = None) -> int:
             "sunset_assets": list(config["sunset_assets"]),
             "destination_guard": "TARGET_ONLY",
             "route_conflict_guard": "DESTINATION_DOMINANCE_MIN_1_5X_V2 / AUTO_ROUTE_OVERRIDE / FORWARD_WATCH_REQUIRED",
-            "execution_timing_policy": "04:20 YEREVAN PRIMARY / 23:00-24:00 YEREVAN FALLBACK / NO MIDDAY CHASE",
+            "execution_timing_policy": "04:03 YEREVAN PRIMARY / 22:30 YEREVAN FALLBACK / NO MIDDAY CHASE",
         },
         "held_events": held_events,
         "book_events": book_events,
