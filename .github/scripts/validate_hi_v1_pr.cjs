@@ -133,8 +133,8 @@ if (process.argv.includes('--self-test')) {
 }
 
 const eventName = process.env.GITHUB_EVENT_NAME || '';
-if (eventName && eventName !== 'pull_request') {
-  console.log('HI_V1 gate: skip non-pull_request event:', eventName);
+if (eventName && !['pull_request', 'pull_request_target'].includes(eventName)) {
+  console.log('HI_V1 gate: skip non-PR event:', eventName);
   process.exit(0);
 }
 
