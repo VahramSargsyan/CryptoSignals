@@ -43,7 +43,7 @@ class RelativeRotationTelegramOperationTests(unittest.TestCase):
                 {
                     "schema_version": 1,
                     "timezone": "Asia/Yerevan",
-                    "morning_slot": "10:30",
+                    "morning_slot": "04:03",
                     "evening_slot": "22:30",
                     "evening_requires_explicit_missed_morning": True,
                     "missed_morning_signals": [],
