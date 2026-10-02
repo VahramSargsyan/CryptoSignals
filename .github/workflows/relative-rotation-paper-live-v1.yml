@@ -18,7 +18,7 @@ on:
           - evening
         default: auto
   schedule:
-    - cron: "30 6 * * *"
+    - cron: "3 0 * * *"
     - cron: "30 18 * * *"
   pull_request:
     branches:
@@ -155,7 +155,7 @@ jobs:
                 SENDER_EXTRA="--evening-confirmed-reminder"
                 ;;
             esac
-          elif [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPRESSION" = "30 6 * * *" ]; then
+          elif [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPRESSION" = "3 0 * * *" ]; then
             SENDER_EXTRA="--morning-rotation-snapshot"
           elif [ "$EVENT_NAME" = "schedule" ] && [ "$SCHEDULE_EXPRESSION" = "30 18 * * *" ]; then
             SENDER_EXTRA="--evening-confirmed-reminder"
