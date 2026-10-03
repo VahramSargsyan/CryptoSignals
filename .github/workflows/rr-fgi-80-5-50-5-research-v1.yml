@@ -1,0 +1,62 @@
+name: RR FGI 80-5 50+5 Research V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/rr-fgi-80-5-50-5-research-v1.yml"
+      - "scripts/research_rr_fgi_80_5_50_5_v1.py"
+      - "strategies/crypto/relative_rotation/**"
+      - "integrations/binance/**"
+      - "core/data/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rr-fgi-80-5-50-5-research-v1
+  cancel-in-progress: false
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install "pandas==2.2.3" "numpy>=1.26"
+
+      - name: Syntax check
+        run: python -m py_compile scripts/research_rr_fgi_80_5_50_5_v1.py
+
+      - name: Run frozen RR + FGI stress test
+        env:
+          SOURCE_COMMIT_SHA: ${{ github.sha }}
+        run: python -m scripts.research_rr_fgi_80_5_50_5_v1
+
+      - name: Publish report
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_DIR="$(find research_artifacts/rr_fgi_80_5_50_5_v1 -mindepth 1 -maxdepth 1 -type d | sort | tail -1)"
+          test -n "$RUN_DIR"
+          cat "$RUN_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: rr-fgi-80-5-50-5-v1-${{ github.run_number }}
+          path: ${{ env.RUN_DIR }}/**
+          if-no-files-found: error
+          retention-days: 90
