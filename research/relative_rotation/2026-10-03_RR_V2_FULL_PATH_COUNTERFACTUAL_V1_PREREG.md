@@ -225,12 +225,23 @@ Possible research classifications:
 - FULL_PATH_MIXED
 - FULL_PATH_PROMISING_NOT_PRODUCTION_READY
 
-A promising classification requires at minimum:
-- median MATURE return improvement across start states at primary cost;
-- no catastrophic degradation in max drawdown;
-- improvement not isolated to only one start state;
-- rolling evidence not overwhelmingly negative;
-- robustness to at least 0.50% cost directionally acceptable.
+Frozen classification gate:
+
+`FULL_PATH_PROMISING_NOT_PRODUCTION_READY` requires ALL:
+- MATURE median return delta > 0 at 0.10% cost;
+- at least 50% of MATURE start states finish with higher capital;
+- median MATURE max-drawdown delta >= -10 percentage points;
+- at least 40% of rolling 365d windows have higher median return;
+- MATURE median return delta remains > 0 at 0.50% cost.
+
+`FULL_PATH_REJECTED` if BOTH:
+- MATURE median return delta <= 0 at 0.10% cost;
+- fewer than 50% of MATURE start states improve.
+
+Otherwise:
+- `FULL_PATH_MIXED`.
+
+These gates are fixed before runtime.
 
 Even then:
 - production/live remains unchanged;
