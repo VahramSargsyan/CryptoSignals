@@ -59,6 +59,32 @@ def source_sha() -> str:
     ).strip()
 
 
+def _missing_grid_times(frame: pd.DataFrame, timeframe: str) -> list[pd.Timestamp]:
+    if frame.empty:
+        return []
+    freq = pd.Timedelta(hours=1) if timeframe == "1H" else pd.Timedelta(days=1)
+    ts = pd.DatetimeIndex(pd.to_datetime(frame["timestamp"], utc=True)).sort_values()
+    missing: list[pd.Timestamp] = []
+    for left, right in zip(ts[:-1], ts[1:]):
+        cursor = left + freq
+        while cursor < right:
+            missing.append(pd.Timestamp(cursor))
+            cursor += freq
+    return missing
+
+
+def _quality_is_only_missing_candles(quality) -> bool:
+    return (
+        int(getattr(quality, "missing_candles", 0) or 0) > 0
+        and int(getattr(quality, "duplicate_timestamps", 0) or 0) == 0
+        and int(getattr(quality, "out_of_order_rows", 0) or 0) == 0
+        and int(getattr(quality, "off_grid_timestamps", 0) or 0) == 0
+        and int(getattr(quality, "invalid_ohlc_rows", 0) or 0) == 0
+        and int(getattr(quality, "null_cells", 0) or 0) == 0
+        and int(getattr(quality, "negative_volume_rows", 0) or 0) == 0
+    )
+
+
 def download_panel(timeframe: str) -> tuple[pd.DataFrame, dict]:
     client = BinanceSpotRestClient()
     pieces = []
@@ -77,13 +103,25 @@ def download_panel(timeframe: str) -> tuple[pd.DataFrame, dict]:
             raise RuntimeError(
                 f"{asset}: no {timeframe} dataset ({result.metadata.status})"
             )
-        if result.dataset.quality.has_critical_issues:
-            raise RuntimeError(
-                f"{asset}: critical {timeframe} quality issue: "
-                f"{result.dataset.quality}"
-            )
-
         frame = result.dataset.candles[["timestamp", "open", "close"]].copy()
+        frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True)
+
+        missing_times = _missing_grid_times(frame, timeframe)
+        if result.dataset.quality.has_critical_issues:
+            allow_warmup_only_gap = (
+                timeframe == "1H"
+                and _quality_is_only_missing_candles(result.dataset.quality)
+                and len(missing_times)
+                == int(getattr(result.dataset.quality, "missing_candles", 0) or 0)
+                and all(ts < MATURE_START for ts in missing_times)
+            )
+            if not allow_warmup_only_gap:
+                raise RuntimeError(
+                    f"{asset}: critical {timeframe} quality issue: "
+                    f"{result.dataset.quality}; missing_times="
+                    f"{[x.isoformat() for x in missing_times[:20]]}"
+                )
+
         frame = frame.rename(
             columns={
                 "open": f"{asset}_open",
@@ -98,6 +136,12 @@ def download_panel(timeframe: str) -> tuple[pd.DataFrame, dict]:
             "actual_start": result.metadata.actual_start,
             "actual_end": result.metadata.actual_end,
             "status": result.metadata.status,
+            "missing_grid_times": [x.isoformat() for x in missing_times],
+            "warmup_only_gap_allowed": bool(
+                timeframe == "1H"
+                and missing_times
+                and all(ts < MATURE_START for ts in missing_times)
+            ),
         }
 
     panel = pieces[0]
