@@ -140,9 +140,9 @@ Each start state is tested independently.
 
 At primary 0.10% transition cost and primary V2-priority semantics:
 
-- rolling 365-day windows;
-- starts at monthly frequency where a full 365-day window exists;
-- all TARGET start assets are tested.
+- rolling 365-calendar-day windows;
+- evaluate every available daily start where a full 365-day window exists;
+- all 10 TARGET start assets are tested independently.
 
 Report per rolling window:
 - median return across starts;
@@ -151,10 +151,30 @@ Report per rolling window:
 - CORE_PLUS_V2 minus CORE return delta.
 
 Aggregate:
+- better / equal / worse window counts;
 - fraction of windows where CORE_PLUS_V2 median return is higher;
 - median return delta;
-- worst return delta;
+- p25 / p75 return delta;
+- worst / best return delta;
 - drawdown change distribution.
+
+## Regime diagnostic
+
+Download causal Binance BTCUSDT D1 and compute SMA200 using only information
+available at each rolling-window start.
+
+Classify each 365-day window start:
+
+- BTC_BULL_START: BTC close >= causal SMA200
+- BTC_BEAR_START: BTC close < causal SMA200
+
+For each start regime report:
+- number of windows;
+- better / equal / worse counts;
+- median OVERLAY-minus-CORE return delta;
+- median max-drawdown delta.
+
+This regime split is descriptive only and cannot alter the overlay.
 
 ## Primary metrics
 
