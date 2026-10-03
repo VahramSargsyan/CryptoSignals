@@ -672,6 +672,12 @@ def fmt_rate(v) -> str:
     return f"{100*float(v):.1f}%"
 
 
+def fmt_ratio(v) -> str:
+    if v is None or pd.isna(v):
+        return "—"
+    return f"{float(v):.3f}x"
+
+
 def main() -> None:
     panel, data_meta = download_panel()
     events_by_date, states_by_date = build_monitor_history(panel)
@@ -823,7 +829,7 @@ def main() -> None:
             f"|{pd.Timestamp(r['signal_date']).date()}|{r['source']}|"
             f"{r['baseline_to']}|{r['effective_to']}|"
             f"{'YES' if r['override'] else 'NO'}|"
-            f"{'—' if pd.isna(r['strength_ratio']) else f'{float(r['strength_ratio']):.3f}x'}|"
+            f"{fmt_ratio(r['strength_ratio'])}|"
         )
 
     lines += [
