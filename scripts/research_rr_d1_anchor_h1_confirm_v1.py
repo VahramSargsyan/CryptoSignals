@@ -1014,6 +1014,13 @@ def run_path_tests(
         pd.DataFrame(comparisons),
     )
 
+
+def confirmed_only(events: pd.DataFrame) -> pd.DataFrame:
+    if events.empty:
+        return events.copy()
+    return events[events["event"] == "CONFIRMED"].copy()
+
+
 def build_pair_lead(
     d1_events: pd.DataFrame,
     hybrid_events: pd.DataFrame,
