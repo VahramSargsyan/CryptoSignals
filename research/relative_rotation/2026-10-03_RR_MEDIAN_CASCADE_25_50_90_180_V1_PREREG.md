@@ -235,6 +235,9 @@ requires all CASCADE_PROMISING_DIAGNOSTIC conditions plus:
   - candidate-beats-baseline rate > 50%;
   - median 14d relative excess > 0.
 
+### CASCADE_MIXED
+if the result falls between the gates above.
+
 No production promotion follows automatically.
 
 ## No-retune rule
