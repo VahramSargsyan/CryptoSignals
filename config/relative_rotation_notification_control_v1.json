@@ -4,5 +4,16 @@
   "morning_slot": "04:03",
   "evening_slot": "22:30",
   "evening_requires_explicit_missed_morning": true,
-  "missed_morning_signals": []
+  "missed_morning_signals": [
+    {
+      "book_id": "BOOK_3",
+      "event_id": "BOOK_3|CONFIRMED|2026-10-02T00:00:00+00:00|PEPE|TRX|PEPE/TRX",
+      "signal_date": "2026-10-02T00:00:00+00:00",
+      "from_asset": "PEPE",
+      "to_asset": "TRX",
+      "armed_local_date": "2026-10-03",
+      "armed_at": "2026-10-03T03:50:10.193000+00:00",
+      "telegram_update_id": "265609228"
+    }
+  ]
 }
