@@ -3,45 +3,36 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-from dataclasses import dataclass, asdict
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-import scripts.research_rr_ddg_acceleration_fork_v1 as base
-from strategies.crypto.relative_rotation.paper_live import ASSETS, TARGET_ASSETS
+import scripts.research_rr_ddg_acceleration_fork_v1 as rrbase
+from integrations.binance.historical import download_historical_dataset
+from integrations.binance.rest_client import BinanceSpotRestClient
+from strategies.crypto.relative_rotation.paper_live import TARGET_ASSETS
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "research_artifacts" / "rr_v2_full_path_counterfactual_v1"
 
-AS_OF = base.AS_OF
-PRIMARY_COST = 0.001
+AS_OF = pd.Timestamp("2026-10-03T16:30:00Z")
+MATURE_START = pd.Timestamp("2023-10-31T00:00:00Z")
+LAST_2Y_START = pd.Timestamp("2024-10-03T00:00:00Z")
+LAST_1Y_START = pd.Timestamp("2025-10-03T00:00:00Z")
+CASE_START = pd.Timestamp("2026-09-28T00:00:00Z")
+
+TARGETS = tuple(TARGET_ASSETS)
+START_ASSETS = tuple(rrbase.ASSETS)
 COSTS = (0.001, 0.005, 0.01, 0.03)
+PRIMARY_COST = 0.001
+ROLL_DAYS = 365
 ACCEL_THRESHOLD = 0.10
 OBS_DAYS = (1, 2, 3)
+TOL = 1e-12
 
-START_ASSETS = tuple(ASSETS)
-TARGET_START_ASSETS = tuple(TARGET_ASSETS)
-
-WINDOW_STARTS = {
-    "MATURE": pd.Timestamp("2023-10-31T00:00:00Z"),
-    "LAST_2Y": pd.Timestamp("2024-10-03T00:00:00Z"),
-    "LAST_1Y": pd.Timestamp("2025-10-03T00:00:00Z"),
-}
-
-VARIANTS = ("CORE", "CORE_PLUS_V2")
-PRIORITIES = ("V2_PRIORITY", "CORE_PRIORITY")
-
-
-@dataclass
-class Watch:
-    entry_i: int
-    stage: str = "SEARCH"
-    candidate: str | None = None
-    trigger_i: int | None = None
-    trigger_impulse: float | None = None
-    confirm1_i: int | None = None
+PRIMARY_PRIORITY = "V2_PRIORITY"
+ROBUSTNESS_PRIORITY = "CORE_PRIORITY"
 
 
 def source_sha() -> str:
@@ -50,745 +41,805 @@ def source_sha() -> str:
     ).strip()
 
 
-def first_index_on_or_after(timestamps: pd.Series, ts: pd.Timestamp) -> int:
-    arr = pd.to_datetime(timestamps, utc=True)
-    hits = np.flatnonzero(arr.ge(ts).to_numpy())
-    if not len(hits):
-        raise RuntimeError(f"No timestamp on/after {ts}")
-    return int(hits[0])
-
-
-def build_route_map(routes: pd.DataFrame) -> dict[tuple[pd.Timestamp, str], dict]:
-    out = {}
+def make_route_map(routes: pd.DataFrame) -> dict[tuple[pd.Timestamp, str], dict]:
+    out: dict[tuple[pd.Timestamp, str], dict] = {}
     for _, row in routes.iterrows():
-        out[(pd.Timestamp(row["signal_date"]), str(row["source"]))] = row.to_dict()
+        key = (pd.Timestamp(row["signal_date"]), str(row["source"]).upper())
+        out[key] = row.to_dict()
     return out
 
 
-def strongest_candidate(
-    panel: pd.DataFrame,
-    held: str,
-    entry_i: int,
-    obs_i: int,
-) -> tuple[str, float]:
-    candidate, impulse, _ = base.strongest_accel(
-        panel,
-        held,
-        entry_i,
-        obs_i,
-    )
-    return str(candidate), float(impulse)
-
-
-def candidate_impulse(
-    panel: pd.DataFrame,
-    candidate: str,
-    held: str,
-    entry_i: int,
-    obs_i: int,
-) -> float:
-    return float(base.rel_impulse(panel, candidate, held, entry_i, obs_i))
-
-
-def transition(
-    panel: pd.DataFrame,
-    idx: int,
-    asset: str,
-    qty: float,
-    target: str,
-    cost_rate: float,
-) -> tuple[str, float, float, float, float]:
-    if target == asset:
-        value = qty * float(panel.iloc[idx][f"{asset}_open"])
-        return asset, qty, 0.0, value, value
-
-    before = qty * float(panel.iloc[idx][f"{asset}_open"])
-    fee = before * cost_rate
-    after = before - fee
-    new_qty = after / float(panel.iloc[idx][f"{target}_open"])
-    return target, new_qty, fee, before, after
-
-
-def evaluate_watch_close(
-    panel: pd.DataFrame,
-    idx: int,
-    held: str,
-    watch: Watch | None,
-) -> tuple[Watch | None, dict | None, dict]:
-    diag = {
-        "base_trigger": False,
-        "confirm1": False,
-        "confirm2": False,
-        "watch_failed": False,
-        "watch_expired": False,
+def build_panel_maps(panel: pd.DataFrame):
+    timestamps = pd.to_datetime(panel["timestamp"], utc=True)
+    date_to_i = {pd.Timestamp(ts): i for i, ts in enumerate(timestamps)}
+    opens = {
+        asset: panel[f"{asset}_open"].to_numpy(float)
+        for asset in START_ASSETS
     }
-    if watch is None:
-        return None, None, diag
-
-    if watch.stage == "SEARCH":
-        day = idx - watch.entry_i + 1
-        if day < 1:
-            return watch, None, diag
-        if day > max(OBS_DAYS):
-            diag["watch_expired"] = True
-            return None, None, diag
-
-        top, impulse = strongest_candidate(panel, held, watch.entry_i, idx)
-        if impulse >= ACCEL_THRESHOLD:
-            watch.stage = "TRIGGERED"
-            watch.candidate = top
-            watch.trigger_i = idx
-            watch.trigger_impulse = impulse
-            diag["base_trigger"] = True
-        return watch, None, diag
-
-    if watch.stage == "TRIGGERED":
-        assert watch.candidate is not None
-        assert watch.trigger_i is not None
-        assert watch.trigger_impulse is not None
-
-        if idx <= watch.trigger_i:
-            return watch, None, diag
-
-        top, _ = strongest_candidate(panel, held, watch.entry_i, idx)
-        cand_imp = candidate_impulse(
-            panel, watch.candidate, held, watch.entry_i, idx
-        )
-
-        if top != watch.candidate:
-            diag["watch_failed"] = True
-            return None, None, diag
-
-        watch.stage = "CONFIRM1"
-        watch.confirm1_i = idx
-        diag["confirm1"] = True
-        return watch, None, diag
-
-    if watch.stage == "CONFIRM1":
-        assert watch.candidate is not None
-        assert watch.confirm1_i is not None
-        assert watch.trigger_impulse is not None
-
-        if idx <= watch.confirm1_i:
-            return watch, None, diag
-
-        top, _ = strongest_candidate(panel, held, watch.entry_i, idx)
-        cand_imp = candidate_impulse(
-            panel, watch.candidate, held, watch.entry_i, idx
-        )
-
-        if top != watch.candidate or cand_imp <= watch.trigger_impulse:
-            diag["watch_failed"] = True
-            return None, None, diag
-
-        diag["confirm2"] = True
-        action = {
-            "target": watch.candidate,
-            "reason": "V2",
-            "trigger_impulse": float(watch.trigger_impulse),
-            "confirm2_impulse": float(cand_imp),
-            "trigger_i": int(watch.trigger_i),
-            "confirm2_i": int(idx),
-        }
-        return None, action, diag
-
-    raise RuntimeError(f"Unknown watch stage {watch.stage}")
+    closes = {
+        asset: panel[f"{asset}_close"].to_numpy(float)
+        for asset in START_ASSETS
+    }
+    return timestamps, date_to_i, opens, closes
 
 
-def simulate(
+def strongest_accel(
+    closes: dict[str, np.ndarray],
+    opens: dict[str, np.ndarray],
+    held: str,
+    entry_i: int,
+    obs_i: int,
+) -> tuple[str, float, list[tuple[str, float]]]:
+    held_factor = closes[held][obs_i] / opens[held][entry_i]
+    scores = []
+    for asset in TARGETS:
+        if asset == held:
+            continue
+        asset_factor = closes[asset][obs_i] / opens[asset][entry_i]
+        impulse = asset_factor / held_factor - 1.0
+        scores.append((asset, float(impulse)))
+    scores.sort(key=lambda x: (-x[1], x[0]))
+    return scores[0][0], float(scores[0][1]), scores
+
+
+def max_drawdown(equity: list[float]) -> float:
+    arr = np.asarray(equity, dtype=float)
+    if len(arr) == 0:
+        return np.nan
+    peaks = np.maximum.accumulate(arr)
+    dd = arr / peaks - 1.0
+    return float(np.min(dd))
+
+
+def resolve_bounds(
+    timestamps: pd.Series,
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+) -> tuple[int, int]:
+    vals = pd.DatetimeIndex(timestamps)
+    start_pos = int(vals.searchsorted(start, side="left"))
+    end_pos = int(vals.searchsorted(end, side="right") - 1)
+    if start_pos < 0 or end_pos >= len(vals) or start_pos > end_pos:
+        raise RuntimeError(f"Invalid bounds: {start} -> {end}")
+    return start_pos, end_pos
+
+
+def simulate_path(
     panel: pd.DataFrame,
     route_map: dict[tuple[pd.Timestamp, str], dict],
-    start_i: int,
-    end_i: int,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
     start_asset: str,
-    variant: str,
-    cost_rate: float,
-    priority: str,
-    collect_trace: bool = False,
-) -> tuple[dict, pd.DataFrame | None]:
-    if variant not in VARIANTS:
-        raise ValueError(variant)
-    if priority not in PRIORITIES:
-        raise ValueError(priority)
+    cost: float,
+    overlay_enabled: bool,
+    priority: str = PRIMARY_PRIORITY,
+    collect_daily: bool = False,
+) -> dict:
+    timestamps, _, opens, closes = build_panel_maps(panel)
+    start_i, end_i = resolve_bounds(timestamps, start_date, end_date)
 
-    capital0 = 100.0
-    asset = start_asset
-    qty = capital0 / float(panel.iloc[start_i][f"{asset}_open"])
-
-    watch: Watch | None = None
+    start_asset = start_asset.upper()
+    current = start_asset
+    qty = 100.0 / float(opens[current][start_i])
     pending: dict | None = None
+    watch: dict | None = None
 
-    transitions = 0
+    equity_rows = []
+    transitions = []
+    overlay_actions = []
     core_moves = 0
-    v2_moves = 0
+    overlay_moves = 0
     v2_base_triggers = 0
     v2_confirmations = 0
-    v2_cancelled_by_core = 0
-    v2_failed_or_expired = 0
-    same_close_conflicts = 0
-    confirmed_v2_blocked_by_core_priority = 0
-    cost_paid = 0.0
+    v2_core_cancellations = 0
+    total_cost_paid = 0.0
 
-    equity = [capital0]
-    trace = []
-
-    for idx in range(start_i, end_i + 1):
-        ts = pd.Timestamp(panel.iloc[idx]["timestamp"])
+    for i in range(start_i, end_i + 1):
+        date = pd.Timestamp(timestamps.iloc[i])
 
         if pending is not None:
-            old_asset = asset
-            asset, qty, fee, before, after = transition(
-                panel, idx, asset, qty, pending["target"], cost_rate
-            )
-            if asset != old_asset:
-                transitions += 1
-                cost_paid += fee
-                if pending["reason"] == "CORE":
-                    core_moves += 1
-                    if variant == "CORE_PLUS_V2":
-                        watch = Watch(entry_i=idx)
-                elif pending["reason"] == "V2":
-                    v2_moves += 1
-                    watch = None
+            if pending["from_asset"] != current:
+                raise RuntimeError(
+                    f"Pending source mismatch on {date}: "
+                    f"{pending['from_asset']} != {current}"
+                )
+            destination = str(pending["to_asset"]).upper()
+            value_before = qty * float(opens[current][i])
+            cost_paid = value_before * cost
+            value_after = value_before - cost_paid
+            qty = value_after / float(opens[destination][i])
 
-                if collect_trace:
-                    trace.append(
-                        {
-                            "date": ts,
-                            "event": f"EXECUTE_{pending['reason']}",
-                            "from_asset": old_asset,
-                            "to_asset": asset,
-                            "value_before": before,
-                            "fee": fee,
-                            "value_after": after,
-                            "trigger_impulse": pending.get("trigger_impulse"),
-                            "confirm2_impulse": pending.get("confirm2_impulse"),
-                        }
-                    )
+            transition = {
+                "execute_date": date,
+                "signal_date": pending["signal_date"],
+                "type": pending["type"],
+                "from_asset": current,
+                "to_asset": destination,
+                "capital_before": float(value_before),
+                "cost_rate": float(cost),
+                "cost_paid": float(cost_paid),
+                "capital_after": float(value_after),
+            }
+            for key in (
+                "trigger_date",
+                "trigger_impulse",
+                "confirm1_date",
+                "confirm2_date",
+                "confirm2_impulse",
+            ):
+                if key in pending:
+                    transition[key] = pending[key]
+            transitions.append(transition)
+            total_cost_paid += cost_paid
+
+            current = destination
+            if pending["type"] == "CORE":
+                core_moves += 1
+                watch = (
+                    {
+                        "held": current,
+                        "entry_i": i,
+                        "stage": "SEARCH",
+                        "trigger_candidate": None,
+                        "trigger_i": None,
+                        "trigger_date": None,
+                        "trigger_impulse": None,
+                        "confirm1_date": None,
+                    }
+                    if overlay_enabled
+                    else None
+                )
+            else:
+                overlay_moves += 1
+                overlay_actions.append(dict(transition))
+                watch = None
+
             pending = None
 
-        close_value = qty * float(panel.iloc[idx][f"{asset}_close"])
-        equity.append(float(close_value))
+        equity_close = qty * float(closes[current][i])
+        if collect_daily:
+            equity_rows.append(
+                {
+                    "date": date,
+                    "asset": current,
+                    "equity_close": float(equity_close),
+                }
+            )
+        else:
+            equity_rows.append(float(equity_close))
 
-        if idx == end_i:
+        if i >= end_i:
             continue
 
-        v2_action = None
-        if variant == "CORE_PLUS_V2":
-            prior_watch = watch
-            watch, v2_action, diag = evaluate_watch_close(
-                panel, idx, asset, watch
-            )
-            if diag["base_trigger"]:
-                v2_base_triggers += 1
-                if collect_trace and watch is not None:
-                    trace.append(
-                        {
-                            "date": ts,
-                            "event": "V2_BASE_TRIGGER",
-                            "from_asset": asset,
-                            "to_asset": watch.candidate,
-                            "value_before": close_value,
-                            "fee": 0.0,
-                            "value_after": close_value,
-                            "trigger_impulse": watch.trigger_impulse,
-                            "confirm2_impulse": np.nan,
-                        }
-                    )
-            if diag["confirm1"] and collect_trace and watch is not None:
-                trace.append(
-                    {
-                        "date": ts,
-                        "event": "V2_CONFIRM1",
-                        "from_asset": asset,
-                        "to_asset": watch.candidate,
-                        "value_before": close_value,
-                        "fee": 0.0,
-                        "value_after": close_value,
-                        "trigger_impulse": watch.trigger_impulse,
-                        "confirm2_impulse": candidate_impulse(
-                            panel, str(watch.candidate), asset, watch.entry_i, idx
-                        ),
-                    }
-                )
-            if diag["confirm2"]:
-                v2_confirmations += 1
-                if collect_trace and v2_action is not None:
-                    trace.append(
-                        {
-                            "date": ts,
-                            "event": "V2_CONFIRM2_PASS",
-                            "from_asset": asset,
-                            "to_asset": v2_action["target"],
-                            "value_before": close_value,
-                            "fee": 0.0,
-                            "value_after": close_value,
-                            "trigger_impulse": v2_action["trigger_impulse"],
-                            "confirm2_impulse": v2_action["confirm2_impulse"],
-                        }
-                    )
-            if diag["watch_failed"] or diag["watch_expired"]:
-                v2_failed_or_expired += 1
-                if collect_trace and prior_watch is not None:
-                    trace.append(
-                        {
-                            "date": ts,
-                            "event": "V2_WATCH_END_NO_PASS",
-                            "from_asset": asset,
-                            "to_asset": (
-                                prior_watch.candidate
-                                if prior_watch.candidate is not None
-                                else ""
-                            ),
-                            "value_before": close_value,
-                            "fee": 0.0,
-                            "value_after": close_value,
-                            "trigger_impulse": prior_watch.trigger_impulse,
-                            "confirm2_impulse": np.nan,
-                        }
-                    )
-
-        route = route_map.get((ts, asset))
-        core_action = None
-        if route is not None:
-            target = str(route["effective_to"])
-            if target != asset:
-                core_action = {
-                    "target": target,
-                    "reason": "CORE",
-                    "ddg_override": bool(route.get("override", False)),
+        core_route = route_map.get((date, current))
+        core_pending = None
+        if core_route is not None:
+            destination = str(core_route["effective_to"]).upper()
+            if destination != current:
+                core_pending = {
+                    "type": "CORE",
+                    "signal_date": date,
+                    "from_asset": current,
+                    "to_asset": destination,
+                    "baseline_to": str(core_route["baseline_to"]).upper(),
+                    "ddg_override": bool(core_route["override"]),
                 }
 
-        if v2_action is not None and core_action is not None:
-            same_close_conflicts += 1
-            if priority == "V2_PRIORITY":
-                pending = v2_action
-            else:
-                pending = core_action
-                confirmed_v2_blocked_by_core_priority += 1
-        elif v2_action is not None:
-            pending = v2_action
-        elif core_action is not None:
-            if variant == "CORE_PLUS_V2" and watch is not None:
-                v2_cancelled_by_core += 1
-                if collect_trace:
-                    trace.append(
-                        {
-                            "date": ts,
-                            "event": "V2_CANCELLED_BY_CORE",
-                            "from_asset": asset,
-                            "to_asset": core_action["target"],
-                            "value_before": close_value,
-                            "fee": 0.0,
-                            "value_after": close_value,
-                            "trigger_impulse": watch.trigger_impulse,
-                            "confirm2_impulse": np.nan,
-                        }
+        overlay_pending = None
+
+        if overlay_enabled and watch is not None and watch["held"] == current:
+            stage = watch["stage"]
+            if stage == "SEARCH":
+                day = i - int(watch["entry_i"]) + 1
+                if day in OBS_DAYS:
+                    candidate, impulse, _ = strongest_accel(
+                        closes, opens, current, int(watch["entry_i"]), i
                     )
+                    if impulse >= ACCEL_THRESHOLD:
+                        v2_base_triggers += 1
+                        watch["stage"] = "CONFIRM1"
+                        watch["trigger_candidate"] = candidate
+                        watch["trigger_i"] = i
+                        watch["trigger_date"] = date
+                        watch["trigger_impulse"] = float(impulse)
+                elif day > max(OBS_DAYS):
+                    watch = None
+
+            elif stage == "CONFIRM1":
+                expected_i = int(watch["trigger_i"]) + 1
+                if i == expected_i:
+                    top, _, scores = strongest_accel(
+                        closes, opens, current, int(watch["entry_i"]), i
+                    )
+                    candidate = str(watch["trigger_candidate"])
+                    impulse_map = dict(scores)
+                    candidate_impulse = float(impulse_map[candidate])
+                    if top == candidate:
+                        watch["stage"] = "CONFIRM2"
+                        watch["confirm1_date"] = date
+                        watch["confirm1_impulse"] = candidate_impulse
+                    else:
+                        watch = None
+
+            elif stage == "CONFIRM2":
+                expected_i = int(watch["trigger_i"]) + 2
+                if i == expected_i:
+                    top, _, scores = strongest_accel(
+                        closes, opens, current, int(watch["entry_i"]), i
+                    )
+                    candidate = str(watch["trigger_candidate"])
+                    impulse_map = dict(scores)
+                    candidate_impulse = float(impulse_map[candidate])
+                    passed = (
+                        top == candidate
+                        and candidate_impulse > float(watch["trigger_impulse"])
+                    )
+                    if passed:
+                        v2_confirmations += 1
+                        overlay_pending = {
+                            "type": "V2",
+                            "signal_date": date,
+                            "from_asset": current,
+                            "to_asset": candidate,
+                            "trigger_date": watch["trigger_date"],
+                            "trigger_impulse": float(watch["trigger_impulse"]),
+                            "confirm1_date": watch.get("confirm1_date"),
+                            "confirm2_date": date,
+                            "confirm2_impulse": candidate_impulse,
+                        }
+                    watch = None
+
+        if overlay_pending is not None and core_pending is not None:
+            pending = (
+                overlay_pending
+                if priority == PRIMARY_PRIORITY
+                else core_pending
+            )
+        elif overlay_pending is not None:
+            pending = overlay_pending
+        elif core_pending is not None:
+            if overlay_enabled and watch is not None:
+                v2_core_cancellations += 1
                 watch = None
-            pending = core_action
+            pending = core_pending
 
-        if collect_trace and core_action is not None:
-            trace.append(
-                {
-                    "date": ts,
-                    "event": "CORE_SIGNAL",
-                    "from_asset": asset,
-                    "to_asset": core_action["target"],
-                    "value_before": close_value,
-                    "fee": 0.0,
-                    "value_after": close_value,
-                    "trigger_impulse": np.nan,
-                    "confirm2_impulse": np.nan,
-                }
-            )
+    final_capital = qty * float(closes[current][end_i])
+    equity_values = (
+        [float(row["equity_close"]) for row in equity_rows]
+        if collect_daily
+        else [float(x) for x in equity_rows]
+    )
 
-    arr = np.asarray(equity, dtype=float)
-    peaks = np.maximum.accumulate(arr)
-    max_dd = float(np.min(arr / peaks - 1.0))
-    final_capital = float(arr[-1])
+    for action in overlay_actions:
+        later_core = next(
+            (
+                t for t in transitions
+                if t["type"] == "CORE"
+                and pd.Timestamp(t["execute_date"])
+                > pd.Timestamp(action["execute_date"])
+            ),
+            None,
+        )
+        action["next_core_execute_date"] = (
+            None if later_core is None else later_core["execute_date"]
+        )
+        action["next_core_from"] = (
+            None if later_core is None else later_core["from_asset"]
+        )
+        action["next_core_to"] = (
+            None if later_core is None else later_core["to_asset"]
+        )
 
-    result = {
-        "variant": variant,
-        "priority": priority,
-        "cost_rate": float(cost_rate),
+    return {
+        "start_date": pd.Timestamp(timestamps.iloc[start_i]),
+        "end_date": pd.Timestamp(timestamps.iloc[end_i]),
         "start_asset": start_asset,
-        "start_date": pd.Timestamp(panel.iloc[start_i]["timestamp"]),
-        "end_date": pd.Timestamp(panel.iloc[end_i]["timestamp"]),
-        "final_asset": asset,
-        "final_capital": final_capital,
-        "return": final_capital / capital0 - 1.0,
-        "max_dd": max_dd,
-        "transitions": int(transitions),
+        "variant": "CORE_PLUS_V2" if overlay_enabled else "CORE",
+        "priority": priority if overlay_enabled else "CORE_ONLY",
+        "cost": float(cost),
+        "initial_capital": 100.0,
+        "final_capital": float(final_capital),
+        "total_return": float(final_capital / 100.0 - 1.0),
+        "max_drawdown": max_drawdown(equity_values),
+        "transition_count": int(len(transitions)),
         "core_moves": int(core_moves),
-        "v2_moves": int(v2_moves),
+        "overlay_moves": int(overlay_moves),
         "v2_base_triggers": int(v2_base_triggers),
         "v2_confirmations": int(v2_confirmations),
-        "v2_cancelled_by_core": int(v2_cancelled_by_core),
-        "v2_failed_or_expired": int(v2_failed_or_expired),
-        "same_close_conflicts": int(same_close_conflicts),
-        "confirmed_v2_blocked_by_core_priority": int(
-            confirmed_v2_blocked_by_core_priority
-        ),
-        "modeled_cost_paid": float(cost_paid),
+        "v2_core_cancellations": int(v2_core_cancellations),
+        "total_cost_paid": float(total_cost_paid),
+        "final_asset": current,
+        "transitions": transitions,
+        "overlay_actions": overlay_actions,
+        "daily": equity_rows if collect_daily else None,
     }
 
-    trace_df = pd.DataFrame(trace) if collect_trace else None
-    return result, trace_df
 
-
-def aggregate(frame: pd.DataFrame) -> dict:
+def path_row(result: dict, window: str) -> dict:
     return {
-        "start_count": int(len(frame)),
-        "median_final_capital": float(frame["final_capital"].median()),
-        "median_return": float(frame["return"].median()),
-        "worst_return": float(frame["return"].min()),
-        "best_return": float(frame["return"].max()),
-        "positive_start_rate": float((frame["return"] > 0).mean()),
-        "median_max_dd": float(frame["max_dd"].median()),
-        "worst_max_dd": float(frame["max_dd"].min()),
-        "median_transitions": float(frame["transitions"].median()),
-        "median_core_moves": float(frame["core_moves"].median()),
-        "median_v2_moves": float(frame["v2_moves"].median()),
-        "median_modeled_cost_paid": float(frame["modeled_cost_paid"].median()),
-        "median_v2_base_triggers": float(frame["v2_base_triggers"].median()),
-        "median_v2_confirmations": float(frame["v2_confirmations"].median()),
-        "median_v2_cancelled_by_core": float(
-            frame["v2_cancelled_by_core"].median()
-        ),
+        "window": window,
+        "start_date": result["start_date"],
+        "end_date": result["end_date"],
+        "start_asset": result["start_asset"],
+        "variant": result["variant"],
+        "priority": result["priority"],
+        "cost": result["cost"],
+        "final_capital": result["final_capital"],
+        "total_return": result["total_return"],
+        "max_drawdown": result["max_drawdown"],
+        "transition_count": result["transition_count"],
+        "core_moves": result["core_moves"],
+        "overlay_moves": result["overlay_moves"],
+        "v2_base_triggers": result["v2_base_triggers"],
+        "v2_confirmations": result["v2_confirmations"],
+        "v2_core_cancellations": result["v2_core_cancellations"],
+        "total_cost_paid": result["total_cost_paid"],
+        "final_asset": result["final_asset"],
     }
 
 
-def compare_pair(core: pd.DataFrame, overlay: pd.DataFrame) -> dict:
+def aggregate_window(paths: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    for keys, sub in paths.groupby(
+        ["window", "variant", "priority", "cost"], sort=True
+    ):
+        window, variant, priority, cost = keys
+        rows.append(
+            {
+                "window": window,
+                "variant": variant,
+                "priority": priority,
+                "cost": float(cost),
+                "n_starts": int(len(sub)),
+                "median_final_capital": float(sub["final_capital"].median()),
+                "median_total_return": float(sub["total_return"].median()),
+                "worst_total_return": float(sub["total_return"].min()),
+                "best_total_return": float(sub["total_return"].max()),
+                "positive_start_rate": float((sub["total_return"] > 0).mean()),
+                "median_max_drawdown": float(sub["max_drawdown"].median()),
+                "worst_max_drawdown": float(sub["max_drawdown"].min()),
+                "median_transition_count": float(sub["transition_count"].median()),
+                "median_core_moves": float(sub["core_moves"].median()),
+                "median_overlay_moves": float(sub["overlay_moves"].median()),
+                "median_total_cost_paid": float(sub["total_cost_paid"].median()),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def paired_start_comparison(paths: pd.DataFrame) -> pd.DataFrame:
+    core = paths[
+        (paths["variant"] == "CORE")
+        & (paths["priority"] == "CORE_ONLY")
+    ].copy()
+    overlay = paths[
+        (paths["variant"] == "CORE_PLUS_V2")
+        & (paths["priority"] == PRIMARY_PRIORITY)
+    ].copy()
+    key = ["window", "start_asset", "cost"]
     merged = core.merge(
         overlay,
-        on=["start_asset", "start_date", "end_date", "cost_rate"],
-        suffixes=("_core", "_v2"),
+        on=key,
+        suffixes=("_core", "_overlay"),
         validate="one_to_one",
     )
-    ratio = merged["final_capital_v2"] / merged["final_capital_core"]
-    return {
-        "n": int(len(merged)),
-        "improved_count": int((ratio > 1.0).sum()),
-        "improved_share": float((ratio > 1.0).mean()),
-        "median_final_capital_ratio": float(ratio.median()),
-        "median_return_delta": float(
-            (merged["return_v2"] - merged["return_core"]).median()
+    merged["final_capital_ratio"] = (
+        merged["final_capital_overlay"] / merged["final_capital_core"]
+    )
+    merged["return_delta"] = (
+        merged["total_return_overlay"] - merged["total_return_core"]
+    )
+    merged["max_drawdown_delta"] = (
+        merged["max_drawdown_overlay"] - merged["max_drawdown_core"]
+    )
+    merged["transition_delta"] = (
+        merged["transition_count_overlay"] - merged["transition_count_core"]
+    )
+    merged["cost_paid_delta"] = (
+        merged["total_cost_paid_overlay"] - merged["total_cost_paid_core"]
+    )
+    return merged
+
+
+def download_btc_regime() -> pd.DataFrame:
+    client = BinanceSpotRestClient()
+    result = download_historical_dataset(
+        client,
+        symbol="BTCUSDT",
+        start=pd.Timestamp("2022-12-01T00:00:00Z"),
+        end=AS_OF,
+        timeframe="1D",
+        as_of=AS_OF,
+    )
+    if result.dataset is None:
+        raise RuntimeError("BTCUSDT D1 unavailable for regime diagnostic")
+    frame = result.dataset.candles[["timestamp", "close"]].copy()
+    frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True)
+    frame["sma200"] = frame["close"].rolling(200, min_periods=200).mean()
+    frame["regime"] = np.where(
+        frame["sma200"].isna(),
+        "UNKNOWN",
+        np.where(
+            frame["close"] >= frame["sma200"],
+            "BTC_BULL_START",
+            "BTC_BEAR_START",
         ),
-        "median_max_dd_delta": float(
-            (merged["max_dd_v2"] - merged["max_dd_core"]).median()
-        ),
-        "median_transition_delta": float(
-            (merged["transitions_v2"] - merged["transitions_core"]).median()
-        ),
-        "median_cost_delta": float(
-            (
-                merged["modeled_cost_paid_v2"]
-                - merged["modeled_cost_paid_core"]
-            ).median()
-        ),
-    }
-
-
-def primary_window_runs(
-    panel: pd.DataFrame,
-    route_map: dict,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    end_i = len(panel) - 1
-    rows = []
-
-    for window, start_ts in WINDOW_STARTS.items():
-        start_i = first_index_on_or_after(panel["timestamp"], start_ts)
-        for cost in COSTS:
-            for asset in START_ASSETS:
-                core, _ = simulate(
-                    panel, route_map, start_i, end_i, asset,
-                    "CORE", cost, "V2_PRIORITY"
-                )
-                core["window"] = window
-                rows.append(core)
-
-                for priority in PRIORITIES:
-                    overlay, _ = simulate(
-                        panel, route_map, start_i, end_i, asset,
-                        "CORE_PLUS_V2", cost, priority
-                    )
-                    overlay["window"] = window
-                    rows.append(overlay)
-
-    detail = pd.DataFrame(rows)
-
-    summary_rows = []
-    comparison_rows = []
-    for window in WINDOW_STARTS:
-        for cost in COSTS:
-            core = detail[
-                (detail["window"] == window)
-                & (detail["cost_rate"] == cost)
-                & (detail["variant"] == "CORE")
-            ].copy()
-            summary_rows.append(
-                {
-                    "window": window,
-                    "cost_rate": cost,
-                    "variant": "CORE",
-                    "priority": "NA",
-                    **aggregate(core),
-                }
-            )
-
-            for priority in PRIORITIES:
-                overlay = detail[
-                    (detail["window"] == window)
-                    & (detail["cost_rate"] == cost)
-                    & (detail["variant"] == "CORE_PLUS_V2")
-                    & (detail["priority"] == priority)
-                ].copy()
-                summary_rows.append(
-                    {
-                        "window": window,
-                        "cost_rate": cost,
-                        "variant": "CORE_PLUS_V2",
-                        "priority": priority,
-                        **aggregate(overlay),
-                    }
-                )
-                comparison_rows.append(
-                    {
-                        "window": window,
-                        "cost_rate": cost,
-                        "priority": priority,
-                        **compare_pair(core, overlay),
-                    }
-                )
-
-    return detail, pd.DataFrame(summary_rows), pd.DataFrame(comparison_rows)
+    )
+    return frame
 
 
 def rolling_365(
     panel: pd.DataFrame,
-    route_map: dict,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    dates = pd.to_datetime(panel["timestamp"], utc=True)
-    first = max(
-        pd.Timestamp("2023-11-01T00:00:00Z"),
-        pd.Timestamp(dates.iloc[0]),
-    )
-    last = pd.Timestamp(dates.iloc[-1])
-
-    starts = pd.date_range(first, last, freq="MS", tz="UTC")
+    route_map: dict[tuple[pd.Timestamp, str], dict],
+    btc: pd.DataFrame,
+) -> pd.DataFrame:
+    timestamps = pd.DatetimeIndex(pd.to_datetime(panel["timestamp"], utc=True))
+    last = pd.Timestamp(timestamps[-1])
+    btc_map = {
+        pd.Timestamp(row["timestamp"]): str(row["regime"])
+        for _, row in btc.iterrows()
+    }
     rows = []
 
-    for start in starts:
-        end = start + pd.Timedelta(days=364)
-        if end > last:
-            continue
-        start_i = first_index_on_or_after(panel["timestamp"], start)
-        end_i = first_index_on_or_after(panel["timestamp"], end)
-        if pd.Timestamp(panel.iloc[end_i]["timestamp"]) > end:
-            end_i -= 1
-        if end_i <= start_i:
+    for start_date in timestamps:
+        end_target = pd.Timestamp(start_date) + pd.Timedelta(days=ROLL_DAYS)
+        if end_target > last:
+            break
+        end_pos = int(timestamps.searchsorted(end_target, side="right") - 1)
+        end_date = pd.Timestamp(timestamps[end_pos])
+        if end_date <= start_date:
             continue
 
-        for asset in TARGET_START_ASSETS:
-            core, _ = simulate(
-                panel, route_map, start_i, end_i, asset,
-                "CORE", PRIMARY_COST, "V2_PRIORITY"
+        core_results = []
+        overlay_results = []
+        for start_asset in TARGETS:
+            core_results.append(
+                simulate_path(
+                    panel, route_map, pd.Timestamp(start_date), end_date,
+                    start_asset, PRIMARY_COST, False
+                )
             )
-            overlay, _ = simulate(
-                panel, route_map, start_i, end_i, asset,
-                "CORE_PLUS_V2", PRIMARY_COST, "V2_PRIORITY"
-            )
-            rows.append(
-                {
-                    "window_start": pd.Timestamp(panel.iloc[start_i]["timestamp"]),
-                    "window_end": pd.Timestamp(panel.iloc[end_i]["timestamp"]),
-                    "start_asset": asset,
-                    "core_return": core["return"],
-                    "v2_return": overlay["return"],
-                    "return_delta": overlay["return"] - core["return"],
-                    "core_max_dd": core["max_dd"],
-                    "v2_max_dd": overlay["max_dd"],
-                    "max_dd_delta": overlay["max_dd"] - core["max_dd"],
-                    "core_transitions": core["transitions"],
-                    "v2_transitions": overlay["transitions"],
-                }
+            overlay_results.append(
+                simulate_path(
+                    panel, route_map, pd.Timestamp(start_date), end_date,
+                    start_asset, PRIMARY_COST, True, PRIMARY_PRIORITY
+                )
             )
 
-    detail = pd.DataFrame(rows)
-    summary_rows = []
-    for start, sub in detail.groupby("window_start", sort=True):
-        summary_rows.append(
+        core_ret = np.median([x["total_return"] for x in core_results])
+        overlay_ret = np.median([x["total_return"] for x in overlay_results])
+        core_dd = np.median([x["max_drawdown"] for x in core_results])
+        overlay_dd = np.median([x["max_drawdown"] for x in overlay_results])
+        core_tr = np.median([x["transition_count"] for x in core_results])
+        overlay_tr = np.median([x["transition_count"] for x in overlay_results])
+        delta = float(overlay_ret - core_ret)
+        regime = btc_map.get(pd.Timestamp(start_date), "UNKNOWN")
+
+        rows.append(
             {
-                "window_start": start,
-                "window_end": sub["window_end"].iloc[0],
-                "start_count": int(len(sub)),
-                "core_median_return": float(sub["core_return"].median()),
-                "v2_median_return": float(sub["v2_return"].median()),
-                "median_return_delta": float(sub["return_delta"].median()),
-                "v2_better_share": float((sub["return_delta"] > 0).mean()),
-                "core_median_max_dd": float(sub["core_max_dd"].median()),
-                "v2_median_max_dd": float(sub["v2_max_dd"].median()),
-                "median_max_dd_delta": float(sub["max_dd_delta"].median()),
-                "median_transition_delta": float(
-                    (sub["v2_transitions"] - sub["core_transitions"]).median()
+                "start_date": pd.Timestamp(start_date),
+                "end_date": end_date,
+                "btc_start_regime": regime,
+                "core_median_return": float(core_ret),
+                "overlay_median_return": float(overlay_ret),
+                "return_delta": delta,
+                "core_median_max_drawdown": float(core_dd),
+                "overlay_median_max_drawdown": float(overlay_dd),
+                "max_drawdown_delta": float(overlay_dd - core_dd),
+                "core_median_transitions": float(core_tr),
+                "overlay_median_transitions": float(overlay_tr),
+                "transition_delta": float(overlay_tr - core_tr),
+                "comparison": (
+                    "BETTER" if delta > TOL
+                    else "WORSE" if delta < -TOL
+                    else "EQUAL"
                 ),
             }
         )
-    return detail, pd.DataFrame(summary_rows)
+    return pd.DataFrame(rows)
+
+
+def rolling_summary(rolling: pd.DataFrame) -> dict:
+    if rolling.empty:
+        return {}
+    deltas = rolling["return_delta"].astype(float)
+    return {
+        "windows": int(len(rolling)),
+        "better": int((rolling["comparison"] == "BETTER").sum()),
+        "equal": int((rolling["comparison"] == "EQUAL").sum()),
+        "worse": int((rolling["comparison"] == "WORSE").sum()),
+        "median_return_delta": float(deltas.median()),
+        "p25_return_delta": float(deltas.quantile(0.25)),
+        "p75_return_delta": float(deltas.quantile(0.75)),
+        "worst_return_delta": float(deltas.min()),
+        "best_return_delta": float(deltas.max()),
+        "median_max_drawdown_delta": float(
+            rolling["max_drawdown_delta"].median()
+        ),
+        "median_transition_delta": float(
+            rolling["transition_delta"].median()
+        ),
+    }
+
+
+def regime_summary(rolling: pd.DataFrame) -> pd.DataFrame:
+    rows = []
+    for regime, sub in rolling.groupby("btc_start_regime", sort=True):
+        if regime == "UNKNOWN":
+            continue
+        rows.append(
+            {
+                "btc_start_regime": regime,
+                "windows": int(len(sub)),
+                "better": int((sub["comparison"] == "BETTER").sum()),
+                "equal": int((sub["comparison"] == "EQUAL").sum()),
+                "worse": int((sub["comparison"] == "WORSE").sum()),
+                "median_return_delta": float(sub["return_delta"].median()),
+                "median_max_drawdown_delta": float(
+                    sub["max_drawdown_delta"].median()
+                ),
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def classify(
-    comparisons: pd.DataFrame,
-    rolling_summary: pd.DataFrame,
+    aggregate: pd.DataFrame,
+    rolling_stats: dict,
 ) -> tuple[str, dict]:
-    mature_primary = comparisons[
-        (comparisons["window"] == "MATURE")
-        & np.isclose(comparisons["cost_rate"], 0.001)
-        & (comparisons["priority"] == "V2_PRIORITY")
-    ].iloc[0]
-    mature_05 = comparisons[
-        (comparisons["window"] == "MATURE")
-        & np.isclose(comparisons["cost_rate"], 0.005)
-        & (comparisons["priority"] == "V2_PRIORITY")
-    ].iloc[0]
+    def row(window: str, variant: str, priority: str, cost: float) -> pd.Series:
+        hit = aggregate[
+            (aggregate["window"] == window)
+            & (aggregate["variant"] == variant)
+            & (aggregate["priority"] == priority)
+            & (np.isclose(aggregate["cost"], cost))
+        ]
+        if hit.empty:
+            raise RuntimeError(
+                f"Missing aggregate row {window} {variant} {priority} {cost}"
+            )
+        return hit.iloc[0]
 
-    rolling_better_rate = float(
-        (rolling_summary["median_return_delta"] > 0).mean()
-    ) if len(rolling_summary) else np.nan
+    core_primary = row("MATURE", "CORE", "CORE_ONLY", PRIMARY_COST)
+    overlay_primary = row(
+        "MATURE", "CORE_PLUS_V2", PRIMARY_PRIORITY, PRIMARY_COST
+    )
+    core_05 = row("MATURE", "CORE", "CORE_ONLY", 0.005)
+    overlay_05 = row(
+        "MATURE", "CORE_PLUS_V2", PRIMARY_PRIORITY, 0.005
+    )
+
+    mature_return_delta = (
+        float(overlay_primary["median_total_return"])
+        - float(core_primary["median_total_return"])
+    )
+    mature_dd_delta = (
+        float(overlay_primary["median_max_drawdown"])
+        - float(core_primary["median_max_drawdown"])
+    )
+    cost05_return_delta = (
+        float(overlay_05["median_total_return"])
+        - float(core_05["median_total_return"])
+    )
 
     gates = {
-        "mature_median_return_delta_positive": bool(
-            mature_primary["median_return_delta"] > 0
+        "mature_return_improves": mature_return_delta > 0,
+        "mature_dd_not_worse_than_5pp": mature_dd_delta >= -0.05,
+        "rolling_better_gt_worse": (
+            rolling_stats.get("better", 0) > rolling_stats.get("worse", 0)
         ),
-        "mature_improved_share_ge_50pct": bool(
-            mature_primary["improved_share"] >= 0.50
+        "rolling_median_delta_positive": (
+            rolling_stats.get("median_return_delta", np.nan) > 0
         ),
-        "mature_median_dd_delta_ge_minus_10pp": bool(
-            mature_primary["median_max_dd_delta"] >= -0.10
-        ),
-        "rolling_better_rate_ge_40pct": bool(
-            pd.notna(rolling_better_rate) and rolling_better_rate >= 0.40
-        ),
-        "mature_0p5pct_median_return_delta_positive": bool(
-            mature_05["median_return_delta"] > 0
-        ),
-        "rolling_better_rate": rolling_better_rate,
+        "cost_0p5pct_delta_nonnegative": cost05_return_delta >= 0,
     }
 
-    if all(
-        gates[k]
-        for k in (
-            "mature_median_return_delta_positive",
-            "mature_improved_share_ge_50pct",
-            "mature_median_dd_delta_ge_minus_10pp",
-            "rolling_better_rate_ge_40pct",
-            "mature_0p5pct_median_return_delta_positive",
-        )
-    ):
+    if all(gates.values()):
         label = "FULL_PATH_PROMISING_NOT_PRODUCTION_READY"
-    elif (
-        not gates["mature_median_return_delta_positive"]
-        and not gates["mature_improved_share_ge_50pct"]
-    ):
-        label = "FULL_PATH_REJECTED"
-    else:
+    elif gates["mature_return_improves"]:
         label = "FULL_PATH_MIXED"
+    else:
+        label = "FULL_PATH_REJECTED"
 
-    return label, gates
+    details = {
+        "mature_return_delta": mature_return_delta,
+        "mature_max_drawdown_delta": mature_dd_delta,
+        "cost_0p5pct_mature_return_delta": cost05_return_delta,
+        "gates": gates,
+    }
+    return label, details
 
 
 def fmt_pct(v) -> str:
     if v is None or pd.isna(v):
         return "—"
-    return f"{100*float(v):+.2f}%"
+    return f"{100.0 * float(v):+.2f}%"
 
 
-def fmt_rate(v) -> str:
+def fmt_num(v, digits=2) -> str:
     if v is None or pd.isna(v):
         return "—"
-    return f"{100*float(v):.1f}%"
-
-
-def build_case_trace(
-    panel: pd.DataFrame,
-    route_map: dict,
-) -> tuple[pd.DataFrame, dict]:
-    start_i = first_index_on_or_after(
-        panel["timestamp"], pd.Timestamp("2026-09-28T00:00:00Z")
-    )
-    end_i = len(panel) - 1
-    result, trace = simulate(
-        panel,
-        route_map,
-        start_i,
-        end_i,
-        "LINK",
-        "CORE_PLUS_V2",
-        PRIMARY_COST,
-        "V2_PRIORITY",
-        collect_trace=True,
-    )
-    assert trace is not None
-    return trace, result
+    return f"{float(v):.{digits}f}"
 
 
 def main() -> None:
-    panel, data_meta = base.download_panel()
-    events_by_date, states_by_date = base.build_monitor_history(panel)
-    routes = base.build_effective_routes(panel, events_by_date, states_by_date)
-    route_map = build_route_map(routes)
+    panel, data_meta = rrbase.download_panel()
+    events_by_date, states_by_date = rrbase.build_monitor_history(panel)
+    routes = rrbase.build_effective_routes(panel, events_by_date, states_by_date)
+    route_map = make_route_map(routes)
+    btc = download_btc_regime()
 
-    primary_detail, primary_summary, comparisons = primary_window_runs(
-        panel, route_map
+    latest = pd.Timestamp(
+        pd.to_datetime(panel["timestamp"], utc=True).iloc[-1]
     )
-    rolling_detail, rolling_summary = rolling_365(panel, route_map)
-    classification, gates = classify(comparisons, rolling_summary)
-    case_trace, case_result = build_case_trace(panel, route_map)
+
+    windows = {
+        "MATURE": MATURE_START,
+        "LAST_2Y": LAST_2Y_START,
+        "LAST_1Y": LAST_1Y_START,
+    }
+
+    path_rows = []
+    all_overlay_actions = []
+    mature_transition_rows = []
+
+    for window_name, start_date in windows.items():
+        for cost in COSTS:
+            for start_asset in START_ASSETS:
+                core = simulate_path(
+                    panel, route_map, start_date, latest, start_asset,
+                    cost, False
+                )
+                overlay = simulate_path(
+                    panel, route_map, start_date, latest, start_asset,
+                    cost, True, PRIMARY_PRIORITY
+                )
+                path_rows.append(path_row(core, window_name))
+                path_rows.append(path_row(overlay, window_name))
+
+                for action in overlay["overlay_actions"]:
+                    all_overlay_actions.append(
+                        {
+                            "window": window_name,
+                            "start_asset": start_asset,
+                            "cost": cost,
+                            **action,
+                        }
+                    )
+
+                if window_name == "MATURE" and np.isclose(cost, PRIMARY_COST):
+                    for t in core["transitions"]:
+                        mature_transition_rows.append(
+                            {
+                                "variant": "CORE",
+                                "start_asset": start_asset,
+                                **t,
+                            }
+                        )
+                    for t in overlay["transitions"]:
+                        mature_transition_rows.append(
+                            {
+                                "variant": "CORE_PLUS_V2",
+                                "start_asset": start_asset,
+                                **t,
+                            }
+                        )
+
+    core_priority_rows = []
+    for window_name, start_date in windows.items():
+        for start_asset in START_ASSETS:
+            result = simulate_path(
+                panel, route_map, start_date, latest, start_asset,
+                PRIMARY_COST, True, ROBUSTNESS_PRIORITY
+            )
+            row = path_row(result, window_name)
+            core_priority_rows.append(row)
+
+    paths = pd.DataFrame(path_rows)
+    core_priority = pd.DataFrame(core_priority_rows)
+    aggregate = aggregate_window(paths)
+    core_priority_aggregate = aggregate_window(core_priority)
+    paired = paired_start_comparison(paths)
+
+    rolling = rolling_365(panel, route_map, btc)
+    rolling_stats = rolling_summary(rolling)
+    regimes = regime_summary(rolling)
+
+    classification, decision_details = classify(
+        aggregate, rolling_stats
+    )
+
+    case_core = simulate_path(
+        panel, route_map, CASE_START, latest, "LINK",
+        PRIMARY_COST, False, collect_daily=True
+    )
+    case_overlay = simulate_path(
+        panel, route_map, CASE_START, latest, "LINK",
+        PRIMARY_COST, True, PRIMARY_PRIORITY, collect_daily=True
+    )
 
     run_dir = OUT / pd.Timestamp.now(tz="UTC").strftime("%Y%m%dT%H%M%SZ")
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    primary_detail.to_csv(run_dir / "primary_path_results.csv", index=False)
-    primary_summary.to_csv(run_dir / "primary_summary.csv", index=False)
-    comparisons.to_csv(run_dir / "core_vs_v2_comparison.csv", index=False)
-    rolling_detail.to_csv(run_dir / "rolling_365_detail.csv", index=False)
-    rolling_summary.to_csv(run_dir / "rolling_365_summary.csv", index=False)
-    case_trace.to_csv(run_dir / "link_aave_case_trace.csv", index=False)
-    routes.to_csv(run_dir / "effective_route_ledger.csv", index=False)
+    paths.to_csv(run_dir / "full_path_start_results.csv", index=False)
+    aggregate.to_csv(run_dir / "aggregate_window_cost_summary.csv", index=False)
+    paired.to_csv(run_dir / "paired_start_comparison.csv", index=False)
+    core_priority.to_csv(run_dir / "core_priority_start_results.csv", index=False)
+    core_priority_aggregate.to_csv(
+        run_dir / "core_priority_aggregate.csv", index=False
+    )
+    pd.DataFrame(all_overlay_actions).to_csv(
+        run_dir / "overlay_action_ledger.csv", index=False
+    )
+    pd.DataFrame(mature_transition_rows).to_csv(
+        run_dir / "mature_transition_ledger.csv", index=False
+    )
+    rolling.to_csv(run_dir / "rolling_365d.csv", index=False)
+    regimes.to_csv(run_dir / "rolling_regime_summary.csv", index=False)
+    pd.DataFrame(case_core["transitions"]).to_csv(
+        run_dir / "case_link_core_transitions.csv", index=False
+    )
+    pd.DataFrame(case_overlay["transitions"]).to_csv(
+        run_dir / "case_link_overlay_transitions.csv", index=False
+    )
+    pd.DataFrame(case_core["daily"]).to_csv(
+        run_dir / "case_link_core_daily.csv", index=False
+    )
+    pd.DataFrame(case_overlay["daily"]).to_csv(
+        run_dir / "case_link_overlay_daily.csv", index=False
+    )
 
-    summary_json = {
+    def aggrow(window, variant, priority, cost):
+        hit = aggregate[
+            (aggregate["window"] == window)
+            & (aggregate["variant"] == variant)
+            & (aggregate["priority"] == priority)
+            & (np.isclose(aggregate["cost"], cost))
+        ]
+        return hit.iloc[0].to_dict()
+
+    primary_core = aggrow("MATURE", "CORE", "CORE_ONLY", PRIMARY_COST)
+    primary_overlay = aggrow(
+        "MATURE", "CORE_PLUS_V2", PRIMARY_PRIORITY, PRIMARY_COST
+    )
+
+    case_summary = {
+        "core_final_capital": case_core["final_capital"],
+        "overlay_final_capital": case_overlay["final_capital"],
+        "overlay_vs_core_final_ratio": (
+            case_overlay["final_capital"] / case_core["final_capital"]
+        ),
+        "core_final_asset": case_core["final_asset"],
+        "overlay_final_asset": case_overlay["final_asset"],
+        "core_transitions": case_core["transitions"],
+        "overlay_transitions": case_overlay["transitions"],
+    }
+
+    summary = {
         "experiment": "RR_V2_FULL_PATH_COUNTERFACTUAL_V1",
         "workflow_mode": "STRESS_TEST_ONLY",
         "source_commit_sha": source_sha(),
         "as_of": AS_OF.isoformat(),
-        "latest_closed_candle": pd.Timestamp(panel.iloc[-1]["timestamp"]).isoformat(),
+        "latest_closed_candle": latest.isoformat(),
         "classification": classification,
-        "classification_gates": gates,
-        "costs": list(COSTS),
-        "start_assets": list(START_ASSETS),
-        "window_starts": {k: v.isoformat() for k, v in WINDOW_STARTS.items()},
-        "primary_comparisons": json.loads(
-            comparisons.to_json(orient="records", date_format="iso")
-        ),
-        "rolling_window_count": int(len(rolling_summary)),
-        "rolling_better_window_rate": (
-            None if not len(rolling_summary)
-            else float((rolling_summary["median_return_delta"] > 0).mean())
-        ),
-        "case_result": case_result,
+        "decision_details": decision_details,
+        "primary_cost": PRIMARY_COST,
+        "cost_scenarios": list(COSTS),
+        "primary_mature_core": primary_core,
+        "primary_mature_overlay": primary_overlay,
+        "rolling_365d": rolling_stats,
+        "regimes": json.loads(regimes.to_json(orient="records")),
+        "case_link": case_summary,
         "production_changes": "NONE",
-        "test_level": "GITHUB_ACTIONS_LIVE_PUBLIC_BINANCE_D1_PATH_DEPENDENT_STRESS_TEST",
+        "test_level": (
+            "GITHUB_ACTIONS_LIVE_PUBLIC_BINANCE_D1_PATH_DEPENDENT_STRESS_TEST"
+        ),
         "data_metadata": data_meta,
     }
     (run_dir / "summary.json").write_text(
-        json.dumps(summary_json, indent=2, sort_keys=True, default=str),
+        json.dumps(summary, indent=2, sort_keys=True, default=str),
         encoding="utf-8",
     )
-
-    primary_cmp = comparisons[
-        (comparisons["priority"] == "V2_PRIORITY")
-    ].copy()
 
     lines = [
         "# RR V2 FULL-PATH COUNTERFACTUAL V1 — RESULTS",
@@ -797,90 +848,107 @@ def main() -> None:
         "",
         f"Classification: {classification}",
         f"As-of: {AS_OF.isoformat()}",
-        f"Latest closed D1: {pd.Timestamp(panel.iloc[-1]['timestamp']).isoformat()}",
+        f"Latest closed D1: {latest.isoformat()}",
         "",
-        "## CORE vs CORE_PLUS_V2 — V2 priority",
+        "## Mature primary cost — 0.10%",
         "",
-        "|Window|Cost|Starts improved|Median final-capital ratio|Median return delta|Median DD delta|Median extra transitions|Median extra modeled cost|",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        "|Metric|CORE|CORE + V2|Delta|",
+        "|---|---:|---:|---:|",
+        f"|Median final capital|{fmt_num(primary_core['median_final_capital'])}|{fmt_num(primary_overlay['median_final_capital'])}|{fmt_num(primary_overlay['median_final_capital']-primary_core['median_final_capital'])}|",
+        f"|Median total return|{fmt_pct(primary_core['median_total_return'])}|{fmt_pct(primary_overlay['median_total_return'])}|{fmt_pct(primary_overlay['median_total_return']-primary_core['median_total_return'])}|",
+        f"|Median max drawdown|{fmt_pct(primary_core['median_max_drawdown'])}|{fmt_pct(primary_overlay['median_max_drawdown'])}|{fmt_pct(primary_overlay['median_max_drawdown']-primary_core['median_max_drawdown'])}|",
+        f"|Median transitions|{fmt_num(primary_core['median_transition_count'],1)}|{fmt_num(primary_overlay['median_transition_count'],1)}|{fmt_num(primary_overlay['median_transition_count']-primary_core['median_transition_count'],1)}|",
+        f"|Median modeled cost paid|{fmt_num(primary_core['median_total_cost_paid'])}|{fmt_num(primary_overlay['median_total_cost_paid'])}|{fmt_num(primary_overlay['median_total_cost_paid']-primary_core['median_total_cost_paid'])}|",
+        "",
+        "## Cost sensitivity — MATURE median return",
+        "",
+        "|Cost|CORE|CORE + V2|Delta|",
+        "|---:|---:|---:|---:|",
     ]
-    for _, row in primary_cmp.iterrows():
+
+    for cost in COSTS:
+        c = aggrow("MATURE", "CORE", "CORE_ONLY", cost)
+        o = aggrow("MATURE", "CORE_PLUS_V2", PRIMARY_PRIORITY, cost)
         lines.append(
-            f"|{row['window']}|{100*row['cost_rate']:.2f}%|"
-            f"{int(row['improved_count'])}/{int(row['n'])} ({fmt_rate(row['improved_share'])})|"
-            f"{row['median_final_capital_ratio']:.4f}x|"
-            f"{fmt_pct(row['median_return_delta'])}|"
-            f"{fmt_pct(row['median_max_dd_delta'])}|"
-            f"{row['median_transition_delta']:+.1f}|"
-            f"{row['median_cost_delta']:+.4f}|"
+            f"|{100*cost:.2f}%|{fmt_pct(c['median_total_return'])}|"
+            f"{fmt_pct(o['median_total_return'])}|"
+            f"{fmt_pct(o['median_total_return']-c['median_total_return'])}|"
         )
 
     lines += [
         "",
-        "## Primary window absolute summaries at 0.10% cost",
+        "## Primary paired MATURE starts",
         "",
-        "|Window|Variant|Priority|Median return|Worst return|Median DD|Worst DD|Median transitions|Median V2 moves|",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|",
     ]
-    primary_abs = primary_summary[
-        np.isclose(primary_summary["cost_rate"], PRIMARY_COST)
-    ].copy()
-    for _, row in primary_abs.iterrows():
+    p = paired[
+        (paired["window"] == "MATURE")
+        & (np.isclose(paired["cost"], PRIMARY_COST))
+    ]
+    lines += [
+        f"- starts: {len(p)}",
+        f"- overlay higher final capital: {int((p['final_capital_ratio'] > 1).sum())}",
+        f"- overlay lower final capital: {int((p['final_capital_ratio'] < 1).sum())}",
+        f"- median final-capital ratio: {p['final_capital_ratio'].median():.4f}x",
+        f"- median return delta: {fmt_pct(p['return_delta'].median())}",
+        f"- median max-DD delta: {fmt_pct(p['max_drawdown_delta'].median())}",
+        f"- median transition delta: {p['transition_delta'].median():+.1f}",
+        "",
+        "## Rolling 365-day robustness",
+        "",
+        f"- windows: {rolling_stats.get('windows', 0)}",
+        f"- better / equal / worse: {rolling_stats.get('better', 0)} / {rolling_stats.get('equal', 0)} / {rolling_stats.get('worse', 0)}",
+        f"- median return delta: {fmt_pct(rolling_stats.get('median_return_delta'))}",
+        f"- p25 / p75 delta: {fmt_pct(rolling_stats.get('p25_return_delta'))} / {fmt_pct(rolling_stats.get('p75_return_delta'))}",
+        f"- worst / best delta: {fmt_pct(rolling_stats.get('worst_return_delta'))} / {fmt_pct(rolling_stats.get('best_return_delta'))}",
+        f"- median max-DD delta: {fmt_pct(rolling_stats.get('median_max_drawdown_delta'))}",
+        "",
+        "## Rolling start-regime diagnostic",
+        "",
+        "|Regime|N|Better|Equal|Worse|Median return delta|Median max-DD delta|",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for _, r in regimes.iterrows():
         lines.append(
-            f"|{row['window']}|{row['variant']}|{row['priority']}|"
-            f"{fmt_pct(row['median_return'])}|{fmt_pct(row['worst_return'])}|"
-            f"{fmt_pct(row['median_max_dd'])}|{fmt_pct(row['worst_max_dd'])}|"
-            f"{row['median_transitions']:.1f}|{row['median_v2_moves']:.1f}|"
+            f"|{r['btc_start_regime']}|{int(r['windows'])}|"
+            f"{int(r['better'])}|{int(r['equal'])}|{int(r['worse'])}|"
+            f"{fmt_pct(r['median_return_delta'])}|"
+            f"{fmt_pct(r['median_max_drawdown_delta'])}|"
         )
 
     lines += [
         "",
-        "## Rolling 365d robustness",
+        "## Current LINK -> TRX -> AAVE path check",
         "",
-        f"- windows: {len(rolling_summary)}",
-        f"- windows with higher V2 median return: {fmt_rate(gates['rolling_better_rate'])}",
-        f"- median rolling return delta: {fmt_pct(rolling_summary['median_return_delta'].median() if len(rolling_summary) else np.nan)}",
-        f"- worst rolling return delta: {fmt_pct(rolling_summary['median_return_delta'].min() if len(rolling_summary) else np.nan)}",
-        f"- median rolling DD delta: {fmt_pct(rolling_summary['median_max_dd_delta'].median() if len(rolling_summary) else np.nan)}",
+        f"- CORE final asset: {case_core['final_asset']}",
+        f"- CORE+V2 final asset: {case_overlay['final_asset']}",
+        f"- CORE final capital: {case_core['final_capital']:.4f}",
+        f"- CORE+V2 final capital: {case_overlay['final_capital']:.4f}",
+        f"- overlay/core final ratio: {case_overlay['final_capital']/case_core['final_capital']:.4f}x",
         "",
-        "## Frozen classification gates",
-        "",
+        "CORE+V2 transitions:",
     ]
-    for key, value in gates.items():
-        if key == "rolling_better_rate":
-            continue
-        lines.append(f"- {key}: {value}")
+    for t in case_overlay["transitions"]:
+        lines.append(
+            f"- {pd.Timestamp(t['execute_date']).date()}: "
+            f"{t['type']} {t['from_asset']} -> {t['to_asset']} "
+            f"(cost {100*t['cost_rate']:.2f}%)"
+        )
 
     lines += [
         "",
-        "## LINK -> TRX -> AAVE case trace",
+        "## Decision gates",
         "",
-        f"- final asset: {case_result['final_asset']}",
-        f"- final capital: {case_result['final_capital']:.4f}",
-        f"- return: {fmt_pct(case_result['return'])}",
-        f"- transitions: {case_result['transitions']}",
-        f"- CORE moves: {case_result['core_moves']}",
-        f"- V2 moves: {case_result['v2_moves']}",
-        "",
-        "|Date|Event|From|To|Fee|Trigger impulse|Confirm2 impulse|",
-        "|---|---|---|---|---:|---:|---:|",
     ]
-    for _, row in case_trace.iterrows():
-        lines.append(
-            f"|{pd.Timestamp(row['date']).date()}|{row['event']}|"
-            f"{row['from_asset']}|{row['to_asset']}|"
-            f"{float(row['fee']):.5f}|"
-            f"{fmt_pct(row['trigger_impulse'])}|"
-            f"{fmt_pct(row['confirm2_impulse'])}|"
-        )
+    for k, v in decision_details["gates"].items():
+        lines.append(f"- {k}: {v}")
 
     lines += [
         "",
         "## Boundary",
         "",
-        "- V2 rule was not retuned.",
+        "- Frozen V2 classifier was not retuned.",
         "- No production/live/Telegram/exchange behavior changed.",
-        "- This is a full path-dependent historical counterfactual, not forward proof.",
+        "- Even a promising research classification requires unseen forward evidence and explicit promotion approval.",
         "",
         "TEST_LEVEL: GITHUB_ACTIONS_LIVE_PUBLIC_BINANCE_D1_PATH_DEPENDENT_STRESS_TEST",
         "",
