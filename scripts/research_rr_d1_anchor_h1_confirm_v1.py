@@ -155,10 +155,28 @@ def download_panel(timeframe: str) -> tuple[pd.DataFrame, dict]:
     if panel.empty:
         raise RuntimeError(f"Common {timeframe} panel is empty")
 
+    step = pd.Timedelta(hours=1 if timeframe == "1H" else 24)
+    deltas = panel["timestamp"].diff()
+    gap_rows = panel.loc[deltas > step, ["timestamp"]].copy()
+    common_gaps = []
+    for idx in gap_rows.index:
+        prev_ts = pd.Timestamp(panel.loc[idx - 1, "timestamp"])
+        cur_ts = pd.Timestamp(panel.loc[idx, "timestamp"])
+        missing_intervals = int((cur_ts - prev_ts) / step) - 1
+        common_gaps.append(
+            {
+                "after": prev_ts.isoformat(),
+                "before": cur_ts.isoformat(),
+                "missing_intervals": missing_intervals,
+            }
+        )
+
     meta["panel"] = {
         "rows": int(len(panel)),
         "start": pd.Timestamp(panel.iloc[0]["timestamp"]).isoformat(),
         "end": pd.Timestamp(panel.iloc[-1]["timestamp"]).isoformat(),
+        "common_gap_count": int(sum(x["missing_intervals"] for x in common_gaps)),
+        "common_gaps": common_gaps,
     }
     return panel, meta
 
