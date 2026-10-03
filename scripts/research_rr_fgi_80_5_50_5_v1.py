@@ -406,6 +406,7 @@ def simulate_baseline(panel, start_i, end_i, start_asset, shadow_assets, shadow_
     qty = 1.0 / float(opens[current][start_i])
     initial = qty * float(closes[current][start_i])
     equity = []
+    open_equity = []
 
     for i in range(start_i, end_i + 1):
         if i in shadow_transitions:
@@ -413,6 +414,7 @@ def simulate_baseline(panel, start_i, end_i, start_asset, shadow_assets, shadow_
             value = qty * float(opens[current][i])
             current = route["to_asset"]
             qty = value * (1.0 - COST) / float(opens[current][i])
+        open_equity.append(qty * float(opens[current][i]))
         equity.append(qty * float(closes[current][i]))
 
     return {
@@ -420,6 +422,7 @@ def simulate_baseline(panel, start_i, end_i, start_asset, shadow_assets, shadow_
         "max_dd": max_drawdown(equity),
         "transitions": int(len(shadow_transitions)),
         "equity": equity,
+        "open_equity": open_equity,
     }
 
 
@@ -522,7 +525,7 @@ def main():
     events_by_day, state_snapshots = build_rr_history(panel)
 
     rows = []
-    cycle_details = []
+    cycle_by_start = []
     for start_asset in ASSETS:
         shadow_assets, shadow_transitions = build_shadow_path(
             panel, start_i, end_i, start_asset, events_by_day, state_snapshots
@@ -550,7 +553,47 @@ def main():
             "cash_fraction": overlay["cash_fraction"],
         })
 
+        ts_to_local = {
+            panel_dates[i]: i - start_i for i in range(start_i, end_i + 1)
+        }
+        for cycle_no, cycle in enumerate(cycles, start=1):
+            exit_signal = utc(cycle["exit_signal_date"])
+            entry_signal = utc(cycle["entry_signal_date"])
+            exit_exec = exit_signal + pd.Timedelta(days=1)
+            entry_exec = entry_signal + pd.Timedelta(days=1)
+            if exit_exec not in ts_to_local or entry_exec not in ts_to_local:
+                continue
+            lo = ts_to_local[exit_exec]
+            hi = ts_to_local[entry_exec]
+            factor = float(base["open_equity"][hi] / base["open_equity"][lo])
+            cycle_by_start.append({
+                "cycle": cycle_no,
+                "start_asset": start_asset,
+                "exit_execution_date": exit_exec.isoformat(),
+                "entry_execution_date": entry_exec.isoformat(),
+                "cash_calendar_days": int((entry_exec - exit_exec).days),
+                "baseline_shadow_return_during_cash": factor - 1.0,
+            })
+
     result = pd.DataFrame(rows)
+    cycle_detail = pd.DataFrame(cycle_by_start)
+    cycle_summary_rows = []
+    if not cycle_detail.empty:
+        for cycle_no, sub in cycle_detail.groupby("cycle", sort=True):
+            cycle_meta = dict(cycles[int(cycle_no) - 1])
+            cycle_summary_rows.append({
+                "cycle": int(cycle_no),
+                **cycle_meta,
+                "exit_execution_date": sub["exit_execution_date"].iloc[0],
+                "entry_execution_date": sub["entry_execution_date"].iloc[0],
+                "cash_calendar_days": int(sub["cash_calendar_days"].iloc[0]),
+                "median_rr_return_missed": float(sub["baseline_shadow_return_during_cash"].median()),
+                "worst_rr_return_missed": float(sub["baseline_shadow_return_during_cash"].min()),
+                "best_rr_return_missed": float(sub["baseline_shadow_return_during_cash"].max()),
+                "positive_rr_starts_during_cash": int((sub["baseline_shadow_return_during_cash"] > 0).sum()),
+            })
+    cycle_summary = pd.DataFrame(cycle_summary_rows)
+
     summary = {
         "experiment": "RR_FGI_80_MINUS5_50_PLUS5_V1",
         "workflow_mode": "STRESS_TEST_ONLY",
@@ -602,12 +645,15 @@ def main():
             "median_cash_days": float(result["cash_days"].median()),
         },
         "cycles": cycles,
+        "cycle_attribution": cycle_summary_rows,
     }
 
     run_dir = OUT / pd.Timestamp.now(tz="UTC").strftime("%Y%m%dT%H%M%SZ")
     run_dir.mkdir(parents=True, exist_ok=True)
     result.to_csv(run_dir / "start_asset_comparison.csv", index=False)
     pd.DataFrame(cycles).to_csv(run_dir / "fgi_cycles.csv", index=False)
+    cycle_detail.to_csv(run_dir / "cycle_attribution_by_start.csv", index=False)
+    cycle_summary.to_csv(run_dir / "cycle_attribution_summary.csv", index=False)
     (run_dir / "summary.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True, default=str), encoding="utf-8"
     )
@@ -643,6 +689,18 @@ def main():
         f"- Overlay median max DD: {pct(agg['median_overlay_max_dd'])}",
         f"- Median DD improvement: {agg['median_dd_improvement_pp']:+.2f} pp",
         f"- Median time in cash: {100*agg['median_cash_fraction']:.1f}%",
+        "",
+        "## Cash-cycle attribution",
+        "",
+    ]
+    for row in cycle_summary_rows:
+        lines.append(
+            f"- Cycle {row['cycle']}: {row['exit_execution_date'][:10]} -> "
+            f"{row['entry_execution_date'][:10]} ({row['cash_calendar_days']}d), "
+            f"median RR move while in cash {pct(row['median_rr_return_missed'])}; "
+            f"RR positive in {row['positive_rr_starts_during_cash']}/10 starts."
+        )
+    lines += [
         "",
         "## Start-asset detail",
         "",
