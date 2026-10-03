@@ -96,6 +96,13 @@ Fixed as-of:
 
 Only fully closed D1/H1 candles may enter the test.
 
+Data-gap rule frozen before any successful strategy result:
+- do not synthesize or forward-fill missing market candles;
+- an isolated missing H1 candle may be tolerated only if every missing timestamp
+  is strictly before MATURE_START and therefore belongs only to warm-up;
+- any missing H1 candle on/after MATURE_START aborts the run;
+- every tolerated warm-up gap is persisted in run metadata and residual risks.
+
 ## Full-path simulation
 
 For each engine independently:
