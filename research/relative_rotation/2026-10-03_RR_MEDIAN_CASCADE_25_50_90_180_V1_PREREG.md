@@ -149,6 +149,15 @@ For each canonical corrected RR+DDG transition SOURCE -> B executed at next open
    - ties broken alphabetically;
 4. compare that candidate with simply staying in B from the next open.
 
+Also persist a pre-entry state audit at each canonical RR signal close:
+- for every alternative TARGET candidate C versus destination B;
+- record current ordering state NONE / S1_ONLY / S2_STACK / S3_FULL_STACK;
+- record MOM10;
+- identify the highest-stage candidate already active before RR execution.
+
+This pre-entry state audit is descriptive only and is not used to retune the
+stage definitions.
+
 This is diagnostic only. It does not mutate the later RR path in V1.
 
 Primary overlay stage:
@@ -221,7 +230,10 @@ if primary S2:
 ### CASCADE_STRONG_RESEARCH_SIGNAL
 requires all CASCADE_PROMISING_DIAGNOSTIC conditions plus:
 - S2 >=20% continuation share > S1 >=20% continuation share;
-- rolling/calendar-year direction not dominated by only one year.
+- among calendar years with at least 20 complete S2 14d outcomes, at least
+  two years independently have both:
+  - candidate-beats-baseline rate > 50%;
+  - median 14d relative excess > 0.
 
 No production promotion follows automatically.
 
