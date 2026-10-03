@@ -730,6 +730,12 @@ def fmt_rate(v) -> str:
     return f"{100*float(v):.1f}%"
 
 
+def fmt_ratio(v) -> str:
+    if v is None or pd.isna(v):
+        return "—"
+    return f"{float(v):.3f}x"
+
+
 def main() -> None:
     panel, data_meta = download_panel()
     variant_routes: dict[str, pd.DataFrame] = {}
@@ -880,7 +886,7 @@ def main() -> None:
             f"{row['source']}|{'YES' if row['has_route'] else 'NO'}|"
             f"{row['baseline_to']}|{row['effective_to']}|"
             f"{'YES' if row['override'] else 'NO'}|"
-            f"{'—' if pd.isna(row['strength_ratio']) else f'{float(row['strength_ratio']):.3f}x'}|"
+            f"{fmt_ratio(row['strength_ratio'])}|"
         )
 
     lines += [
