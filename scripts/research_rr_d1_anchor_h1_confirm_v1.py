@@ -766,70 +766,103 @@ def build_hybrid_engine(
     )
 
 
-def route_map(routes: pd.DataFrame) -> dict[tuple[pd.Timestamp, str], dict]:
-    if routes.empty:
-        return {}
+def build_fast_context(
+    h1: pd.DataFrame,
+    routes_by_engine: dict[str, pd.DataFrame],
+) -> dict:
+    timestamps = pd.DatetimeIndex(pd.to_datetime(h1["timestamp"], utc=True))
+    time_to_i = {pd.Timestamp(ts): i for i, ts in enumerate(timestamps)}
+
+    opens = {
+        asset: h1[f"{asset}_open"].to_numpy(dtype=float)
+        for asset in ASSETS
+    }
+    closes = {
+        asset: h1[f"{asset}_close"].to_numpy(dtype=float)
+        for asset in ASSETS
+    }
+
+    route_maps: dict[str, dict[tuple[int, str], str]] = {}
+    for engine, routes in routes_by_engine.items():
+        mapping: dict[tuple[int, str], str] = {}
+        if not routes.empty:
+            for _, row in routes.iterrows():
+                idx = time_to_i.get(pd.Timestamp(row["action_time"]))
+                if idx is None:
+                    continue
+                mapping[(idx, str(row["source"]))] = str(row["effective_to"])
+        route_maps[engine] = mapping
+
     return {
-        (pd.Timestamp(row["action_time"]), str(row["source"])): row.to_dict()
-        for _, row in routes.iterrows()
+        "timestamps": timestamps,
+        "time_to_i": time_to_i,
+        "opens": opens,
+        "closes": closes,
+        "route_maps": route_maps,
     }
 
 
-def first_index_on_or_after(panel: pd.DataFrame, ts: pd.Timestamp) -> int:
-    times = pd.to_datetime(panel["timestamp"], utc=True)
-    hits = np.flatnonzero(times.ge(ts).to_numpy())
-    if not len(hits):
+def first_index_on_or_after_fast(
+    timestamps: pd.DatetimeIndex,
+    ts: pd.Timestamp,
+) -> int:
+    i = int(timestamps.searchsorted(ts, side="left"))
+    if i >= len(timestamps):
         raise RuntimeError(f"No H1 timestamp on/after {ts}")
-    return int(hits[0])
+    return i
 
 
-def simulate(
-    h1: pd.DataFrame,
-    routes: pd.DataFrame,
+def simulate_fast(
+    context: dict,
     *,
+    route_map_fast: dict[tuple[int, str], str],
     start_i: int,
     end_i: int,
     start_asset: str,
     cost_rate: float,
 ) -> dict:
-    rmap = route_map(routes)
+    opens = context["opens"]
+    closes = context["closes"]
+
     asset = start_asset
-    qty = 100.0 / float(h1.iloc[start_i][f"{asset}_open"])
+    qty = 100.0 / float(opens[asset][start_i])
     last_exec_i = start_i
-    holding_hours = []
+    holding_hours: list[int] = []
     transitions = 0
     cost_paid = 0.0
-    equity = [100.0]
+
+    peak = 100.0
+    max_dd = 0.0
+    final_value = 100.0
 
     for i in range(start_i, end_i + 1):
-        t = pd.Timestamp(h1.iloc[i]["timestamp"])
-        action = rmap.get((t, asset))
-        if action is not None:
-            target = str(action["effective_to"])
-            if target != asset:
-                before = qty * float(h1.iloc[i][f"{asset}_open"])
-                fee = before * cost_rate
-                after = before - fee
-                qty = after / float(h1.iloc[i][f"{target}_open"])
-                holding_hours.append(max(1, i - last_exec_i))
-                last_exec_i = i
-                transitions += 1
-                cost_paid += fee
-                asset = target
+        target = route_map_fast.get((i, asset))
+        if target is not None and target != asset:
+            before = qty * float(opens[asset][i])
+            fee = before * cost_rate
+            after = before - fee
+            qty = after / float(opens[target][i])
+            holding_hours.append(max(1, i - last_exec_i))
+            last_exec_i = i
+            transitions += 1
+            cost_paid += fee
+            asset = target
 
-        close_value = qty * float(h1.iloc[i][f"{asset}_close"])
-        equity.append(float(close_value))
+        final_value = qty * float(closes[asset][i])
+        if final_value > peak:
+            peak = final_value
+        dd = final_value / peak - 1.0
+        if dd < max_dd:
+            max_dd = dd
 
     holding_hours.append(max(1, end_i - last_exec_i + 1))
-    arr = np.asarray(equity, dtype=float)
-    peaks = np.maximum.accumulate(arr)
 
     return {
         "start_asset": start_asset,
         "final_asset": asset,
-        "final_capital": float(arr[-1]),
-        "return": float(arr[-1] / 100.0 - 1.0),
-        "max_dd": float(np.min(arr / peaks - 1.0)),
+        "final_capital": float(final_value),
+        "return": float(final_value / 100.0 - 1.0),
+        "max_dd": float(max_dd),
         "transitions": int(transitions),
         "median_holding_hours": float(np.median(holding_hours)),
         "modeled_cost_paid": float(cost_paid),
@@ -840,17 +873,24 @@ def run_path_tests(
     h1: pd.DataFrame,
     routes_by_engine: dict[str, pd.DataFrame],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    end_i = len(h1) - 1
+    context = build_fast_context(h1, routes_by_engine)
+    timestamps = context["timestamps"]
+    end_i = len(timestamps) - 1
     detail = []
 
-    for window, start_ts in WINDOW_STARTS.items():
-        start_i = first_index_on_or_after(h1, start_ts)
-        for cost in COSTS:
-            for engine in ENGINES:
-                for asset in ASSETS:
-                    row = simulate(
-                        h1,
-                        routes_by_engine[engine],
+    start_indices = {
+        window: first_index_on_or_after_fast(timestamps, start_ts)
+        for window, start_ts in WINDOW_STARTS.items()
+    }
+
+    for window, start_i in start_indices.items():
+        for engine in ENGINES:
+            rmap = context["route_maps"][engine]
+            for asset in ASSETS:
+                for cost in COSTS:
+                    row = simulate_fast(
+                        context,
+                        route_map_fast=rmap,
                         start_i=start_i,
                         end_i=end_i,
                         start_asset=asset,
@@ -861,12 +901,8 @@ def run_path_tests(
                             "window": window,
                             "cost_rate": cost,
                             "engine": engine,
-                            "start_date": pd.Timestamp(
-                                h1.iloc[start_i]["timestamp"]
-                            ),
-                            "end_date": pd.Timestamp(
-                                h1.iloc[end_i]["timestamp"]
-                            ),
+                            "start_date": pd.Timestamp(timestamps[start_i]),
+                            "end_date": pd.Timestamp(timestamps[end_i]),
                         }
                     )
                     detail.append(row)
@@ -977,13 +1013,6 @@ def run_path_tests(
         pd.DataFrame(summaries),
         pd.DataFrame(comparisons),
     )
-
-
-def confirmed_only(events: pd.DataFrame) -> pd.DataFrame:
-    if events.empty:
-        return events.copy()
-    return events[events["event"] == "CONFIRMED"].copy()
-
 
 def build_pair_lead(
     d1_events: pd.DataFrame,
