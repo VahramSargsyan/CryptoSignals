@@ -462,6 +462,12 @@ def fmt_pct(value) -> str:
     return f"{100.0 * float(value):+.2f}%"
 
 
+def fmt_rate(value) -> str:
+    if value is None or pd.isna(value):
+        return "—"
+    return f"{100.0 * float(value):.1f}%"
+
+
 def main() -> None:
     panel, data_meta = download_panel()
     monitor_cols = ["timestamp"] + [f"{a}_close" for a in ASSETS]
@@ -558,10 +564,10 @@ def main() -> None:
             f"|{int(round(100*row['threshold']))}%|{int(row['horizon_days'])}d|"
             f"{int(row['trigger_count'])}|{100*row['trigger_rate']:.1f}%|"
             f"{int(row['triggers_with_forward_data'])}|"
-            f"{'—' if pd.isna(row['candidate_beats_baseline_rate']) else f'{100*row['candidate_beats_baseline_rate']:.1f}%'}|"
+            f"{fmt_rate(row['candidate_beats_baseline_rate'])}|"
             f"{fmt_pct(row['median_relative_excess'])}|"
             f"{fmt_pct(row['mean_relative_excess'])}|"
-            f"{'—' if pd.isna(row['strong_continuation_rate_ge_20pct']) else f'{100*row['strong_continuation_rate_ge_20pct']:.1f}%'}|"
+            f"{fmt_rate(row['strong_continuation_rate_ge_20pct'])}|"
         )
 
     lines += [
@@ -575,7 +581,7 @@ def main() -> None:
         lines.append(
             f"|{int(round(100*row['threshold']))}%|{int(row['detection_day'])}|"
             f"{int(row['trigger_count'])}|"
-            f"{'—' if pd.isna(row['share_of_triggers']) else f'{100*row['share_of_triggers']:.1f}%'}|"
+            f"{fmt_rate(row['share_of_triggers'])}|"
         )
 
     lines += [
