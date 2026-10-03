@@ -50,12 +50,12 @@
     {
       "book_id": "BOOK_3",
       "label": "TERTIARY_PEPE_BRANCH",
-      "held_asset": "PEPE",
-      "quantity": 69341307.95379812,
+      "held_asset": "TRX",
+      "quantity": 886.7,
       "initial_quantity": 69341307.95379812,
       "tracking_start": "2026-10-01T18:00:00Z",
       "notification_event_floor": "2026-10-01T00:00:00Z",
-      "quantity_source": "USER_CONFIRMED_BINANCE_BALANCE_SCREENSHOT_2026-10-01"
+      "quantity_source": "TELEGRAM_USER_CONFIRMED_MANUAL_ROTATION_2026-10-03"
     }
   ],
   "execution_timing_policy": {

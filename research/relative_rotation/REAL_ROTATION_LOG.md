@@ -51,11 +51,11 @@ Provenance:
 
 Current held asset:
 
-`PEPE`
+`TRX`
 
 Current tracked quantity:
 
-`69341307.9537981079 PEPE`
+`886.7 TRX`
 
 Starting tracked quantity:
 
@@ -249,3 +249,37 @@ Position after execution:
 - BOOK_2 remains manual-execution-only;
 - BOOK_1 remains unchanged at `ATOM`.
 
+### ROT-BOOK3-20261003-TG265609233 - PEPE -> TRX
+
+Book: BOOK_3
+
+Signal evidence:
+
+- signal closed candle: 2026-10-02T00:00:00+00:00;
+- signal state: CONFIRMED;
+- model pair: PEPE/TRX;
+- route: PEPE -> TRX;
+- maximum dislocation: 25.1951521563%;
+- deviation from 180d median: -22.0502362782%;
+- reversal from post-ARM extreme: 4.20416051725%;
+- strategy threshold: 15% ARM / 3% reversal confirmation.
+
+Manual execution confirmation:
+
+- source: Telegram control bridge;
+- Telegram confirmation timestamp: 2026-10-03T20:15:12.000Z;
+- quantity sent: 69341307.9538 PEPE;
+- quantity received: 886.7 TRX;
+- effective aggregate cross ratio: 1 PEPE = 1.27874715111e-05 TRX;
+- fee: not supplied;
+- slippage: not independently measured;
+- exchange order/trade ID: not supplied;
+- exact exchange execution timestamp is not independently verified;
+- telegram update id: 265609233.
+
+Position after execution:
+
+- configured held asset: TRX;
+- configured quantity: 886.7 TRX;
+- execution remains manual-only; no exchange API order was placed;
+- GitHub re-validated this as the latest canonical effective route under the active Relative Rotation routing rules.
